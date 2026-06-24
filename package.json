@@ -1,0 +1,27 @@
+{
+  "name": "bardcast",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Turn a group of friends into characters in an ongoing RPG actual-play podcast, generated from their own audio replies. Built on vox-pop-core.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "dev:orchestrator": "npm run dev -w @bardcast/orchestrator",
+    "dev:player": "npm run dev -w @bardcast/player",
+    "dev:dm": "npm run dev -w @bardcast/dm"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

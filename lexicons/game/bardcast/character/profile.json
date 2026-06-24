@@ -1,0 +1,42 @@
+{
+    "lexicon": 1,
+    "id": "game.bardcast.character.profile",
+    "defs": {
+        "main": {
+            "type": "record",
+            "description": "A Bardcast character's static identity. Portable across campaigns: keyed in-app on the player's DID so the character can follow them. One record per character at the well-known `self` rkey.",
+            "key": "literal:self",
+            "record": {
+                "type": "object",
+                "required": ["displayName", "createdAt"],
+                "properties": {
+                    "player": {
+                        "type": "string",
+                        "format": "did",
+                        "description": "DID of the player who portrays this character. The durable identity key the character hangs off of."
+                    },
+                    "displayName": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120,
+                        "description": "The character's name as it appears in narration."
+                    },
+                    "concept": {
+                        "type": "string",
+                        "maxLength": 300,
+                        "description": "One-line concept, e.g. 'a guilt-ridden paladin who left her order'."
+                    },
+                    "pronouns": {
+                        "type": "string",
+                        "maxLength": 40
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "datetime",
+                        "description": "Real ISO 8601 creation time. NOT the in-world date (see stateEvent.storyDate)."
+                    }
+                }
+            }
+        }
+    }
+}

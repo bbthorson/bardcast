@@ -1,0 +1,40 @@
+{
+    "lexicon": 1,
+    "id": "game.bardcast.campaign.campaign",
+    "defs": {
+        "main": {
+            "type": "record",
+            "description": "A Bardcast campaign: the lore container a DM runs a party through. Chapters and prompts reference it.",
+            "key": "tid",
+            "record": {
+                "type": "object",
+                "required": ["title", "dm", "createdAt"],
+                "properties": {
+                    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+                    "dm": {
+                        "type": "string",
+                        "format": "did",
+                        "description": "DID of the Dungeon Master who runs this campaign."
+                    },
+                    "premise": {
+                        "type": "string",
+                        "maxLength": 5000,
+                        "description": "The campaign's underlying lore and setting — the narrative engine writes from this plus character state."
+                    },
+                    "party": {
+                        "type": "array",
+                        "maxLength": 32,
+                        "items": { "type": "string", "format": "at-uri" },
+                        "description": "AT-URIs of the character.profile records in the party."
+                    },
+                    "calendar": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "description": "Name of the in-world calendar (e.g. 'Calendar of Harptos'). Informs how storyDate strings are written."
+                    },
+                    "createdAt": { "type": "string", "format": "datetime" }
+                }
+            }
+        }
+    }
+}

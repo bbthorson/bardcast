@@ -1,0 +1,28 @@
+{
+  "name": "@bardcast/orchestrator",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hono service that runs the Bardcast loop: ingest replies, readiness gate, chapter generation, prompt suggestion.",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@bardcast/domain": "*",
+    "@bardcast/engagement": "*",
+    "@bardcast/voxpop-client": "*",
+    "@hono/node-server": "^1.13.7",
+    "hono": "^4.6.14",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

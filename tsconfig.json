@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.base.json",
+  "comment": "Workspaces export TypeScript source directly (see each package.json 'exports'). Type-checking runs per workspace via 'npm run typecheck'. This root config exists for editor defaults only.",
+  "include": [],
+  "files": []
+}

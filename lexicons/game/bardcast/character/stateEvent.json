@@ -1,0 +1,42 @@
+{
+    "lexicon": 1,
+    "id": "game.bardcast.character.stateEvent",
+    "defs": {
+        "main": {
+            "type": "record",
+            "description": "A backdated point in a character's arc — one per meaningful beat. The series, ordered by createdAt, lets a reader scrub the character changing over the campaign. Precedent: supper_club_secrets character.stateEvent.",
+            "key": "tid",
+            "record": {
+                "type": "object",
+                "required": ["subject", "state", "storyDate", "createdAt"],
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "format": "at-uri",
+                        "description": "AT-URI of the character.profile this event belongs to."
+                    },
+                    "state": {
+                        "type": "string",
+                        "maxLength": 300,
+                        "description": "One-line emotional/situational descriptor at this beat."
+                    },
+                    "storyDate": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "description": "In-world date as a PLAIN STRING (fantasy calendars allowed, e.g. '14th of Hammer, 1492 DR'). Never parsed as a real datetime."
+                    },
+                    "chapterRef": {
+                        "type": "string",
+                        "format": "at-uri",
+                        "description": "Chapter this beat was revealed in."
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "datetime",
+                        "description": "Set to the beat's real ordering timestamp so the series sorts chronologically. Distinct from storyDate."
+                    }
+                }
+            }
+        }
+    }
+}

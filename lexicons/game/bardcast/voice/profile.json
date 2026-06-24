@@ -1,0 +1,38 @@
+{
+    "lexicon": 1,
+    "id": "game.bardcast.voice.profile",
+    "defs": {
+        "main": {
+            "type": "record",
+            "description": "A player's voice-clone reference, keyed in-app on their DID. Holds a provider-side model handle and explicit consent — never raw biometric data. One per player at the `self` rkey.",
+            "key": "literal:self",
+            "record": {
+                "type": "object",
+                "required": ["status", "consent", "createdAt"],
+                "properties": {
+                    "modelRef": {
+                        "type": "string",
+                        "maxLength": 300,
+                        "description": "Opaque handle to the voice model held by the VoiceCloner provider. Bardcast never stores the model itself."
+                    },
+                    "sampleReplies": {
+                        "type": "array",
+                        "maxLength": 512,
+                        "items": { "type": "string", "format": "at-uri" },
+                        "description": "AT-URIs of the vox-pop reply records used as training samples (provenance)."
+                    },
+                    "status": {
+                        "type": "string",
+                        "knownValues": ["collecting", "training", "ready", "revoked"],
+                        "description": "'ready' is required for a player to be voiced in a chapter. Feeds the readiness gate."
+                    },
+                    "consent": {
+                        "type": "boolean",
+                        "description": "Explicit, revocable consent to clone this voice. Required true to train or render."
+                    },
+                    "createdAt": { "type": "string", "format": "datetime" }
+                }
+            }
+        }
+    }
+}

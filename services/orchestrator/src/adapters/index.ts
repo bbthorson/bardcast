@@ -1,0 +1,51 @@
+import { PwaEngagementChannel } from "@bardcast/engagement";
+import { VoxPopClient } from "@bardcast/voxpop-client";
+import type { CoreServices } from "../ports/index.js";
+import { InMemoryStore } from "./in-memory-store.js";
+import { StubAudioRenderer } from "./stub-audio-renderer.js";
+import { StubIdentityProvider } from "./stub-identity-provider.js";
+import { StubNarrativeWriter } from "./stub-narrative-writer.js";
+import { StubVoiceCloner } from "./stub-voice-cloner.js";
+import { ClientVoxPopGateway } from "./voxpop-gateway.js";
+
+export interface BuildServicesConfig {
+  voxPopBaseUrl: string;
+  appBaseUrl: string;
+}
+
+/**
+ * The composition root. Wires every port to an adapter and returns the bundle
+ * the use-cases run against. This scaffold wires STUB adapters (except the
+ * vox-pop client, which is real but points at a configured base URL). Replacing
+ * a capability = swapping one line here. Mirrors vox-pop-core's
+ * core-services-firebase.ts composition root.
+ */
+export function buildServices(config: BuildServicesConfig): CoreServices {
+  const identity = new StubIdentityProvider();
+
+  const voxPopClient = new VoxPopClient({
+    baseUrl: config.voxPopBaseUrl,
+    // TODO(bardcast): thread the current player's token through per-request
+    // instead of a static dev token.
+    getToken: () => identity.tokenForPlayer("did:example:dev"),
+  });
+
+  const engagement = new PwaEngagementChannel({
+    apiBaseUrl: config.appBaseUrl,
+    sendPush: async () => {
+      // TODO(bardcast): real Web Push (VAPID).
+    },
+    promptUrl: (promptRef) => `${config.appBaseUrl}/play/${encodeURIComponent(promptRef)}`,
+  });
+
+  return {
+    store: new InMemoryStore(),
+    voxpop: new ClientVoxPopGateway(voxPopClient),
+    narrative: new StubNarrativeWriter(),
+    voice: new StubVoiceCloner(),
+    audio: new StubAudioRenderer(),
+    identity,
+    engagement,
+    clock: () => new Date(),
+  };
+}
