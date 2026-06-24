@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@atproto/oauth-client-node": "0.4.2",
     "@bardcast/domain": "*",
     "@bardcast/engagement": "*",
     "@bardcast/voxpop-client": "*",

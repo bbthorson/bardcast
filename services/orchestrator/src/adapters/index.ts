@@ -1,6 +1,8 @@
 import { PwaEngagementChannel } from "@bardcast/engagement";
 import { VoxPopClient } from "@bardcast/voxpop-client";
 import type { CoreServices } from "../ports/index.js";
+import type { IdentityProvider } from "../ports/identity-provider.js";
+import { AtprotoIdentityProvider } from "./atproto/identity-provider.js";
 import { InMemoryStore } from "./in-memory-store.js";
 import { StubAudioRenderer } from "./stub-audio-renderer.js";
 import { StubIdentityProvider } from "./stub-identity-provider.js";
@@ -9,8 +11,17 @@ import { StubVoiceCloner } from "./stub-voice-cloner.js";
 import { ClientVoxPopGateway } from "./voxpop-gateway.js";
 
 export interface BuildServicesConfig {
+  /** Base URL of the (Bardcast-controlled) vox-pop-core deployment. */
   voxPopBaseUrl: string;
+  /** Player PWA base URL — engagement deep links + post-login redirect. */
   appBaseUrl: string;
+  /** This service's own public URL — roots the AT-Proto client_id/redirect_uri. */
+  orchestratorBaseUrl: string;
+  /** "atproto" = real AT-Proto OAuth identity; "stub" = dev header-based. */
+  auth: "stub" | "atproto";
+  appName?: string;
+  /** Bearer Bardcast presents to its own vox-pop-core (DID-trusting) deployment. */
+  voxPopServiceToken?: string;
 }
 
 /**
@@ -21,7 +32,17 @@ export interface BuildServicesConfig {
  * core-services-firebase.ts composition root.
  */
 export function buildServices(config: BuildServicesConfig): CoreServices {
-  const identity = new StubIdentityProvider();
+  const identity: IdentityProvider =
+    config.auth === "atproto"
+      ? new AtprotoIdentityProvider({
+          baseUrl: config.orchestratorBaseUrl,
+          appName: config.appName ?? "Bardcast",
+          postLoginRedirect: config.appBaseUrl,
+          ...(config.voxPopServiceToken !== undefined
+            ? { voxPopServiceToken: config.voxPopServiceToken }
+            : {}),
+        })
+      : new StubIdentityProvider();
 
   const voxPopClient = new VoxPopClient({
     baseUrl: config.voxPopBaseUrl,
