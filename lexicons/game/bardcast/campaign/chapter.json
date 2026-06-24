@@ -13,7 +13,13 @@
                     "campaign": { "type": "string", "format": "at-uri", "description": "The campaign this chapter belongs to." },
                     "index": { "type": "integer", "minimum": 1, "description": "1-based chapter number within the campaign." },
                     "title": { "type": "string", "minLength": 1, "maxLength": 300 },
-                    "transcript": { "type": "string", "maxLength": 100000, "description": "The written narrative the audio was rendered from." },
+                    "script": {
+                        "type": "array",
+                        "maxLength": 4096,
+                        "items": { "type": "ref", "ref": "#scriptLine" },
+                        "description": "Speaker-tagged script the audio is rendered from. Each line maps to a voice."
+                    },
+                    "transcript": { "type": "string", "maxLength": 100000, "description": "Human-readable rendering of the script." },
                     "audio": {
                         "type": "blob",
                         "accept": ["audio/*"],
@@ -21,13 +27,22 @@
                         "description": "Rendered chapter audio in the players' cloned voices. Up to 500 MB."
                     },
                     "storyDate": { "type": "string", "maxLength": 80, "description": "In-world date the chapter takes place on (plain string)." },
+                    "seed": { "type": "integer", "description": "Master seed for the generation run — reproducibility + branch replay." },
                     "status": {
                         "type": "string",
-                        "knownValues": ["drafting", "writing", "rendering", "ready", "failed"],
-                        "description": "Pipeline state. The DM sees 'processing' while this is writing|rendering."
+                        "knownValues": ["drafting", "writing", "rendering", "awaiting_input", "ready", "failed"],
+                        "description": "Pipeline state. The DM sees 'processing' while writing|rendering; 'awaiting_input' = paused for a DM decision or more player audio."
                     },
                     "createdAt": { "type": "string", "format": "datetime" }
                 }
+            }
+        },
+        "scriptLine": {
+            "type": "object",
+            "required": ["speaker", "text"],
+            "properties": {
+                "speaker": { "type": "string", "maxLength": 120, "description": "Character id, or 'narrator'." },
+                "text": { "type": "string", "maxLength": 10000 }
             }
         }
     }

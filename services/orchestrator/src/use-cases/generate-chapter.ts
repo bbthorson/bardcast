@@ -1,4 +1,4 @@
-import type { Chapter, CharacterStateEvent } from "@bardcast/domain";
+import { newMasterSeed, type Chapter, type CharacterStateEvent } from "@bardcast/domain";
 import type { CoreServices, NarrativeCharacter } from "../ports/index.js";
 import { checkReadiness } from "./check-readiness.js";
 
@@ -59,7 +59,11 @@ export async function generateChapter(
     campaign: `at://${input.campaignId}`,
     index,
     title: `Chapter ${index}`,
+    script: [],
     status: "writing",
+    seed: newMasterSeed(),
+    rollLog: [],
+    beats: [],
     createdAt: now(),
   };
   await svc.store.putChapter(chapterId, chapter);

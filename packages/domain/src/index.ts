@@ -11,3 +11,5 @@ export * from "./character.js";
 export * from "./campaign.js";
 export * from "./voice.js";
 export * from "./readiness.js";
+export * from "./dice.js";
+export * from "./resolution.js";
