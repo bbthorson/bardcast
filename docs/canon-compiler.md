@@ -51,7 +51,7 @@ Two layers. Each `type` value is the OKF `type` frontmatter; each gets a Zod sch
 | `type` | Carries (frontmatter) | Machine-readable links |
 |---|---|---|
 | `Place` | mood/description (body) | `occupants` (NPCs), `items` |
-| `NPC` | role, allegiance, voice (body) | `location`, `factions`, `items` |
+| `NPC` | `role` (Propp dramatis personae — optional), allegiance & voice (body) | `location`, `factions`, `items` |
 | `Item` | properties, significance (body) | `owner`, `location` |
 | `Faction` | goals (body) | `members`, `places` |
 | `Lore` | what happened, in-world date | the entities it touches |
@@ -60,8 +60,8 @@ Two layers. Each `type` value is the OKF `type` frontmatter; each gets a Zod sch
 
 | `type` | Carries | Machine-readable links |
 |---|---|---|
-| `Arc` | `sequence: strict \| selectable` | `episodes` (ordered or pooled beat refs) |
-| `QuestBeat` | `central_choice` (decision node), `resolution.mode`, body sections (Setting / What happens / Resolution notes) | `arc`, `location`, `npcs`, `items`, `leads_to`, `establishes` (character slots) |
+| `Arc` | `sequence: plotted \| node-based` (Alexandrian) | `episodes` (ordered path or selectable pool) |
+| `QuestBeat` | `central_choice` (decision node), `resolution.mode`, `function` (Propp — optional), body sections (Setting / What happens / Resolution notes) | `arc`, `location`, `npcs`, `items`, `leads_to`, `establishes` (character slots) |
 
 ## 3. Fields justified by the two test cases
 
@@ -72,7 +72,9 @@ it. "Demanded by" shows which one forced it — anything only one needs is optio
 |---|---|---|
 | `location`, `npcs`, `items` (on beats) | both | grounding the writer + linter referential integrity. *Already in Gawain's beat-1 frontmatter.* |
 | `leads_to` (frontmatter, not prose) | both | Gawain currently expresses this as a prose "→ leads to" link; promote it so the spine is machine-traversable |
-| `Arc` + `sequence: strict \| selectable` | **JTTW** | Gawain is one flat sequential spine; JTTW is a pilgrimage **arc** of largely **self-contained, selectable** episodes. One story could never reveal this |
+| `Arc` + `sequence: plotted \| node-based` | **JTTW** | Gawain is a **plotted** spine (deadline chokepoints); JTTW is a **node-based** pilgrimage of self-contained, selectable episodes. Terms + theory borrowed from the Alexandrian. One story could never reveal this |
+| `role` (NPC / character slot) | both | Propp **dramatis personae** (hero/villain/donor/helper/dispatcher…). `hero` = the player-fillable slot. Green Knight = villain+donor; Guanyin = donor/helper |
+| `function` (per beat, optional) | both | Propp's 31 **functions** as a decomposition scaffold + alignment signal; folktale-specific, so optional metadata |
 | `establishes` (character slots a beat introduces) | both | Gawain's beat-1 establishes each knight; JTTW's opening **assembles the party** (Wukong freed, Bajie/Wujing recruited) — both are anchor opportunities (`product-spec.md §6`) |
 | `drives` (first-class on characters) | **JTTW** | JTTW's companions have explicit, divergent wants (pride, appetite, piety); Gawain's are implicit. The decomposer extracts them or flags them missing |
 | `resolution.mode` (combat \| social \| trick \| puzzle) | **JTTW** | Gawain is ~one melee/social check; JTTW spans combat, transformation/trickery, and **celestial-intervention** resolutions. The mode maps each to an SRD ability/DC |
@@ -113,6 +115,8 @@ Two axes, split by *how* each is checked:
   Setting / What-happens / Resolution-notes body sections.
 - **Spine connectivity** — beats form a connected path (or a complete selectable pool
   under an `Arc`); no orphans.
+- **Path redundancy** (node-based arcs) — borrowing the Alexandrian **Three Clue Rule**,
+  each node has ≥N ways in/out, so a node-based arc can't dead-end on a missed link.
 - **Decision-node density** — ≥1 genuine `central_choice` per beat.
 - **Cast fit** — `party_size` declared; every character slot has ≥1 `establishes` beat.
 - **Resolution coverage** — each `resolution.mode` maps to an SRD ability/DC the dice
@@ -132,7 +136,29 @@ pattern — mechanical checks gate; the LLM grader scores alignment with per-cri
 explanations. Both golden bundles must pass completeness and grade well on alignment;
 they're how we later validate the automated extractor and grader.
 
-## 5. Build sequence (and what's scaffolding-now vs. later)
+## 5. Borrow vs. track upstream
+
+Prior art splits by *how* we consume it. **Vendor** = copy a small, stable vocabulary
+into our Zod profile and version-pin it (we own it; no runtime dependency). **Track
+upstream** = depend on actively-maintained data/specs so we benefit from others'
+continued work. License gates which is even possible.
+
+| Source | Mode | License | Why |
+|---|---|---|---|
+| **OKF** | track upstream | open spec | new (2026) and evolving — pin a version, watch the spec; we're already built on it |
+| **SRD 5.x** ability/skill/DC/monster data (e.g. Open5e, 5e-database) | track upstream | CC-BY-4.0 (attribution) | actively maintained; feeds the `resolution.mode` layer + the dice engine so we don't hand-maintain stat data |
+| **Propp** dramatis personae + functions | vendor | method / PD-era text | stable since 1928 — copy the role/function vocabulary into Zod; ongoing formalization research informs but isn't a dependency |
+| **Alexandrian** node-based design + Three Clue Rule | vendor (concept) | article — cite, don't copy text | copy the pattern + the redundancy check; attribute |
+| **Ink / Twine / Yarn** | skip as dependency | MIT / open | runtimes assume scripted branching; we have the LLM write prose. Borrow the graph vocabulary only. (`inkjs` is MIT if we ever script.) |
+| **Kanka** | taxonomy only | **AGPL** (copyleft) | its entity taxonomy validates ours, and its API could be an export/interop target later — but **don't take code** (AGPL is viral); ideas only |
+
+**Principle:** small stable vocabularies → **vendor and version-pin** (don't make a
+folktale taxonomy a live dependency); large evolving data/specs → **track upstream** so
+maintenance is someone else's job. The two that genuinely pay off as live dependencies
+are **OKF** (the format) and a **maintained SRD dataset** (the resolution data) — both
+permissively licensed; Kanka's AGPL keeps it ideas-only.
+
+## 6. Build sequence (and what's scaffolding-now vs. later)
 
 | Step | When | Notes |
 |---|---|---|
