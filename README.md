@@ -81,6 +81,7 @@ Design decisions live in [`docs/`](./docs):
 
 - [`product-spec.md`](./docs/product-spec.md) — the MVP gameplay loop: human-DM + Bardcast recommendations, batch cadence, DM-triggered generation with a hard readiness floor, the campaign-status view, and Antiphony field mapping.
 - [`story-engine.md`](./docs/story-engine.md) — content/canon model, staged generation, seeded SRD dice, the death-backtrack design.
+- [`canon-compiler.md`](./docs/canon-compiler.md) — the supply side: decomposing source stories into a Bardcast **profile on OKF**, plus completeness/alignment assessment. Test cases: Gawain + Journey to the West.
 - [`integration-with-core.md`](./docs/integration-with-core.md) — the two-layer identity model (DID auth + a headless engine user) and the engine requirements it implies.
 - [`hosting.md`](./docs/hosting.md) — the hybrid hosting posture (Cloud Run + Cloudflare Pages/R2) and ElevenLabs.
 
