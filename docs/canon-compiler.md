@@ -61,7 +61,18 @@ Two layers. Each `type` value is the OKF `type` frontmatter; each gets a Zod sch
 | `type` | Carries | Machine-readable links |
 |---|---|---|
 | `Arc` | `sequence: plotted \| node-based` (Alexandrian) | `episodes` (ordered path or selectable pool) |
-| `QuestBeat` | `central_choice` (decision node), `resolution.mode`, `function` (Propp — optional), body sections (Setting / What happens / Resolution notes) | `arc`, `location`, `npcs`, `items`, `leads_to`, `establishes` (character slots) |
+| `QuestBeat` | `central_choice` (decision node), `resolution.mode`, `function` (Propp — optional), body sections (Setting / What happens / Resolution notes) | `arc`, `location`, `npcs`, `items`, `leads_to` (plotted arcs only), `establishes` |
+
+**Cast layer** (surfaced by authoring the JTTW bundle):
+
+| `type` | Carries | Machine-readable links |
+|---|---|---|
+| `CharacterSlot` | `role: hero` (Propp), first-class `drives` | (target of a beat's `establishes`) |
+
+A `CharacterSlot` is a **player-fillable role**, not a fixed PC — the home of the
+explicit `drives` JTTW demanded, and what a beat's `establishes` points at. Gawain has
+one implicitly (the knight described in the Round Table faction); it's now a first-class
+type.
 
 ## 3. Fields justified by the two test cases
 
@@ -73,7 +84,7 @@ it. "Demanded by" shows which one forced it — anything only one needs is optio
 | `location`, `npcs`, `items` (on beats) | both | grounding the writer + linter referential integrity. *Already in Gawain's beat-1 frontmatter.* |
 | `leads_to` (frontmatter, not prose) | both | Gawain currently expresses this as a prose "→ leads to" link; promote it so the spine is machine-traversable |
 | `Arc` + `sequence: plotted \| node-based` | **JTTW** | Gawain is a **plotted** spine (deadline chokepoints); JTTW is a **node-based** pilgrimage of self-contained, selectable episodes. Terms + theory borrowed from the Alexandrian. One story could never reveal this |
-| `role` (NPC / character slot) | both | Propp **dramatis personae** (hero/villain/donor/helper/dispatcher…). `hero` = the player-fillable slot. Green Knight = villain+donor; Guanyin = donor/helper |
+| `role` (NPC / character slot) | both | Propp **dramatis personae** (hero/villain/donor/helper/dispatcher…), **scalar or list** — a figure can hold two roles (Tripitaka = dispatcher+sought; Green Knight = villain+donor). `hero` = the player-fillable slot |
 | `function` (per beat, optional) | both | Propp's 31 **functions** as a decomposition scaffold + alignment signal; folktale-specific, so optional metadata |
 | `establishes` (character slots a beat introduces) | both | Gawain's beat-1 establishes each knight; JTTW's opening **assembles the party** (Wukong freed, Bajie/Wujing recruited) — both are anchor opportunities (`product-spec.md §6`) |
 | `drives` (first-class on characters) | **JTTW** | JTTW's companions have explicit, divergent wants (pride, appetite, piety); Gawain's are implicit. The decomposer extracts them or flags them missing |
@@ -162,7 +173,7 @@ permissively licensed; Kanka's AGPL keeps it ideas-only.
 
 | Step | When | Notes |
 |---|---|---|
-| 1. Lock the profile (type vocab + Zod schemas in `@bardcast/domain`) | now | the contract both bundles fit |
+| 1. Lock the profile (type vocab + Zod schemas in `@bardcast/domain`) | **done** | `packages/domain/src/canon.ts` (+ `canon.test.ts`); profile version `0.1.0` |
 | 2. Promote Gawain's `leads_to` to frontmatter; add missing profile fields | now | bring the existing bundle up to profile |
 | 3. Author the JTTW slice into `content/campaigns/journey-to-the-west/` | now | the second golden bundle |
 | 4. Completeness **linter** over both bundles, in CI | now | the cheap, deterministic half of assessment |

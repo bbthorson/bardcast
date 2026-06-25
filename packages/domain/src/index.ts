@@ -13,3 +13,4 @@ export * from "./voice.js";
 export * from "./readiness.js";
 export * from "./dice.js";
 export * from "./resolution.js";
+export * from "./canon.js";
