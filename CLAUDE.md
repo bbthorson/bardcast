@@ -61,6 +61,9 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 - Each lexicon JSON has a matching Zod schema in `@bardcast/domain`. Keep them in sync; the Zod schema
   is what runtime code validates against.
 - Mark every unimplemented seam with `TODO(bardcast): ...` so they're greppable.
+- The visual identity is **locked** — "The Tavern Table", `docs/brand.md`. Colors, fonts, and voice
+  lines come from `@bardcast/brand` (tokens + assets); never hard-code a hex in an app. The ember
+  accent marks the single next action on a screen — one per screen, always.
 - This is a sibling of `../vox-pop-core` (the engine) and `../supper_club_secrets` (the design
   precedent and an example world). Read those, don't fork them.
 

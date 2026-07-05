@@ -1,0 +1,14 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bardcast app icon">
+  <!-- Full-bleed square for PWA/maskable icons: the hearth-mark on walnut,
+       no ring (the OS supplies the shape), mark scaled to the 80% safe zone. -->
+  <rect width="512" height="512" fill="#241A12"/>
+  <g transform="translate(64 64) scale(4)">
+    <g fill="#E07B39">
+      <rect x="20" y="52" width="8" height="18" rx="4"/>
+      <rect x="34" y="44" width="8" height="26" rx="4"/>
+      <rect x="64" y="52" width="8" height="18" rx="4"/>
+    </g>
+    <path d="M54 70 C45 63 46.8 52 54 44 C52.2 52.5 61.8 53.7 60 62 C58.9 67 56.7 69 54 70 Z" fill="#D9A441"/>
+    <rect x="17" y="76" width="62" height="3.5" rx="1.75" fill="#D9A441" opacity="0.85"/>
+  </g>
+</svg>

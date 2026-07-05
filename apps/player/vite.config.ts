@@ -12,11 +12,11 @@ export default defineConfig({
         name: "Bardcast",
         short_name: "Bardcast",
         description: "Answer your DM's prompts in your own voice.",
-        theme_color: "#1b1033",
-        background_color: "#1b1033",
+        theme_color: "#241a12",
+        background_color: "#241a12",
         display: "standalone",
-        // TODO(bardcast): add real icon assets under public/.
-        icons: [],
+        // TODO(bardcast): render PNG sizes from the SVG for broader install support.
+        icons: [{ src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }],
       },
     }),
   ],

@@ -1,0 +1,44 @@
+/*
+ * The Tavern Table — Bardcast design tokens (see docs/brand.md).
+ * Mirrors packages/brand/src/index.ts; keep the two in sync.
+ */
+:root {
+  --bc-walnut: #241a12;
+  --bc-walnut-raised: #2e2218;
+  --bc-parchment: #f0e3c9;
+  --bc-parchment-dim: #b9a98c;
+  --bc-ember: #e07b39; /* reserved for the single next action on any screen */
+  --bc-candle-gold: #d9a441;
+  --bc-hearth-red: #9c3f2e;
+  --bc-moss: #6d7a50;
+
+  --bc-font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --bc-font-body: "Source Serif 4", "Iowan Old Style", Palatino, Georgia, serif;
+  --bc-font-ui: Seravek, "Avenir Next", system-ui, sans-serif;
+  --bc-font-mono: "SF Mono", Menlo, Consolas, monospace;
+
+  --bc-radius-pill: 999px;
+  --bc-radius-card: 12px;
+}
+
+/* The Chronicle's one borrowed move: chapter titles open with an illuminated initial. */
+.bc-dropcap::first-letter {
+  font-family: var(--bc-font-display);
+  font-weight: 700;
+  color: var(--bc-candle-gold);
+  float: left;
+  font-size: 3.2em;
+  line-height: 0.85;
+  padding-right: 0.08em;
+}
+
+/* The Arcane Signal's one borrowed move: SRD dice results read as an instrument panel. */
+.bc-dice-log {
+  font-family: var(--bc-font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--bc-candle-gold);
+  background: var(--bc-walnut-raised);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}

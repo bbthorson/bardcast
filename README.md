@@ -82,6 +82,7 @@ Design decisions live in [`docs/`](./docs):
 - [`story-engine.md`](./docs/story-engine.md) — content/canon model, staged generation, seeded SRD dice, the death-backtrack design.
 - [`integration-with-core.md`](./docs/integration-with-core.md) — the two-layer identity model (DID auth + a headless engine user) and the engine requirements it implies.
 - [`hosting.md`](./docs/hosting.md) — the hybrid hosting posture (Cloud Run + Cloudflare Pages/R2) and ElevenLabs.
+- [`brand.md`](./docs/brand.md) — the locked visual identity ("The Tavern Table"): palette, type, voice, and the ember rule. Tokens + assets live in `packages/brand`.
 
 ## Status
 

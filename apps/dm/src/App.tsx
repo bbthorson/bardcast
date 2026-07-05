@@ -1,3 +1,4 @@
+import { color, font } from "@bardcast/brand";
 import type { CharacterReadiness, PartyReadiness } from "@bardcast/domain";
 import { useState } from "react";
 
@@ -43,36 +44,40 @@ export function App() {
 
   return (
     <main style={styles.main}>
-      <h1>Bardcast — DM Console</h1>
-      <p style={styles.muted}>Campaign: {campaignId}</p>
+      <div style={styles.page}>
+        <h1 style={styles.h1}>Bardcast — DM Console</h1>
+        <p style={styles.muted}>Campaign: {campaignId}</p>
 
-      <div style={styles.row}>
-        <button style={styles.btn} onClick={refresh}>Check readiness</button>
-        <button
-          style={{ ...styles.btn, background: readiness?.ready ? "#36c08f" : "#555" }}
-          disabled={!readiness?.ready}
-          onClick={generate}
-        >
-          Generate next chapter
-        </button>
+        <div style={styles.row}>
+          <button style={styles.btnSecondary} onClick={refresh}>Check readiness</button>
+          {/* The ember rule (docs/brand.md): generation is the next action only
+              once the gate opens; until then it sits unlit. */}
+          <button
+            style={{ ...styles.btn, ...(readiness?.ready ? null : styles.btnUnlit) }}
+            disabled={!readiness?.ready}
+            onClick={generate}
+          >
+            Generate next chapter
+          </button>
+        </div>
+
+        {status && <p style={styles.status}>{status}</p>}
+
+        {readiness && (
+          <section style={styles.grid}>
+            {Object.entries(readiness.perCharacter).map(([id, r]) => (
+              <CharacterCard key={id} id={id} r={r} />
+            ))}
+          </section>
+        )}
       </div>
-
-      {status && <p style={styles.status}>{status}</p>}
-
-      {readiness && (
-        <section style={styles.grid}>
-          {Object.entries(readiness.perCharacter).map(([id, r]) => (
-            <CharacterCard key={id} id={id} r={r} />
-          ))}
-        </section>
-      )}
     </main>
   );
 }
 
 function CharacterCard({ id, r }: { id: string; r: CharacterReadiness }) {
   return (
-    <article style={{ ...styles.card, borderColor: r.ready ? "#36c08f" : "#a3173a" }}>
+    <article style={{ ...styles.card, borderColor: r.ready ? color.moss : color.hearthRed }}>
       <h3 style={{ margin: "0 0 0.5rem" }}>{id}</h3>
       <Axis label="Sheet" pct={r.sheet.progress} detail={r.sheet.detail} />
       <Axis label="Behavior" pct={r.behavior.progress} detail={r.behavior.detail} />
@@ -99,14 +104,18 @@ function Axis({ label, pct, detail }: { label: string; pct: number; detail: stri
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  main: { maxWidth: 880, margin: "0 auto", padding: "2rem", fontFamily: "system-ui, sans-serif" },
-  muted: { opacity: 0.6, fontSize: "0.85rem" },
+  main: { minHeight: "100vh", background: color.walnut, color: color.parchment, fontFamily: font.ui },
+  page: { maxWidth: 880, margin: "0 auto", padding: "2rem" },
+  h1: { fontFamily: font.display, fontWeight: 600 },
+  muted: { color: color.parchmentDim, fontSize: "0.85rem" },
   row: { display: "flex", gap: "0.75rem", margin: "1rem 0" },
-  btn: { padding: "0.7rem 1.1rem", borderRadius: 10, border: "none", color: "white", background: "#6d4ed6" },
-  status: { padding: "0.75rem 1rem", background: "#f1edff", borderRadius: 8 },
+  btn: { padding: "0.7rem 1.1rem", borderRadius: 10, border: "none", color: color.walnut, background: color.ember, fontWeight: 600 },
+  btnUnlit: { background: color.walnutRaised, color: color.parchmentDim, fontWeight: 400 },
+  btnSecondary: { padding: "0.7rem 1.1rem", borderRadius: 10, border: `1px solid ${color.candleGold}`, color: color.candleGold, background: "transparent" },
+  status: { padding: "0.75rem 1rem", background: color.walnutRaised, color: color.candleGold, borderRadius: 8 },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem", marginTop: "1rem" },
-  card: { border: "2px solid", borderRadius: 12, padding: "1rem" },
+  card: { border: "2px solid", borderRadius: 12, padding: "1rem", background: color.walnutRaised },
   axisHead: { display: "flex", justifyContent: "space-between", fontSize: "0.85rem" },
-  track: { height: 8, background: "#eee", borderRadius: 999, overflow: "hidden" },
-  fill: { height: "100%", background: "#6d4ed6" },
+  track: { height: 8, background: color.walnut, borderRadius: 999, overflow: "hidden" },
+  fill: { height: "100%", background: color.candleGold },
 };

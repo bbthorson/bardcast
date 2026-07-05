@@ -1,3 +1,4 @@
+import { color, font } from "@bardcast/brand";
 import { useState } from "react";
 import { useAudioRecorder } from "./useAudioRecorder.js";
 
@@ -35,11 +36,13 @@ export function App() {
       ) : (
         <div style={styles.controls}>
           {state !== "recording" ? (
-            <button style={styles.record} onClick={start}>
+            // The ember rule (docs/brand.md): the accent marks the single next
+            // action — record until there's a take, then send.
+            <button style={blob ? styles.secondaryPill : styles.record} onClick={start}>
               {blob ? "Re-record" : "Hold the mic — tap to record"}
             </button>
           ) : (
-            <button style={{ ...styles.record, background: "#a3173a" }} onClick={stop}>
+            <button style={{ ...styles.record, background: color.hearthRed, color: color.parchment }} onClick={stop}>
               Stop ({Math.floor(durationMs / 1000)}s)
             </button>
           )}
@@ -68,23 +71,32 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     gap: "1.5rem",
     padding: "1.5rem",
-    background: "#1b1033",
-    color: "#f3eefc",
-    fontFamily: "system-ui, sans-serif",
+    background: color.walnut,
+    color: color.parchment,
+    fontFamily: font.ui,
   },
-  scene: { opacity: 0.7, fontStyle: "italic", margin: 0 },
-  title: { fontSize: "1.6rem", lineHeight: 1.2, margin: 0 },
+  scene: { color: color.parchmentDim, fontFamily: font.body, fontStyle: "italic", margin: 0 },
+  title: { fontFamily: font.display, fontSize: "1.6rem", lineHeight: 1.2, margin: 0 },
   controls: { display: "flex", flexDirection: "column", gap: "1rem" },
   record: {
     padding: "1.1rem",
     fontSize: "1.1rem",
+    fontWeight: 600,
     borderRadius: "999px",
     border: "none",
-    background: "#6d4ed6",
-    color: "white",
+    background: color.ember,
+    color: color.walnut,
+  },
+  secondaryPill: {
+    padding: "1.1rem",
+    fontSize: "1.1rem",
+    borderRadius: "999px",
+    border: `1px solid ${color.candleGold}`,
+    background: "transparent",
+    color: color.candleGold,
   },
   row: { display: "flex", gap: "0.75rem" },
-  secondary: { flex: 1, padding: "0.9rem", borderRadius: "12px", border: "1px solid #6d4ed6", background: "transparent", color: "#f3eefc" },
-  primary: { flex: 2, padding: "0.9rem", borderRadius: "12px", border: "none", background: "#36c08f", color: "#04231a", fontWeight: 600 },
-  sent: { fontSize: "1.2rem", textAlign: "center" },
+  secondary: { flex: 1, padding: "0.9rem", borderRadius: "12px", border: `1px solid ${color.candleGold}`, background: "transparent", color: color.candleGold },
+  primary: { flex: 2, padding: "0.9rem", borderRadius: "12px", border: "none", background: color.ember, color: color.walnut, fontWeight: 600 },
+  sent: { fontFamily: font.body, fontSize: "1.2rem", textAlign: "center" },
 };
