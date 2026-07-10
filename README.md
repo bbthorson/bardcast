@@ -48,6 +48,7 @@ reverse. In-world (fantasy-calendar) dates are stored as plain string fields, wh
 | `packages/voxpop-client` | Typed client for the engine's `/api/v1/*` API. |
 | `packages/engagement` | The engagement **port** + a PWA adapter (live) + a Bluesky-communities adapter (stub). |
 | `services/orchestrator` | Hono service: the readiness gate, chapter pipeline, prompt suggestion, and Bardcast's own AT-Proto OAuth routes. |
+| `apps/web` | Public **front door** (Cloudflare Pages) — AT-Proto sign-in, create/join a campaign, and manage your voice clone. |
 | `apps/player` | Mobile-first **PWA** — hear a prompt, tap to record a reply. Built for near-zero friction. |
 | `apps/dm` | DM console — campaign lore, character roster, generation dashboard, prompt suggestions. |
 | `content/campaigns/*` | Staff-curated, licensing-reviewed campaign canon as **OKF** bundles (seed: *Sir Gawain and the Green Knight*). |
@@ -88,9 +89,13 @@ Design decisions live in [`docs/`](./docs):
 
 **Backend, pre-UI.** Real and tested: the domain model, the **readiness gate**, the **dice/resolution
 engine** (deterministic, SRD 5.1), Bardcast's own **AT-Proto identity** provider, and the first
-**campaign canon** seed (Gawain, OKF). Still stubbed (marked `TODO(bardcast)`): the LLM `NarrativeWriter`,
-the ElevenLabs `VoiceCloner`/`AudioRenderer`, persistence, the Bluesky channel, and the two app UIs —
-which stay parked until the backend works. See [`CLAUDE.md`](./CLAUDE.md) for contributor orientation.
+**campaign canon** seed (Gawain, OKF). A first UI surface, the **`apps/web` front door**, is now
+scaffolded on the live identity seam: AT-Proto sign-in wired to the orchestrator's `/atproto` OAuth
+(with an offline dev fallback), plus create-campaign, join-invite, and a full voice-clone management
+panel modelled on the `VoiceCloner` port — the last three stubbed client-side pending their endpoints.
+Still stubbed (marked `TODO(bardcast)`): the LLM `NarrativeWriter`, the ElevenLabs
+`VoiceCloner`/`AudioRenderer`, persistence, the Bluesky channel, and the player/DM app UIs — which stay
+parked until the backend works. See [`CLAUDE.md`](./CLAUDE.md) for contributor orientation.
 
 ## Getting started
 
