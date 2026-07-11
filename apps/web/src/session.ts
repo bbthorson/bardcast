@@ -26,6 +26,9 @@ const SIM_KEY = "bardcast.web.simulated-session";
 
 export interface SessionState {
   player: Player | null;
+  /** True only during the one-time session resolution on mount (drives the full-page splash). */
+  initializing: boolean;
+  /** True while a sign-in is in flight (drives the button, not the splash). */
   loading: boolean;
   /** True when the current session is the offline dev stub, not a real PDS login. */
   simulated: boolean;
@@ -52,10 +55,24 @@ function simulatedPlayer(handle: string): Player {
   };
 }
 
+/** Turn an orchestrator login error into a line a player can act on. */
+function humanizeLoginError(error: string | undefined, status: number): string {
+  // The orchestrator returns this when it can't resolve the handle to a PDS —
+  // by far the most common failure (a typo or a handle that doesn't exist).
+  if (error === "atproto_authorize_failed") {
+    return "We couldn't find that handle. Double-check it and try again.";
+  }
+  if (error === "handle is required") {
+    return "Enter your handle to sign in.";
+  }
+  return error ?? `Sign-in failed (${status}). Try again in a moment.`;
+}
+
 export function useSession() {
   const [state, setState] = useState<SessionState>({
     player: null,
-    loading: true,
+    initializing: true,
+    loading: false,
     simulated: false,
     error: null,
   });
@@ -71,14 +88,14 @@ export function useSession() {
         const data = (await res.json()) as { authenticated: boolean; player?: Player };
         if (cancelled) return;
         if (data.authenticated && data.player) {
-          setState({ player: data.player, loading: false, simulated: false, error: null });
+          setState({ player: data.player, initializing: false, loading: false, simulated: false, error: null });
           return;
         }
       } catch {
         // Orchestrator unreachable — stay on whatever simulated session we have.
       }
       if (cancelled) return;
-      setState({ player: sim, loading: false, simulated: sim !== null, error: null });
+      setState({ player: sim, initializing: false, loading: false, simulated: sim !== null, error: null });
     })();
     return () => {
       cancelled = true;
@@ -87,34 +104,47 @@ export function useSession() {
 
   const signIn = useCallback(async (handle: string) => {
     setState((s) => ({ ...s, loading: true, error: null }));
+
+    // Only a genuinely unreachable orchestrator (network error) should drop us
+    // into the simulated dev session. A reachable orchestrator that rejects the
+    // handle (e.g. 400 atproto_authorize_failed) is a real error the player must
+    // see — silently faking a login would hide it.
+    let res: Response;
     try {
-      const res = await fetch(`${ORCHESTRATOR}/atproto/login`, {
+      res = await fetch(`${ORCHESTRATOR}/atproto/login`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ handle }),
       });
-      if (res.ok) {
-        const { url } = (await res.json()) as { url?: string };
-        if (url) {
-          // Hand the browser to the player's PDS to authorize. We return here
-          // after the orchestrator's callback redirects back.
-          window.location.href = url;
-          return;
-        }
-      }
-      const { error } = (await res.json().catch(() => ({}))) as { error?: string };
-      throw new Error(error ?? `login failed (${res.status})`);
     } catch {
-      // Offline / no orchestrator: walk the rest of the app on a simulated login.
       const player = simulatedPlayer(handle);
       try {
         localStorage.setItem(SIM_KEY, JSON.stringify(player));
       } catch {
         /* private mode — session lives only in memory this tab */
       }
-      setState({ player, loading: false, simulated: true, error: null });
+      setState({ player, initializing: false, loading: false, simulated: true, error: null });
+      return;
     }
+
+    if (res.ok) {
+      const { url } = (await res.json().catch(() => ({}))) as { url?: string };
+      if (url) {
+        // Hand the browser to the player's PDS to authorize. We return here
+        // after the orchestrator's callback redirects back.
+        window.location.href = url;
+        return;
+      }
+    }
+    const { error } = (await res.json().catch(() => ({}))) as { error?: string };
+    setState({
+      player: null,
+      initializing: false,
+      loading: false,
+      simulated: false,
+      error: humanizeLoginError(error, res.status),
+    });
   }, []);
 
   const signOut = useCallback(async () => {
@@ -129,7 +159,7 @@ export function useSession() {
     } catch {
       /* ignore */
     }
-    setState({ player: null, loading: false, simulated: false, error: null });
+    setState({ player: null, initializing: false, loading: false, simulated: false, error: null });
   }, []);
 
   return { ...state, signIn, signOut };

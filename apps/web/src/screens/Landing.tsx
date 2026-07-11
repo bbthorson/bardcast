@@ -6,7 +6,15 @@ import { HearthMark, Wordmark, styles } from "../ui.js";
  * The logged-out front door. One hero, one job: sign in with an AT-Proto handle.
  * The ember rule — the sign-in button is the single lit action on the screen.
  */
-export function Landing({ onSignIn, loading }: { onSignIn: (handle: string) => void; loading: boolean }) {
+export function Landing({
+  onSignIn,
+  loading,
+  error,
+}: {
+  onSignIn: (handle: string) => void;
+  loading: boolean;
+  error: string | null;
+}) {
   const [handle, setHandle] = useState("");
   const canSubmit = handle.trim().length > 0 && !loading;
 
@@ -47,6 +55,11 @@ export function Landing({ onSignIn, loading }: { onSignIn: (handle: string) => v
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
           />
+          {error && (
+            <p role="alert" style={{ color: color.hearthRed, fontSize: "0.85rem", marginTop: "0.5rem", marginBottom: 0 }}>
+              {error}
+            </p>
+          )}
           <button type="submit" style={{ ...styles.ember, width: "100%", marginTop: "1rem", ...(canSubmit ? null : styles.disabled) }} disabled={!canSubmit}>
             {loading ? "Opening your PDS…" : "Sign in with your handle"}
           </button>

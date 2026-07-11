@@ -52,57 +52,46 @@ export function useVoiceClone(did: string) {
     persist({ sampleReplies: [], status: "collecting", consent: true, createdAt: new Date().toISOString() });
   }, [persist]);
 
+  // Pretend the provider takes a moment, then land on ready. Kept as a named
+  // helper so both add-the-last-sample and retrain share it (and so the side
+  // effect lives outside any state updater — updaters must stay pure).
+  const finishTraining = useCallback(
+    (base: VoiceProfile) => {
+      window.setTimeout(() => persist({ ...base, status: "ready", modelRef: `stub-voice:${did}` }), TRAIN_MS);
+    },
+    [did, persist],
+  );
+
   /** Add one training sample; advance to training → ready at the threshold. */
   const addSample = useCallback(() => {
-    setProfile((cur) => {
-      if (!cur || !cur.consent) return cur;
-      const sampleReplies = [
-        ...cur.sampleReplies,
-        `at://${did}/game.bardcast.voice.profile/sample-${cur.sampleReplies.length + 1}` as AtUri,
-      ];
-      const enough = sampleReplies.length >= SAMPLES_FOR_READY;
-      const next: VoiceProfile = { ...cur, sampleReplies, status: enough ? "training" : "collecting" };
-      try {
-        localStorage.setItem(key(did), JSON.stringify(next));
-      } catch {
-        /* ignore */
-      }
-      if (enough) {
-        window.setTimeout(() => {
-          persist({ ...next, status: "ready", modelRef: `stub-voice:${did}` });
-        }, TRAIN_MS);
-      }
-      return next;
-    });
-  }, [did, persist]);
+    if (!profile || !profile.consent) return;
+    const sampleReplies = [
+      ...profile.sampleReplies,
+      `at://${did}/game.bardcast.voice.profile/sample-${profile.sampleReplies.length + 1}` as AtUri,
+    ];
+    const enough = sampleReplies.length >= SAMPLES_FOR_READY;
+    const next: VoiceProfile = { ...profile, sampleReplies, status: enough ? "training" : "collecting" };
+    persist(next);
+    if (enough) finishTraining(next);
+  }, [did, profile, persist, finishTraining]);
 
   /** Re-train from the current samples (ready → training → ready). */
   const retrain = useCallback(() => {
-    setProfile((cur) => {
-      if (!cur) return cur;
-      const training: VoiceProfile = { ...cur, status: "training" };
-      window.setTimeout(() => persist({ ...training, status: "ready", modelRef: `stub-voice:${did}` }), TRAIN_MS);
-      return training;
-    });
-  }, [did, persist]);
+    if (!profile) return;
+    const training: VoiceProfile = { ...profile, status: "training" };
+    persist(training);
+    finishTraining(training);
+  }, [profile, persist, finishTraining]);
 
   /** Honour a consent revocation: drop the model, mark the profile revoked. */
   const revoke = useCallback(() => {
-    setProfile((cur) => {
-      const next: VoiceProfile = {
-        sampleReplies: [],
-        status: "revoked",
-        consent: false,
-        createdAt: cur?.createdAt ?? new Date().toISOString(),
-      };
-      try {
-        localStorage.setItem(key(did), JSON.stringify(next));
-      } catch {
-        /* ignore */
-      }
-      return next;
+    persist({
+      sampleReplies: [],
+      status: "revoked",
+      consent: false,
+      createdAt: profile?.createdAt ?? new Date().toISOString(),
     });
-  }, [did]);
+  }, [profile, persist]);
 
   return { profile, startClone, addSample, retrain, revoke, samplesForReady: SAMPLES_FOR_READY };
 }

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type RecorderState = "idle" | "recording" | "recorded";
 
@@ -17,6 +17,7 @@ export function useAudioRecorder() {
   const [error, setError] = useState<string | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startedAtRef = useRef(0);
 
@@ -24,6 +25,7 @@ export function useAudioRecorder() {
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
@@ -32,6 +34,7 @@ export function useAudioRecorder() {
         setDurationMs(Date.now() - startedAtRef.current);
         setState("recorded");
         stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       };
       recorderRef.current = recorder;
       startedAtRef.current = Date.now();
@@ -43,6 +46,22 @@ export function useAudioRecorder() {
   }, []);
 
   const stop = useCallback(() => recorderRef.current?.stop(), []);
+
+  // Stop the mic if we unmount mid-recording — otherwise the browser's
+  // recording indicator stays lit and the stream leaks.
+  useEffect(() => {
+    return () => {
+      if (recorderRef.current?.state === "recording") {
+        try {
+          recorderRef.current.stop();
+        } catch {
+          /* already stopped */
+        }
+      }
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
+  }, []);
 
   const reset = useCallback(() => {
     setBlob(null);

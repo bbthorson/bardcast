@@ -21,7 +21,10 @@ export function App() {
   const session = useSession();
   const [view, setView] = useState<View>("dashboard");
 
-  if (session.loading) {
+  // Only the one-time session resolution shows the full-page splash. A sign-in
+  // in flight keeps the Landing mounted (so the typed handle survives an error)
+  // and is reflected in the button instead.
+  if (session.initializing) {
     return (
       <main style={{ ...styles.main, justifyContent: "center", alignItems: "center" }}>
         <p style={styles.muted}>Finding your seat…</p>
@@ -30,7 +33,7 @@ export function App() {
   }
 
   if (!session.player) {
-    return <Landing onSignIn={session.signIn} loading={session.loading} />;
+    return <Landing onSignIn={session.signIn} loading={session.loading} error={session.error} />;
   }
 
   return <SignedIn view={view} setView={setView} session={session} />;
