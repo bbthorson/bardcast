@@ -85,6 +85,17 @@ export class AtprotoIdentityProvider implements IdentityProvider {
     // Hosted client metadata (used as client_id in production).
     app.get("/client-metadata.json", (c) => c.json(this.clientMetadata));
 
+    // Current session for the browser: the web front door polls this on load to
+    // learn whether it's signed in (the session cookie is httpOnly, so JS can't
+    // read it directly). Reuses resolveSession — the same seam writes use.
+    // TODO(bardcast): the web app lives on a different origin (Cloudflare Pages)
+    // than this API (Cloud Run), so production needs CORS with credentials and a
+    // SameSite=None; Secure cookie for the cookie to ride cross-site.
+    app.get("/session", async (c) => {
+      const player = await this.resolveSession(c.req.raw.headers);
+      return c.json(player ? { authenticated: true, player } : { authenticated: false });
+    });
+
     // Begin login: returns the PDS authorization URL to redirect the user to.
     app.post("/login", async (c) => {
       const { handle } = await c.req.json<{ handle?: string }>();

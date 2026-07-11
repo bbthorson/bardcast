@@ -16,7 +16,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "dev:orchestrator": "npm run dev -w @bardcast/orchestrator",
     "dev:player": "npm run dev -w @bardcast/player",
-    "dev:dm": "npm run dev -w @bardcast/dm"
+    "dev:dm": "npm run dev -w @bardcast/dm",
+    "dev:web": "npm run dev -w @bardcast/web"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
