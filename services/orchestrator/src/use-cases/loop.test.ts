@@ -16,13 +16,15 @@ import { ingestReplies } from "./ingest-replies.js";
 function fakeGateway(transcripts: string[]): VoxPopGateway {
   return {
     async createPrompt(input) {
-      return { uri: "at://prompt/1", title: input.title, status: "live", createdAt: "2026-01-01T00:00:00Z" };
+      return { uri: "at://prompt/1", cid: "bafyprompt", postId: "1", title: input.title, createdAt: "2026-01-01T00:00:00Z" };
     },
     async listReplies(promptUri) {
       return transcripts.map((t, i) => ({
         uri: `at://reply/${i}`,
+        cid: `bafyreply${i}`,
         promptUri,
         author: "did:example:alice",
+        authorDid: "did:example:alice",
         transcript: t,
         createdAt: "2026-01-01T00:00:00Z",
       }));

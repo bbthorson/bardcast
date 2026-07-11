@@ -1,24 +1,24 @@
 import type { AtUri } from "@bardcast/domain";
-import { VoxPopClient, type VoxPopPrompt, type VoxPopReply } from "@bardcast/voxpop-client";
+import { AntiphonyClient, type VoxPopPrompt, type VoxPopReply } from "@bardcast/voxpop-client";
 import type { VoxPopGateway } from "../ports/voxpop-gateway.js";
 
 /**
- * Default VoxPopGateway adapter: wraps the real @bardcast/voxpop-client. The
- * gateway is the narrow port the use-cases see; the client is the HTTP detail.
+ * Default VoxPopGateway adapter: wraps the real @bardcast/voxpop-client
+ * (Antiphony Core API). The gateway is the narrow port the use-cases see; the
+ * client is the HTTP detail.
  */
 export class ClientVoxPopGateway implements VoxPopGateway {
-  constructor(private readonly client: VoxPopClient) {}
+  constructor(private readonly client: AntiphonyClient) {}
 
-  async createPrompt(input: { title: string; scene?: string; audioUrl?: string }): Promise<VoxPopPrompt> {
-    return this.client.createPrompt({
-      title: input.title,
-      ...(input.scene !== undefined ? { description: input.scene } : {}),
-      ...(input.audioUrl !== undefined ? { audioUrl: input.audioUrl } : {}),
-    });
+  async createPrompt(input: { title: string; scene?: string; actingDid: `did:${string}` }): Promise<VoxPopPrompt> {
+    // The DM's scene text becomes the post body; the prompt is a post with no reply.
+    return this.client.createPrompt(
+      { title: input.title, ...(input.scene !== undefined ? { text: input.scene } : {}) },
+      input.actingDid,
+    );
   }
 
   async listReplies(promptUri: AtUri): Promise<VoxPopReply[]> {
-    const page = await this.client.listReplies({ promptUri });
-    return page.items;
+    return this.client.listReplies({ prompt: promptUri });
   }
 }

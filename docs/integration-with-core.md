@@ -1,9 +1,58 @@
 # Bardcast ↔ Core Engine: identity & visibility
 
-How Bardcast relates to the underlying call/response engine (today `vox-pop-core`).
-Captures decisions made 2026-06-24. Some items are **requirements on the engine's
-data model**, flagged `[ENGINE]` — they belong in the engine repo, noted here so
-Bardcast's assumptions are explicit.
+How Bardcast relates to the underlying call/response engine (**Antiphony**).
+
+> **Update 2026-07-11 — the engine shipped this.** The requirements below
+> (2026-06-24) are now satisfied by Antiphony's **v0.2.0 "core-surface trim"**,
+> and its auth model is simpler than the DID-token bridge first sketched here.
+> The [current model](#current-model-antiphony-v020) section is authoritative;
+> the original requirements are kept for provenance.
+
+## Current model (Antiphony v0.2.0)
+
+Antiphony is a **headless** store for AT-Protocol-shaped audio posts. It holds no
+user data — profiles live in the calling app (Bardcast, the BFF).
+
+- **One credential: an app service token.** Every caller is an application that
+  authenticates with `Authorization: Bearer <service-token>`. The token
+  identifies the app and establishes its tenancy (`originAppId`). Antiphony
+  verifies **no** end-user identity tokens — so the earlier `tokenForPlayer`
+  DID→bearer bridge (R3) is **obsolete** on the engine path.
+- **The acting player is asserted per request.** Writes (and viewer-scoped
+  reads) carry `X-Antiphony-Acting-Actor: <id>` and optional
+  `X-Antiphony-Acting-Actor-Did: <did>`. Bardcast asserts the player's **DID**;
+  Antiphony stamps it onto the post's `authorDid`. **This is how every post is
+  tied to its player.** Bardcast reaches all of this via `@bardcast/voxpop-client`
+  behind the `VoxPopGateway` port (the gateway's `actingDid`).
+- **One post record.** `dev.antiphony.audio.post` — a post with no `reply` is a
+  prompt, a post with a `reply` (root+parent StrongRef) is a reply. Audio is a
+  `dev.antiphony.embed.audio` blob uploaded first (`POST /api/v1/audio/upload`,
+  multipart `file`) then referenced on the post.
+
+### Domain setup (one-time)
+
+1. **Register Bardcast as an app** in the Antiphony deployment's
+   `ANTIPHONY_APP_TOKENS` (`appId:token`). The token becomes
+   `VOXPOP_SERVICE_TOKEN`; the `appId` is Bardcast's `originAppId` (tenancy).
+2. Tenancy scoping (R2) is automatic: posts are isolated by `originAppId`, so
+   Bardcast content never appears in another app's surfaces.
+
+### Contract-package caveat
+
+`@bardcast/voxpop-client` mirrors the engine's `openapi.json` locally rather than
+importing the write codecs from `@antiphony/shared`, because the published
+`@antiphony/shared@0.3.0` still types the blob `ref` as a plain string while the
+deployed engine uses the AT-Proto `{ $link }` object. Once the package is
+republished to match, drop the local mirrors and import its codecs directly.
+
+---
+
+## Original requirements (2026-06-24)
+
+The below captures decisions made 2026-06-24. Some items are **requirements on
+the engine's data model**, flagged `[ENGINE]` — they belong in the engine repo,
+noted here so Bardcast's assumptions are explicit. See the update above for how
+the engine now satisfies them.
 
 ## The engine is not the app
 
