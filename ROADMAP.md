@@ -18,7 +18,7 @@ What's real and verified today, so the checkboxes below start from an honest flo
 - Domain model + Zod schemas mirroring the lexicons; the **readiness gate**; the seeded SRD
   **dice/resolution engine** (tested).
 - **AT-Proto identity**: real OAuth provider mounted at `/atproto`, consumed by `apps/web` sign-in.
-- **Antiphony client** (`packages/voxpop-client`) wired behind the gateway port, fetch-mock tested.
+- **Antiphony client** (`packages/antiphony-client`) wired behind the gateway port, fetch-mock tested.
 - Orchestrator loop skeleton: five use-cases with API routes, loop test runs end-to-end on stubs.
 - `apps/web` front door: six screens, branded, deployed to Cloudflare Pages.
 - Campaign canon seed: *Sir Gawain and the Green Knight* (OKF).
@@ -27,11 +27,15 @@ What's real and verified today, so the checkboxes below start from an honest flo
 
 No external dependencies; can start immediately.
 
-- [ ] **Antiphony rename**: the engine was separated from VoxPop, so retire the old name —
+- [x] **Antiphony rename**: the engine was separated from VoxPop, so retired the old name —
       `VoxPopGateway` port → `AntiphonyGateway`, `@bardcast/voxpop-client` → `@bardcast/antiphony-client`,
-      plus file names (`ports/voxpop-gateway.ts`, `adapters/voxpop-gateway.ts`) and the
-      `VoxPopPrompt`/`VoxPopReply` types. Sweep docs (`README.md`, `CLAUDE.md`,
-      `docs/integration-with-core.md`) in the same change.
+      the `VoxPopPrompt`/`VoxPopReply` types → `AntiphonyPrompt`/`AntiphonyReply`, the `voxpop`
+      service field → `antiphony`, gateway file names, and a doc sweep. Also bumped `@antiphony/shared`
+      to `^0.4.0` and dropped the local `BlobRef` mirror in favour of its `BlobRefSchema`.
+- [ ] **Finish the voxpop→antiphony purge** (deferred, separate pass): the `voxPopPromptUri`/
+      `voxPopReplyUri` domain + engagement-port field names (they map to lexicon record fields, so
+      this rides with a lexicon change), and the `VOXPOP_BASE_URL`/`VOXPOP_SERVICE_TOKEN` env vars +
+      their `voxPopBaseUrl`/`voxPopServiceToken` config fields (an ops-coordinated rename).
 - [ ] Zod-validate orchestrator request bodies and gate writes behind an authenticated DID session
       (`services/orchestrator/src/app.ts` TODO).
 - [ ] Identity prod-hardening: mint a real signed (service-JWT) assertion over the DID; replace the

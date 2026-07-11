@@ -15,7 +15,7 @@
     "@atproto/oauth-client-node": "0.4.2",
     "@bardcast/domain": "*",
     "@bardcast/engagement": "*",
-    "@bardcast/voxpop-client": "*",
+    "@bardcast/antiphony-client": "*",
     "@hono/node-server": "^1.13.7",
     "hono": "^4.6.14",
     "zod": "^3.24.1"

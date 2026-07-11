@@ -1,7 +1,7 @@
-import { AntiphonyClient, AntiphonyError } from "@bardcast/voxpop-client";
+import { AntiphonyClient, AntiphonyError } from "@bardcast/antiphony-client";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { ClientVoxPopGateway } from "./voxpop-gateway.js";
+import { ClientAntiphonyGateway } from "./antiphony-gateway.js";
 
 /**
  * Integration test: drive the Antiphony client + gateway against a mock Core API
@@ -88,7 +88,7 @@ beforeAll(async () => {
 afterAll(() => new Promise<void>((r) => server.close(() => r())));
 
 function gateway() {
-  return new ClientVoxPopGateway(new AntiphonyClient({ baseUrl, getServiceToken: () => TOKEN }));
+  return new ClientAntiphonyGateway(new AntiphonyClient({ baseUrl, getServiceToken: () => TOKEN }));
 }
 
 describe("Antiphony gateway", () => {

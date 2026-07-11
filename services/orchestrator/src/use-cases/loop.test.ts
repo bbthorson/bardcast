@@ -7,13 +7,13 @@ import { StubVoiceCloner } from "../adapters/stub-voice-cloner.js";
 import { InMemoryStore } from "../adapters/in-memory-store.js";
 import { PwaEngagementChannel } from "@bardcast/engagement";
 import type { CoreServices } from "../ports/index.js";
-import type { VoxPopGateway } from "../ports/voxpop-gateway.js";
+import type { AntiphonyGateway } from "../ports/antiphony-gateway.js";
 import { checkReadiness } from "./check-readiness.js";
 import { generateChapter, NotReadyError } from "./generate-chapter.js";
 import { ingestReplies } from "./ingest-replies.js";
 
 /** A fake gateway that returns canned replies — no network. */
-function fakeGateway(transcripts: string[]): VoxPopGateway {
+function fakeGateway(transcripts: string[]): AntiphonyGateway {
   return {
     async createPrompt(input) {
       return { uri: "at://prompt/1", cid: "bafyprompt", postId: "1", title: input.title, createdAt: "2026-01-01T00:00:00Z" };
@@ -32,10 +32,10 @@ function fakeGateway(transcripts: string[]): VoxPopGateway {
   };
 }
 
-function services(gateway: VoxPopGateway): CoreServices {
+function services(gateway: AntiphonyGateway): CoreServices {
   return {
     store: new InMemoryStore(),
-    voxpop: gateway,
+    antiphony: gateway,
     narrative: new StubNarrativeWriter(),
     voice: new StubVoiceCloner(),
     audio: new StubAudioRenderer(),

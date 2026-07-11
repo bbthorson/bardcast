@@ -20,7 +20,7 @@ export interface PublishPromptInput {
  * it to the engagement channel for delivery to the players.
  */
 export async function publishPrompt(svc: CoreServices, input: PublishPromptInput): Promise<Prompt> {
-  const vp = await svc.voxpop.createPrompt({
+  const vp = await svc.antiphony.createPrompt({
     title: input.title,
     ...(input.scene !== undefined ? { scene: input.scene } : {}),
     actingDid: input.dmDid,

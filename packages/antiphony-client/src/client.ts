@@ -10,8 +10,8 @@ import {
   type CreatePostRequest,
   type ListRepliesQuery,
   type ReplyRef,
-  type VoxPopPrompt,
-  type VoxPopReply,
+  type AntiphonyPrompt,
+  type AntiphonyReply,
 } from "./types.js";
 
 export interface AntiphonyClientOptions {
@@ -50,8 +50,8 @@ export function postIdFromUri(uri: string): string {
 
 /**
  * Typed client for the Antiphony Core API (`/api/v1/*`). Bardcast reaches the
- * engine ONLY through this client, behind the VoxPopGateway port — so the loop
- * never hard-codes the engine's wire format.
+ * engine ONLY through this client, behind the AntiphonyGateway port — so the
+ * loop never hard-codes the engine's wire format.
  *
  * "Tie a post to a player": every write asserts the acting player's DID via the
  * acting-actor headers; Antiphony stamps it onto the record's `authorDid`.
@@ -151,7 +151,7 @@ export class AntiphonyClient {
   async createPrompt(
     input: { title: string; text?: string; audio?: { blob: Blob; filename?: string } },
     actingDid: string,
-  ): Promise<VoxPopPrompt> {
+  ): Promise<AntiphonyPrompt> {
     const embed = input.audio
       ? await this.uploadAudio(input.audio.blob, { actingDid, ...(input.audio.filename ? { filename: input.audio.filename } : {}) })
       : undefined;
@@ -197,9 +197,9 @@ export class AntiphonyClient {
    * `GET /api/v1/posts/{postId}/replies` — all replies to a prompt, following
    * pagination. A tenancy-scoped read (service token only, no acting actor).
    */
-  async listReplies(query: ListRepliesQuery): Promise<VoxPopReply[]> {
+  async listReplies(query: ListRepliesQuery): Promise<AntiphonyReply[]> {
     const postId = postIdFromUri(query.prompt);
-    const out: VoxPopReply[] = [];
+    const out: AntiphonyReply[] = [];
     let cursor = query.cursor;
     for (let guard = 0; guard < 50; guard++) {
       const params = new URLSearchParams();
