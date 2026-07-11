@@ -4,6 +4,7 @@ import { useSession } from "./session.js";
 import { useVoiceClone } from "./voice.js";
 import { styles, TopBar } from "./ui.js";
 import { Landing } from "./screens/Landing.js";
+import { LoginDialog } from "./screens/LoginDialog.js";
 import { Dashboard } from "./screens/Dashboard.js";
 import { CreateCampaign } from "./screens/CreateCampaign.js";
 import { JoinInvite } from "./screens/JoinInvite.js";
@@ -12,18 +13,19 @@ import { VoiceClone } from "./screens/VoiceClone.js";
 type View = "dashboard" | "create" | "join" | "voice";
 
 /**
- * The web front door. A small view state machine rather than a router: logged
- * out shows the Landing hero; logged in, the DID drives everything (create/join
- * a campaign, manage the voice clone). Kept client-side so the whole thing is a
- * static Cloudflare Pages build (docs/hosting.md).
+ * The web front door. A small view state machine rather than a router. The
+ * header is always present; logged out shows the public landing page with a
+ * "Sign in" button that opens a dialog, logged in the DID drives everything
+ * (create/join a campaign, manage the voice clone). Kept client-side so the
+ * whole thing is a static Cloudflare build (docs/hosting.md).
  */
 export function App() {
   const session = useSession();
   const [view, setView] = useState<View>("dashboard");
+  const [showLogin, setShowLogin] = useState(false);
 
   // Only the one-time session resolution shows the full-page splash. A sign-in
-  // in flight keeps the Landing mounted (so the typed handle survives an error)
-  // and is reflected in the button instead.
+  // in flight is reflected in the dialog's button instead.
   if (session.initializing) {
     return (
       <main style={{ ...styles.main, justifyContent: "center", alignItems: "center" }}>
@@ -33,7 +35,28 @@ export function App() {
   }
 
   if (!session.player) {
-    return <Landing onSignIn={session.signIn} loading={session.loading} error={session.error} />;
+    return (
+      <main style={styles.main}>
+        <TopBar
+          actions={
+            // The always-present twin of the hero CTA — quieter (outline) so the
+            // hero keeps the single ember.
+            <button style={styles.secondary} onClick={() => setShowLogin(true)}>
+              Sign in
+            </button>
+          }
+        />
+        <Landing onOpenLogin={() => setShowLogin(true)} />
+        {showLogin && (
+          <LoginDialog
+            onSignIn={session.signIn}
+            loading={session.loading}
+            error={session.error}
+            onClose={() => setShowLogin(false)}
+          />
+        )}
+      </main>
+    );
   }
 
   return <SignedIn view={view} setView={setView} session={session} />;
