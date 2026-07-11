@@ -25,3 +25,6 @@ npm-debug.log*
 # vite / pwa
 .vite/
 dev-dist/
+
+# cloudflare / wrangler
+.wrangler/

@@ -1,0 +1,24 @@
+{
+  // Cloudflare deploy config for the apps/web front door.
+  //
+  // This repo is an npm-workspaces monorepo, and the Cloudflare build runs
+  // `npx wrangler deploy` from the repo root. Without this file wrangler can't
+  // tell which workspace to publish and errors with "application detection
+  // logic has been run in the root of a workspace". This config makes the root
+  // deploy an assets-only Worker that serves the built apps/web SPA.
+  //
+  // Only apps/web is hosted on Cloudflare — the orchestrator is on Cloud Run
+  // and apps/player + apps/dm ship separately (see docs/hosting.md).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bardcast-web",
+  "compatibility_date": "2026-07-11",
+  "assets": {
+    // `npm run build` (the Cloudflare build command) builds every workspace;
+    // this points at the front door's output specifically.
+    "directory": "./apps/web/dist",
+    // The app is a single-page app (client-side view state), so any unknown
+    // path serves index.html and React renders the right view. This is the
+    // Workers-assets equivalent of apps/web/public/_redirects.
+    "not_found_handling": "single-page-application"
+  }
+}
