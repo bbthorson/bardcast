@@ -1,5 +1,5 @@
 import { PwaEngagementChannel } from "@bardcast/engagement";
-import { VoxPopClient } from "@bardcast/voxpop-client";
+import { AntiphonyClient } from "@bardcast/voxpop-client";
 import type { CoreServices } from "../ports/index.js";
 import type { IdentityProvider } from "../ports/identity-provider.js";
 import { AtprotoIdentityProvider } from "./atproto/identity-provider.js";
@@ -44,11 +44,13 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
         })
       : new StubIdentityProvider();
 
-  const voxPopClient = new VoxPopClient({
+  // Antiphony is headless: the only credential is Bardcast's app service token
+  // (establishes tenancy / originAppId). The acting player's DID is asserted
+  // per write via the gateway's `actingDid`, not a per-player engine token — so
+  // identity.tokenForPlayer is no longer on this path (see docs/integration-with-core.md).
+  const antiphony = new AntiphonyClient({
     baseUrl: config.voxPopBaseUrl,
-    // TODO(bardcast): thread the current player's token through per-request
-    // instead of a static dev token.
-    getToken: () => identity.tokenForPlayer("did:example:dev"),
+    getServiceToken: () => config.voxPopServiceToken ?? "",
   });
 
   const engagement = new PwaEngagementChannel({
@@ -61,7 +63,7 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
 
   return {
     store: new InMemoryStore(),
-    voxpop: new ClientVoxPopGateway(voxPopClient),
+    voxpop: new ClientVoxPopGateway(antiphony),
     narrative: new StubNarrativeWriter(),
     voice: new StubVoiceCloner(),
     audio: new StubAudioRenderer(),

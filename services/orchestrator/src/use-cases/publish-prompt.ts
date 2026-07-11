@@ -6,11 +6,12 @@ export interface PublishPromptInput {
   campaignId: string;
   title: string;
   scene?: string;
+  /** The DM authoring the prompt — the post is tied to this DID in Antiphony. */
+  dmDid: `did:${string}`;
   /** Character ids the prompt targets. */
   audience: string[];
   audienceDids: `did:${string}`[];
   intent?: Prompt["intent"];
-  audioUrl?: string;
 }
 
 /**
@@ -22,7 +23,7 @@ export async function publishPrompt(svc: CoreServices, input: PublishPromptInput
   const vp = await svc.voxpop.createPrompt({
     title: input.title,
     ...(input.scene !== undefined ? { scene: input.scene } : {}),
-    ...(input.audioUrl !== undefined ? { audioUrl: input.audioUrl } : {}),
+    actingDid: input.dmDid,
   });
 
   const prompt: Prompt = {
