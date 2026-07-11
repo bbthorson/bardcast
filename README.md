@@ -95,7 +95,8 @@ scaffolded on the live identity seam: AT-Proto sign-in wired to the orchestrator
 panel modelled on the `VoiceCloner` port — the last three stubbed client-side pending their endpoints.
 Still stubbed (marked `TODO(bardcast)`): the LLM `NarrativeWriter`, the ElevenLabs
 `VoiceCloner`/`AudioRenderer`, persistence, the Bluesky channel, and the player/DM app UIs — which stay
-parked until the backend works. See [`CLAUDE.md`](./CLAUDE.md) for contributor orientation.
+parked until the backend works. The milestone-by-milestone path to the MVP is tracked in
+[`ROADMAP.md`](./ROADMAP.md). See [`CLAUDE.md`](./CLAUDE.md) for contributor orientation.
 
 ## Getting started
 
