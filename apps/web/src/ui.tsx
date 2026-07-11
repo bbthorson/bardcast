@@ -119,11 +119,13 @@ export function Wordmark({ size = "1.4rem" }: { size?: string }) {
 
 /** Standard header: mark + wordmark on the left, optional actions on the right. */
 export function TopBar({ actions, onHome }: { actions?: ReactNode; onHome?: () => void }) {
+  // A span (not a div) so it stays valid phrasing content when wrapped in the
+  // <button> below — a <div> inside a <button> is invalid HTML.
   const brand = (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+    <span style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
       <HearthMark size={34} />
       <Wordmark />
-    </div>
+    </span>
   );
   return (
     <header
