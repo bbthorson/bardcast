@@ -1,6 +1,7 @@
 import { color } from "@bardcast/brand";
 import { useState } from "react";
 import { useSession } from "./session.js";
+import { useRouter } from "./router.js";
 import { useVoiceClone } from "./voice.js";
 import { styles, TopBar } from "./ui.js";
 import { Landing } from "./screens/Landing.js";
@@ -10,18 +11,19 @@ import { CreateCampaign } from "./screens/CreateCampaign.js";
 import { JoinInvite } from "./screens/JoinInvite.js";
 import { VoiceClone } from "./screens/VoiceClone.js";
 
-type View = "dashboard" | "create" | "join" | "voice";
+/** Routes for the signed-in views. Home ("/") is the dashboard. */
+const path = { home: "/", create: "/campaigns/new", join: "/join", voice: "/voice" } as const;
 
 /**
- * The web front door. A small view state machine rather than a router. The
- * header is always present; logged out shows the public landing page with a
- * "Sign in" button that opens a dialog, logged in the DID drives everything
- * (create/join a campaign, manage the voice clone). Kept client-side so the
+ * The web front door. Views are URL-driven (see router.ts) so the browser
+ * back/forward buttons work and a refresh keeps your place. The header is always
+ * present; logged out shows the public landing page with a "Sign in" button that
+ * opens a dialog, logged in the DID drives everything. Kept client-side so the
  * whole thing is a static Cloudflare build (docs/hosting.md).
  */
 export function App() {
   const session = useSession();
-  const [view, setView] = useState<View>("dashboard");
+  const router = useRouter();
   const [showLogin, setShowLogin] = useState(false);
 
   // Only the one-time session resolution shows the full-page splash. A sign-in
@@ -59,28 +61,29 @@ export function App() {
     );
   }
 
-  return <SignedIn view={view} setView={setView} session={session} />;
+  return <SignedIn session={session} router={router} />;
 }
 
 /**
  * Signed-in shell. The voice-clone hook lives here so the Dashboard's status
- * strip and the VoiceClone screen share one source of truth.
+ * strip and the VoiceClone screen share one source of truth. The current view is
+ * derived from the URL path.
  */
 function SignedIn({
-  view,
-  setView,
   session,
+  router,
 }: {
-  view: View;
-  setView: (v: View) => void;
   session: ReturnType<typeof useSession>;
+  router: ReturnType<typeof useRouter>;
 }) {
   const player = session.player!;
   const voice = useVoiceClone(player.did);
+  const { navigate, back } = router;
 
   return (
     <main style={styles.main}>
       <TopBar
+        onHome={() => navigate(path.home)}
         actions={
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             {session.simulated && (
@@ -88,25 +91,28 @@ function SignedIn({
                 demo session
               </span>
             )}
-            <button style={styles.ghost} onClick={() => { setView("dashboard"); session.signOut(); }}>
+            <button style={styles.ghost} onClick={() => { navigate(path.home); session.signOut(); }}>
               Sign out
             </button>
           </div>
         }
       />
 
-      {view === "dashboard" && (
+      {router.path === path.create ? (
+        <CreateCampaign player={player} onBack={back} />
+      ) : router.path === path.join ? (
+        <JoinInvite onBack={back} />
+      ) : router.path === path.voice ? (
+        <VoiceClone {...voice} onBack={back} />
+      ) : (
         <Dashboard
           player={player}
           voice={voice.profile}
-          onCreate={() => setView("create")}
-          onJoin={() => setView("join")}
-          onManageVoice={() => setView("voice")}
+          onCreate={() => navigate(path.create)}
+          onJoin={() => navigate(path.join)}
+          onManageVoice={() => navigate(path.voice)}
         />
       )}
-      {view === "create" && <CreateCampaign player={player} onBack={() => setView("dashboard")} />}
-      {view === "join" && <JoinInvite onBack={() => setView("dashboard")} />}
-      {view === "voice" && <VoiceClone {...voice} onBack={() => setView("dashboard")} />}
     </main>
   );
 }
