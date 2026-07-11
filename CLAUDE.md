@@ -13,7 +13,7 @@ behavioral model + voice clone). When a character has enough signal, Bardcast wr
 
 1. **vox-pop-core consumer.** Audio prompts and asynchronous audio replies are NOT ours — they belong
    to [`vox-pop-core`](https://docs.voxpop.phonicfactory.com) (`/api/v1/*` Hono API). We reach it only
-   through `packages/voxpop-client` behind the `VoxPopGateway` port. Do not reimplement call/response.
+   through `packages/antiphony-client` behind the `AntiphonyGateway` port. Do not reimplement call/response.
 2. **World/narrative engine.** Campaign lore + character state → chapter. This is the new value.
 3. **AT-Protocol identity layer.** Characters are keyed on the player's **DID** so a character is
    portable across campaigns. AT-Proto OAuth is OUR job — vox-pop-core deliberately keeps OAuth in its
@@ -38,7 +38,7 @@ The orchestrator's `src/use-cases/*` express the loop in terms of **ports** (int
 `src/ports/`). Every external capability is a port with a swappable adapter in `src/adapters/`. To add a
 real capability, write an adapter — do not reach into a use-case and call a vendor SDK directly.
 
-Ports: `VoxPopGateway`, `NarrativeWriter`, `VoiceCloner`, `AudioRenderer`, `IdentityProvider`,
+Ports: `AntiphonyGateway`, `NarrativeWriter`, `VoiceCloner`, `AudioRenderer`, `IdentityProvider`,
 `EngagementChannel`, `Store`. All current adapters are stubs marked `TODO(bardcast)`.
 
 ## The engagement seam (why it's a port)

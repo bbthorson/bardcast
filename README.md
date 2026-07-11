@@ -45,7 +45,7 @@ reverse. In-world (fantasy-calendar) dates are stored as plain string fields, wh
 | --- | --- |
 | `lexicons/game/bardcast/*` | AT-Protocol record schemas (NSID root behind a single constant — see below). |
 | `packages/domain` | The domain model + Zod schemas, the **readiness gate**, and the **dice/resolution engine**. The load-bearing seam everything shares. |
-| `packages/voxpop-client` | Typed client for the engine's `/api/v1/*` API. |
+| `packages/antiphony-client` | Typed client for the engine's `/api/v1/*` API. |
 | `packages/engagement` | The engagement **port** + a PWA adapter (live) + a Bluesky-communities adapter (stub). |
 | `services/orchestrator` | Hono service: the readiness gate, chapter pipeline, prompt suggestion, and Bardcast's own AT-Proto OAuth routes. |
 | `apps/web` | Public **front door** (Cloudflare Pages) — AT-Proto sign-in, create/join a campaign, and manage your voice clone. |
@@ -62,7 +62,7 @@ and the seams are visible; real implementations slot in without touching the use
 
 | Port | What it abstracts | First adapter |
 | --- | --- | --- |
-| `VoxPopGateway` | audio prompts + replies | `packages/voxpop-client` |
+| `AntiphonyGateway` | audio prompts + replies | `packages/antiphony-client` |
 | `NarrativeWriter` | canon + characters → chapter script | LLM (stub) |
 | `VoiceCloner` | player audio → voice model | ElevenLabs (stub) |
 | `AudioRenderer` | chapter script + voices → audio | ElevenLabs (stub) |
@@ -95,7 +95,8 @@ scaffolded on the live identity seam: AT-Proto sign-in wired to the orchestrator
 panel modelled on the `VoiceCloner` port — the last three stubbed client-side pending their endpoints.
 Still stubbed (marked `TODO(bardcast)`): the LLM `NarrativeWriter`, the ElevenLabs
 `VoiceCloner`/`AudioRenderer`, persistence, the Bluesky channel, and the player/DM app UIs — which stay
-parked until the backend works. See [`CLAUDE.md`](./CLAUDE.md) for contributor orientation.
+parked until the backend works. The milestone-by-milestone path to the MVP is tracked in
+[`ROADMAP.md`](./ROADMAP.md). See [`CLAUDE.md`](./CLAUDE.md) for contributor orientation.
 
 ## Getting started
 

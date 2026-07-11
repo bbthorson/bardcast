@@ -1,8 +1,8 @@
 import type { AtUri } from "@bardcast/domain";
-import type { VoxPopPrompt, VoxPopReply } from "@bardcast/voxpop-client";
+import type { AntiphonyPrompt, AntiphonyReply } from "@bardcast/antiphony-client";
 
 /**
- * The loop's view of the Antiphony engine. Wraps @bardcast/voxpop-client so
+ * The loop's view of the Antiphony engine. Wraps @bardcast/antiphony-client so
  * use-cases depend on this small interface, not the concrete HTTP client —
  * keeps them unit-testable and the engine swappable.
  *
@@ -10,7 +10,7 @@ import type { VoxPopPrompt, VoxPopReply } from "@bardcast/voxpop-client";
  * the record's `authorDid` (via the acting-actor headers). A prompt is authored
  * by the DM; every post is tied to a DID.
  */
-export interface VoxPopGateway {
-  createPrompt(input: { title: string; scene?: string; actingDid: `did:${string}` }): Promise<VoxPopPrompt>;
-  listReplies(promptUri: AtUri): Promise<VoxPopReply[]>;
+export interface AntiphonyGateway {
+  createPrompt(input: { title: string; scene?: string; actingDid: `did:${string}` }): Promise<AntiphonyPrompt>;
+  listReplies(promptUri: AtUri): Promise<AntiphonyReply[]>;
 }

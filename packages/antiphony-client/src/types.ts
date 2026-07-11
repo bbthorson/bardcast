@@ -1,4 +1,4 @@
-import { EMBED_NSID } from "@antiphony/shared";
+import { BlobRefSchema, EMBED_NSID } from "@antiphony/shared";
 import { z } from "zod";
 
 /**
@@ -7,13 +7,9 @@ import { z } from "zod";
  * prompt, a post with one is a reply), and reading a prompt's replies. Mirrors
  * apps/core-api/openapi.json (contract v0.2.0) in the antiphony repo.
  *
- * These are defined here rather than imported from `@antiphony/shared` because
- * the published `@antiphony/shared@0.3.0` still types the blob `ref` as a plain
- * string, while the deployed engine uses the AT-Proto `{ $link }` object (see
- * the openapi + `@atproto/lex-json`). We DO import the NSID constants from the
- * package (those are current).
- * TODO(bardcast): once @antiphony/shared is republished to match the engine's
- * blob shape, drop these local mirrors and import its codecs directly.
+ * The canonical codecs (`BlobRefSchema`, the NSID constants) come from
+ * `@antiphony/shared`; the request/response envelopes below are Bardcast's view
+ * of the endpoints it actually calls.
  */
 
 /** Every Antiphony JSON response wraps its payload in this envelope. */
@@ -24,14 +20,9 @@ export const ApiFailure = z.object({
 });
 export type ApiFailure = z.infer<typeof ApiFailure>;
 
-/** AT-Proto blob reference — `ref` is a `{ $link: cid }` object, not a string. */
-export const BlobRef = z.object({
-  $type: z.literal("blob"),
-  ref: z.object({ $link: z.string().min(1) }),
-  mimeType: z.string(),
-  size: z.number().int().nonnegative(),
-});
-export type BlobRef = z.infer<typeof BlobRef>;
+/** AT-Proto blob reference (`{ $type, ref: { $link: cid }, mimeType, size }`). */
+export const BlobRef = BlobRefSchema;
+export type BlobRef = z.infer<typeof BlobRefSchema>;
 
 /** `POST /api/v1/audio/upload` result (inside `data`). */
 export const UploadAudioResult = z.object({ blob: BlobRef });
@@ -92,7 +83,7 @@ export const RepliesPage = z.object({ items: z.array(AudioPostView), nextCursor:
 // --- Normalized views the gateway hands to the loop --------------------------
 
 /** A prompt (a post with no reply), as the loop consumes it. */
-export interface VoxPopPrompt {
+export interface AntiphonyPrompt {
   /** at:// uri (authority is the Antiphony app DID). */
   uri: string;
   cid: string;
@@ -104,7 +95,7 @@ export interface VoxPopPrompt {
 }
 
 /** A reply (a post whose `reply.root` is the prompt), as the loop consumes it. */
-export interface VoxPopReply {
+export interface AntiphonyReply {
   uri: string;
   cid: string;
   /** at:// uri of the prompt this answers. */

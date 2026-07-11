@@ -7,7 +7,7 @@ import type { Player } from "@bardcast/domain";
  * is the durable key a character follows them across campaigns by.
  *
  * First adapter wraps @atproto/oauth-client-node. The token this yields is also
- * what the VoxPopGateway presents to vox-pop-core as a bearer token.
+ * what the AntiphonyGateway presents to the engine as a bearer token.
  */
 export interface IdentityProvider {
   /** Resolve an incoming request's session/cookie to the authenticated player. */

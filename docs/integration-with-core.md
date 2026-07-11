@@ -22,8 +22,8 @@ user data — profiles live in the calling app (Bardcast, the BFF).
   reads) carry `X-Antiphony-Acting-Actor: <id>` and optional
   `X-Antiphony-Acting-Actor-Did: <did>`. Bardcast asserts the player's **DID**;
   Antiphony stamps it onto the post's `authorDid`. **This is how every post is
-  tied to its player.** Bardcast reaches all of this via `@bardcast/voxpop-client`
-  behind the `VoxPopGateway` port (the gateway's `actingDid`).
+  tied to its player.** Bardcast reaches all of this via `@bardcast/antiphony-client`
+  behind the `AntiphonyGateway` port (the gateway's `actingDid`).
 - **One post record.** `dev.antiphony.audio.post` — a post with no `reply` is a
   prompt, a post with a `reply` (root+parent StrongRef) is a reply. Audio is a
   `dev.antiphony.embed.audio` blob uploaded first (`POST /api/v1/audio/upload`,
@@ -37,13 +37,13 @@ user data — profiles live in the calling app (Bardcast, the BFF).
 2. Tenancy scoping (R2) is automatic: posts are isolated by `originAppId`, so
    Bardcast content never appears in another app's surfaces.
 
-### Contract-package caveat
+### Contract package
 
-`@bardcast/voxpop-client` mirrors the engine's `openapi.json` locally rather than
-importing the write codecs from `@antiphony/shared`, because the published
-`@antiphony/shared@0.3.0` still types the blob `ref` as a plain string while the
-deployed engine uses the AT-Proto `{ $link }` object. Once the package is
-republished to match, drop the local mirrors and import its codecs directly.
+`@bardcast/antiphony-client` imports the canonical blob codec (`BlobRefSchema`)
+and NSID constants from `@antiphony/shared` (≥ 0.4.0, which types the blob `ref`
+as the AT-Proto `{ $link }` object the deployed engine uses). The request/response
+envelopes the client validates are Bardcast's local view of the endpoints it
+actually calls, mirroring the engine's `openapi.json`.
 
 ---
 
@@ -65,8 +65,8 @@ to delineate it from the VoxPop application — e.g. **Antiphony** (liturgical
 call-and-response; on-the-nose and distinctive) or **Echo** (simpler, but heavily
 overloaded as a product name). Blast radius is in the *engine* repo, not Bardcast:
 package scope (`@vox-pop/*`), the lexicon NSID root (`com.voxpop.*`), the docs
-domain. Bardcast only references the engine via `@bardcast/voxpop-client` + the
-`VoxPopGateway` port, so a rename here is a one-package change.
+domain. Bardcast only references the engine via `@bardcast/antiphony-client` + the
+`AntiphonyGateway` port, so a rename here is a one-package change.
 
 ## Identity: two distinct layers
 
@@ -101,7 +101,7 @@ public/user-facing surfaces.
 `[ENGINE]` **R2 — prompt visibility scoping.** Prompts created by Bardcast must
 **not** render in any VoxPop surface — not public pages, not feeds, not inbox.
 They are visible only within Bardcast (the DM/player clients reading via
-`VoxPopGateway`).
+`AntiphonyGateway`).
 
 Likely mechanism (engine's call): scope Bardcast prompts to an app/organization
 and have the engine's public **FeedService** + public projections **exclude**

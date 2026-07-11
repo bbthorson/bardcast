@@ -18,7 +18,7 @@ export interface IngestRepliesInput {
  * is delegated and marked TODO — it likely calls an LLM and/or the VoiceCloner.
  */
 export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput): Promise<void> {
-  const replies = await svc.voxpop.listReplies(input.voxPopPromptUri);
+  const replies = await svc.antiphony.listReplies(input.voxPopPromptUri);
   const replyUris = replies.map((r) => r.uri as `at://${string}`);
   const now = svc.clock().toISOString();
 

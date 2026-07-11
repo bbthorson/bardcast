@@ -1,5 +1,5 @@
 import { PwaEngagementChannel } from "@bardcast/engagement";
-import { AntiphonyClient } from "@bardcast/voxpop-client";
+import { AntiphonyClient } from "@bardcast/antiphony-client";
 import type { CoreServices } from "../ports/index.js";
 import type { IdentityProvider } from "../ports/identity-provider.js";
 import { AtprotoIdentityProvider } from "./atproto/identity-provider.js";
@@ -8,7 +8,7 @@ import { StubAudioRenderer } from "./stub-audio-renderer.js";
 import { StubIdentityProvider } from "./stub-identity-provider.js";
 import { StubNarrativeWriter } from "./stub-narrative-writer.js";
 import { StubVoiceCloner } from "./stub-voice-cloner.js";
-import { ClientVoxPopGateway } from "./voxpop-gateway.js";
+import { ClientAntiphonyGateway } from "./antiphony-gateway.js";
 
 export interface BuildServicesConfig {
   /** Base URL of the (Bardcast-controlled) vox-pop-core deployment. */
@@ -27,8 +27,8 @@ export interface BuildServicesConfig {
 /**
  * The composition root. Wires every port to an adapter and returns the bundle
  * the use-cases run against. This scaffold wires STUB adapters (except the
- * vox-pop client, which is real but points at a configured base URL). Replacing
- * a capability = swapping one line here. Mirrors vox-pop-core's
+ * Antiphony client, which is real but points at a configured base URL).
+ * Replacing a capability = swapping one line here. Mirrors the engine's
  * core-services-firebase.ts composition root.
  */
 export function buildServices(config: BuildServicesConfig): CoreServices {
@@ -63,7 +63,7 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
 
   return {
     store: new InMemoryStore(),
-    voxpop: new ClientVoxPopGateway(antiphony),
+    antiphony: new ClientAntiphonyGateway(antiphony),
     narrative: new StubNarrativeWriter(),
     voice: new StubVoiceCloner(),
     audio: new StubAudioRenderer(),
