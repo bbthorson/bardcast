@@ -85,11 +85,21 @@ export class AntiphonyClient {
       ...init,
       headers: { accept: "application/json", ...(init.headers ?? {}) },
     });
-    const json = (await res.json().catch(() => undefined)) as unknown;
+    // Read as text first: a non-JSON error (an HTML page from a proxy, a crash
+    // dump) shouldn't collapse into a detail-less "failed" — keep the raw body.
+    const text = await res.text().catch(() => "");
+    let json: unknown;
+    try {
+      json = text ? JSON.parse(text) : undefined;
+    } catch {
+      json = undefined;
+    }
     if (!res.ok) {
       const fail = ApiFailure.safeParse(json);
       throw new AntiphonyError(
-        fail.success ? fail.data.error.message : `antiphony ${path} failed`,
+        fail.success
+          ? fail.data.error.message
+          : `antiphony ${path} failed (${res.status}): ${text.slice(0, 200) || res.statusText}`,
         res.status,
         fail.success ? fail.data.error.code : undefined,
       );
@@ -193,7 +203,12 @@ export class AntiphonyClient {
     let cursor = query.cursor;
     for (let guard = 0; guard < 50; guard++) {
       const params = new URLSearchParams();
-      if (query.limit) params.set("limit", String(query.limit));
+      if (query.limit !== undefined) {
+        // `limit` is a total cap across pages: only ask for what's still needed.
+        const remaining = query.limit - out.length;
+        if (remaining <= 0) break;
+        params.set("limit", String(remaining));
+      }
       if (cursor) params.set("cursor", cursor);
       const qs = params.toString();
       const page = await this.send(
@@ -213,9 +228,12 @@ export class AntiphonyClient {
           createdAt: item.record.createdAt ?? new Date().toISOString(),
         });
       }
+      if (query.limit !== undefined && out.length >= query.limit) break;
       if (!page.nextCursor) break;
       cursor = page.nextCursor;
     }
+    // A page may overshoot the remaining count; trim to the requested cap.
+    if (query.limit !== undefined && out.length > query.limit) out.length = query.limit;
     return out;
   }
 

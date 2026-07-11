@@ -1,4 +1,4 @@
-import { AntiphonyClient } from "@bardcast/voxpop-client";
+import { AntiphonyClient, AntiphonyError } from "@bardcast/voxpop-client";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ClientVoxPopGateway } from "./voxpop-gateway.js";
@@ -151,5 +151,49 @@ describe("Antiphony gateway", () => {
     const body = JSON.parse(post.body) as { reply?: { root: { uri: string }; parent: { uri: string } }; embed?: { audio: { ref: { $link: string } } } };
     expect(body.reply?.root.uri).toBe(prompt.uri); // reply ⇒ threaded to the prompt
     expect(body.embed?.audio.ref.$link).toBe("bafyaudiocid"); // AT-Proto {$link} blob shape
+  });
+});
+
+describe("AntiphonyClient.listReplies (fetch-mocked)", () => {
+  const PROMPT = "at://did:web:x/dev.antiphony.audio.post/pp";
+  const reply = (id: string) => ({
+    uri: `at://did:web:x/dev.antiphony.audio.post/${id}`,
+    cid: `cid-${id}`,
+    kind: "reply",
+    authorId: "did:example:a",
+    record: { createdAt: "2026-07-02T00:00:00Z" },
+  });
+  const envelope = (data: unknown) => new Response(JSON.stringify({ success: true, data }), { status: 200, headers: { "content-type": "application/json" } });
+
+  it("treats `limit` as a total cap and only requests what's still needed", async () => {
+    const urls: string[] = [];
+    const fetchImpl = (async (input: string | URL) => {
+      urls.push(String(input));
+      // Two pages of two replies each; a page always honors the requested limit.
+      const u = new URL(String(input));
+      const lim = Number(u.searchParams.get("limit") ?? "2");
+      const cursor = u.searchParams.get("cursor");
+      if (!cursor) return envelope({ items: [reply("r1"), reply("r2")].slice(0, lim), nextCursor: "c1" });
+      return envelope({ items: [reply("r3"), reply("r4")].slice(0, lim) });
+    }) as unknown as typeof fetch;
+
+    const client = new AntiphonyClient({ baseUrl: "http://mock", getServiceToken: () => "tok", fetch: fetchImpl });
+    const out = await client.listReplies({ prompt: PROMPT, limit: 3 });
+
+    expect(out).toHaveLength(3); // capped, not the 4 available
+    expect(urls[0]).toContain("limit=3"); // asks for the cap up front
+    expect(urls[1]).toContain("limit=1"); // then only the remainder
+  });
+
+  it("preserves the status + body of a non-JSON error response", async () => {
+    const fetchImpl = (async () =>
+      new Response("<html>502 Bad Gateway</html>", { status: 502, headers: { "content-type": "text/html" } })) as unknown as typeof fetch;
+    const client = new AntiphonyClient({ baseUrl: "http://mock", getServiceToken: () => "tok", fetch: fetchImpl });
+
+    await expect(client.listReplies({ prompt: PROMPT })).rejects.toMatchObject({
+      constructor: AntiphonyError,
+      status: 502,
+    });
+    await expect(client.listReplies({ prompt: PROMPT })).rejects.toThrow(/502.*Bad Gateway/s);
   });
 });
