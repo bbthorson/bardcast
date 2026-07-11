@@ -81,7 +81,9 @@ export const styles = {
     fontFamily: font.ui,
     background: color.walnut,
     color: color.parchment,
-    border: `1px solid ${color.parchmentDim}`,
+    // Quiet border (the bright parchment tone read as a stark white edge); the
+    // inset well shadow in index.css gives the field shape, candle gold on focus.
+    border: `1px solid ${color.walnutRaised}`,
     borderRadius: 10,
   } as CSSProperties,
   label: { display: "block", fontSize: "0.85rem", color: color.parchmentDim, margin: "0 0 0.35rem" } as CSSProperties,
@@ -116,7 +118,13 @@ export function Wordmark({ size = "1.4rem" }: { size?: string }) {
 }
 
 /** Standard header: mark + wordmark on the left, optional actions on the right. */
-export function TopBar({ actions }: { actions?: ReactNode }) {
+export function TopBar({ actions, onHome }: { actions?: ReactNode; onHome?: () => void }) {
+  const brand = (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+      <HearthMark size={34} />
+      <Wordmark />
+    </div>
+  );
   return (
     <header
       style={{
@@ -127,10 +135,13 @@ export function TopBar({ actions }: { actions?: ReactNode }) {
         borderBottom: `1px solid ${color.walnutRaised}`,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-        <HearthMark size={34} />
-        <Wordmark />
-      </div>
+      {onHome ? (
+        <button onClick={onHome} aria-label="Home" style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer" }}>
+          {brand}
+        </button>
+      ) : (
+        brand
+      )}
       {actions}
     </header>
   );
