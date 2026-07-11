@@ -1,3 +1,0 @@
-# Cloudflare Pages SPA fallback: this is a single-page app with client-side
-# view state, so every path serves index.html and React renders the right view.
-/*    /index.html    200

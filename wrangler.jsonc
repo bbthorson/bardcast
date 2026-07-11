@@ -10,7 +10,9 @@
   // Only apps/web is hosted on Cloudflare — the orchestrator is on Cloud Run
   // and apps/player + apps/dm ship separately (see docs/hosting.md).
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "bardcast-web",
+  // Must match the Worker service name in Cloudflare, or Workers Builds warns
+  // and overrides it with the CI-provided name.
+  "name": "bardcast",
   "compatibility_date": "2026-07-11",
   "assets": {
     // `npm run build` (the Cloudflare build command) builds every workspace;
@@ -18,7 +20,8 @@
     "directory": "./apps/web/dist",
     // The app is a single-page app (client-side view state), so any unknown
     // path serves index.html and React renders the right view. This is the
-    // Workers-assets equivalent of apps/web/public/_redirects.
+    // correct SPA fallback for Workers Assets — note a Pages-style
+    // `/* -> /index.html 200` _redirects rule is rejected here as a self-loop.
     "not_found_handling": "single-page-application"
   }
 }
