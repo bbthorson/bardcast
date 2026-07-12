@@ -76,7 +76,7 @@ and the seams are visible; real implementations slot in without touching the use
 The lexicons use the **placeholder** root `game.bardcast.*`, wired through the single constant
 `NSID_ROOT` in `packages/domain/src/nsid.ts`. Before publishing any record, swap that constant for a
 domain you control. The same one-constant discipline is documented in
-[`universe-starter-kit/protocol/ARCHITECTURE.md §5`](https://github.com/bbthorson/universe-starter-kit/blob/main/protocol/ARCHITECTURE.md).
+[`universe-starter-kit/protocol/ARCHITECTURE.md` §5](https://github.com/bbthorson/universe-starter-kit/blob/main/protocol/ARCHITECTURE.md).
 
 ## Docs
 

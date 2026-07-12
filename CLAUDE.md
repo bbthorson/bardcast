@@ -19,11 +19,12 @@ behavioral model + voice clone). When a character has enough signal, Bardcast wr
    portable across campaigns. AT-Proto OAuth is OUR job — vox-pop-core deliberately keeps OAuth in its
    closed `apps/web` tier, not in core.
 
-## Load-bearing principles (inherited from [`universe-starter-kit/protocol/ARCHITECTURE.md`](https://github.com/bbthorson/universe-starter-kit/blob/main/protocol/ARCHITECTURE.md))
+## Load-bearing principles
 
-These were first proven in `supper_club_secrets` and are now maintained in the public
-**universe-starter-kit** (state-drives-records = its §2, identity = §7, fantasy time = §8,
-NSID discipline = §5). Cite the kit, not the private repo.
+Inherited from [`universe-starter-kit/protocol/ARCHITECTURE.md`](https://github.com/bbthorson/universe-starter-kit/blob/main/protocol/ARCHITECTURE.md).
+First proven in `supper_club_secrets`, now maintained in the public **universe-starter-kit**
+(state-drives-records = §2, identity = §7, fantasy time = §8, NSID discipline = §5). Cite the
+kit, not the private repo.
 
 - **State drives the derived record layer, never the reverse.** Campaign/character state is the source
   of truth; AT-Proto records in `lexicons/` shapes are a *projection*. If state changes, records
