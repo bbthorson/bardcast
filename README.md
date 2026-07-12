@@ -34,7 +34,8 @@ delineate the engine from the VoxPop app). Bardcast adds the parts that are genu
    character can follow its player across campaigns (the "portable canon" thesis).
 5. **Two human surfaces** — a low-friction player client and a richer DM console.
 
-The architecture deliberately follows the precedent in `supper_club_secrets/protocol/ARCHITECTURE.md`:
+The architecture deliberately follows [`universe-starter-kit/protocol/ARCHITECTURE.md`](https://github.com/bbthorson/universe-starter-kit/blob/main/protocol/ARCHITECTURE.md)
+(the conventions extracted from the `supper_club_secrets` precedent):
 **source-of-truth state drives a *derived* record layer** — the story drives the data, never the
 reverse. In-world (fantasy-calendar) dates are stored as plain string fields, while each record's
 `createdAt` carries a real ordering timestamp so a reader timeline can be scrubbed.
@@ -74,7 +75,8 @@ and the seams are visible; real implementations slot in without touching the use
 
 The lexicons use the **placeholder** root `game.bardcast.*`, wired through the single constant
 `NSID_ROOT` in `packages/domain/src/nsid.ts`. Before publishing any record, swap that constant for a
-domain you control. The same open decision exists in `supper_club_secrets/protocol/ARCHITECTURE.md §5`.
+domain you control. The same one-constant discipline is documented in
+[`universe-starter-kit/protocol/ARCHITECTURE.md §5`](https://github.com/bbthorson/universe-starter-kit/blob/main/protocol/ARCHITECTURE.md).
 
 ## Docs
 

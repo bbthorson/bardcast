@@ -6,8 +6,9 @@ they're stubs marked `TODO(bardcast)`.
 
 ## 1. Content library — four kinds of canon, one format
 
-Everything is modeled as **OKF concepts** (markdown + frontmatter `type`), per the
-`supper_club_secrets` precedent. Four roles:
+Everything is modeled as **OKF concepts** (markdown + frontmatter `type`), per
+[`universe-starter-kit/protocol/KNOWLEDGE_FORMAT.md`](https://github.com/bbthorson/universe-starter-kit/blob/main/protocol/KNOWLEDGE_FORMAT.md)
+(the conventions extracted from the `supper_club_secrets` precedent). Four roles:
 
 | Canon | Role | Authored by | Mutability |
 |---|---|---|---|
