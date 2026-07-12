@@ -19,7 +19,12 @@ behavioral model + voice clone). When a character has enough signal, Bardcast wr
    portable across campaigns. AT-Proto OAuth is OUR job — vox-pop-core deliberately keeps OAuth in its
    closed `apps/web` tier, not in core.
 
-## Load-bearing principles (inherited from `supper_club_secrets/protocol/ARCHITECTURE.md`)
+## Load-bearing principles
+
+Inherited from [`universe-starter-kit/protocol/ARCHITECTURE.md`](https://github.com/bbthorson/universe-starter-kit/blob/main/protocol/ARCHITECTURE.md).
+First proven in `supper_club_secrets`, now maintained in the public **universe-starter-kit**
+(state-drives-records = §2, identity = §7, fantasy time = §8, NSID discipline = §5). Cite the
+kit, not the private repo.
 
 - **State drives the derived record layer, never the reverse.** Campaign/character state is the source
   of truth; AT-Proto records in `lexicons/` shapes are a *projection*. If state changes, records
@@ -64,8 +69,10 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 - The visual identity is **locked** — "The Tavern Table", `docs/brand.md`. Colors, fonts, and voice
   lines come from `@bardcast/brand` (tokens + assets); never hard-code a hex in an app. The ember
   accent marks the single next action on a screen — one per screen, always.
-- This is a sibling of `../vox-pop-core` (the engine) and `../supper_club_secrets` (the design
-  precedent and an example world). Read those, don't fork them.
+- This is a sibling of `../vox-pop-core` (the engine) and `../universe-starter-kit` (the
+  canonical home of the canon/records conventions this repo follows — extracted from
+  `../supper_club_secrets`, the original design precedent and an example world). Read those,
+  don't fork them.
 
 ## Verify
 
