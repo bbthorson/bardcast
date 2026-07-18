@@ -22,8 +22,8 @@ export function VoiceClone({ profile, startClone, linkPvc, setIvc, revoke, onBac
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <button style={styles.ghost} onClick={onBack}>← Back to your table</button>
         <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.8rem", background: color.walnut, padding: "0.25rem 0.5rem", borderRadius: 4 }}>
-          <button style={{ border: "none", background: role === "player" ? color.candleGold : "transparent", color: role === "player" ? color.inkBlack : color.parchment, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }} onClick={() => setRole("player")}>Player Flow</button>
-          <button style={{ border: "none", background: role === "dm" ? color.candleGold : "transparent", color: role === "dm" ? color.inkBlack : color.parchment, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }} onClick={() => setRole("dm")}>DM Flow</button>
+          <button style={{ border: "none", background: role === "player" ? color.candleGold : "transparent", color: role === "player" ? color.walnut : color.parchment, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }} onClick={() => setRole("player")}>Player Flow</button>
+          <button style={{ border: "none", background: role === "dm" ? color.candleGold : "transparent", color: role === "dm" ? color.walnut : color.parchment, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }} onClick={() => setRole("dm")}>DM Flow</button>
         </div>
       </div>
 
@@ -87,7 +87,7 @@ function DmOrientation({ onLink }: { onLink: (link: string) => void }) {
           value={linkInput} 
           onChange={(e) => setLinkInput(e.target.value)} 
           placeholder="https://elevenlabs.io/app/share/..."
-          style={{ width: "100%", padding: "0.5rem", borderRadius: 4, border: `1px solid ${color.walnutRaised}`, background: color.inkBlack, color: color.parchment, marginBottom: "0.5rem" }}
+          style={{ width: "100%", padding: "0.5rem", borderRadius: 4, border: `1px solid ${color.walnutRaised}`, background: color.walnut, color: color.parchment, marginBottom: "0.5rem" }}
         />
         <button style={styles.ember} onClick={() => onLink(linkInput)} disabled={!linkInput}>
           Link my Narrator voice
@@ -125,7 +125,7 @@ function PlayerOrientation({ onAutoIvc, onLink }: { onAutoIvc: () => void; onLin
             value={linkInput} 
             onChange={(e) => setLinkInput(e.target.value)} 
             placeholder="https://elevenlabs.io/app/share/..."
-            style={{ width: "100%", padding: "0.5rem", borderRadius: 4, border: `1px solid ${color.walnutRaised}`, background: color.inkBlack, color: color.parchment, marginBottom: "0.5rem" }}
+            style={{ width: "100%", padding: "0.5rem", borderRadius: 4, border: `1px solid ${color.walnutRaised}`, background: color.walnut, color: color.parchment, marginBottom: "0.5rem" }}
           />
           <button style={styles.ember} onClick={() => onLink(linkInput)} disabled={!linkInput}>
             Link PVC Voice
