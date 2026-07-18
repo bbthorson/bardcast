@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { color, font } from "@bardcast/brand";
 import type { VoiceProfile } from "@bardcast/domain";
 import { useAudioRecorder } from "../useAudioRecorder.js";
@@ -48,8 +49,6 @@ export function VoiceClone({ profile, startClone, linkPvc, setIvc, revoke, onBac
     </div>
   );
 }
-
-import { useState } from "react";
 
 function ConsentGate({ onConsent }: { onConsent: () => void }) {
   return (

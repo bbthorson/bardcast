@@ -13,9 +13,18 @@ export class StubVoiceCloner implements VoiceCloner {
   }
 
   async linkSharedPvc(input: { sharingLink: string }): Promise<string> {
-    // Import the shared ElevenLabs voice ID reference from the link
-    const voiceId = input.sharingLink.split("/").pop() || "unknown";
-    return `elevenlabs-pvc:${voiceId}`;
+    // Import the shared ElevenLabs voice ID reference from the link, stripping trailing slashes/query parameters
+    try {
+      const url = new URL(input.sharingLink);
+      const segments = url.pathname.split("/").filter(Boolean);
+      const voiceId = segments[segments.length - 1] || "unknown";
+      return `elevenlabs-pvc:${voiceId}`;
+    } catch {
+      // Fallback if it's not a valid URL (e.g. just raw voiceId)
+      const clean = input.sharingLink.split("?")[0].replace(/\/+$/, "");
+      const voiceId = clean.split("/").pop() || "unknown";
+      return `elevenlabs-pvc:${voiceId}`;
+    }
   }
 
   async revoke(modelRef: string): Promise<void> {
