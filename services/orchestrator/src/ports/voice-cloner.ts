@@ -6,14 +6,19 @@ import type { AtUri, VoiceProfile } from "@bardcast/domain";
  */
 export interface VoiceCloner {
   /**
-   * Add/refresh training samples (vox-pop reply audio) for a player's voice and
-   * return the updated profile (status may advance collecting → training → ready).
+   * Create an Instant Voice Clone (IVC) using a list of audio URLs
+   * (e.g. from Antiphony prompt replies) and return the generated voice_id.
    */
-  train(input: { characterId: string; sampleReplies: AtUri[]; consent: boolean }): Promise<VoiceProfile>;
+  createIvc(input: { characterId: string; sampleAudioUrls: string[] }): Promise<string>;
 
-  /** Current model status. */
-  status(modelRef: string): Promise<VoiceProfile["status"]>;
+  /**
+   * Import an ElevenLabs Professional Voice Clone (PVC) shared via a private link.
+   * Calls POST /v1/voices/add/{public_user_id}/{voice_id} under the hood.
+   * Returns the imported voice_id.
+   */
+  linkSharedPvc(input: { sharingLink: string }): Promise<string>;
 
-  /** Honour a consent revocation: delete the model. */
+  /** Honour a consent revocation: remove the model link. */
   revoke(modelRef: string): Promise<void>;
 }
+

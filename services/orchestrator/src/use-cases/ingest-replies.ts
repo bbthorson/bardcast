@@ -50,22 +50,28 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
     behavior.updatedAt = now;
     await svc.store.putBehavior(input.characterId, behavior);
   }
-
-  // --- Voice: feed reply audio to the cloner. ---
+  // --- Voice: feed reply audio to the cloner to generate or update the IVC. ---
   if (input.intent === "voice" || input.intent === "story") {
     const existing = await svc.store.getVoice(input.characterId);
-    if (existing?.consent) {
-      const updated = await svc.voice.train({
-        characterId: input.characterId,
-        sampleReplies: replyUris,
-        consent: existing.consent,
-      });
-      await svc.store.putVoice(input.characterId, updated);
+    if (existing?.consent && existing.status !== "pvc") {
+      const sampleAudioUrls = replies.map((r) => r.audioUri).filter((u): u is string => Boolean(u));
+      if (sampleAudioUrls.length > 0) {
+        const voiceId = await svc.voice.createIvc({
+          characterId: input.characterId,
+          sampleAudioUrls,
+        });
+        await svc.store.putVoice(input.characterId, {
+          consent: true,
+          status: "ivc",
+          modelRef: voiceId,
+          createdAt: existing.createdAt || now,
+        });
+      }
     }
-    // else: no consent yet — voice axis stays blocked by the readiness gate.
   }
 }
 
 function dedupe<T>(xs: T[]): T[] {
   return [...new Set(xs)];
 }
+

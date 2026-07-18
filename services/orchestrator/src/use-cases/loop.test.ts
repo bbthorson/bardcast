@@ -26,6 +26,7 @@ function fakeGateway(transcripts: string[]): AntiphonyGateway {
         author: "did:example:alice",
         authorDid: "did:example:alice",
         transcript: t,
+        audioUri: `http://audio/reply-${i}.mp3`,
         createdAt: "2026-01-01T00:00:00Z",
       }));
     },
@@ -63,8 +64,7 @@ async function seedCharacter(svc: CoreServices) {
   await svc.store.putCampaign("campaign.thornwood", campaign);
   // consent must exist before voice can train
   await svc.store.putVoice(CHAR, {
-    sampleReplies: [],
-    status: "collecting",
+    status: "unlinked",
     consent: true,
     createdAt: "2026-01-01T00:00:00Z",
   });

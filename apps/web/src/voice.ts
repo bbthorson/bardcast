@@ -47,51 +47,46 @@ export function useVoiceClone(did: string) {
     [did],
   );
 
-  /** Give consent and open the profile for collecting samples. */
+  /** Give consent and mark as unlinked. */
   const startClone = useCallback(() => {
-    persist({ sampleReplies: [], status: "collecting", consent: true, createdAt: new Date().toISOString() });
+    persist({ status: "unlinked", consent: true, createdAt: new Date().toISOString() });
   }, [persist]);
 
-  // Pretend the provider takes a moment, then land on ready. Kept as a named
-  // helper so both add-the-last-sample and retrain share it (and so the side
-  // effect lives outside any state updater — updaters must stay pure).
-  const finishTraining = useCallback(
-    (base: VoiceProfile) => {
-      window.setTimeout(() => persist({ ...base, status: "ready", modelRef: `stub-voice:${did}` }), TRAIN_MS);
+  /** Link a user-owned ElevenLabs shared voice link. */
+  const linkPvc = useCallback(
+    (sharingLink: string) => {
+      if (!profile || !profile.consent) return;
+      persist({
+        ...profile,
+        status: "pvc",
+        modelRef: `elevenlabs:${sharingLink.split("/").pop() || "unknown"}`,
+      });
     },
-    [did, persist],
+    [profile, persist],
   );
 
-  /** Add one training sample; advance to training → ready at the threshold. */
-  const addSample = useCallback(() => {
-    if (!profile || !profile.consent) return;
-    const sampleReplies = [
-      ...profile.sampleReplies,
-      `at://${did}/game.bardcast.voice.profile/sample-${profile.sampleReplies.length + 1}` as AtUri,
-    ];
-    const enough = sampleReplies.length >= SAMPLES_FOR_READY;
-    const next: VoiceProfile = { ...profile, sampleReplies, status: enough ? "training" : "collecting" };
-    persist(next);
-    if (enough) finishTraining(next);
-  }, [did, profile, persist, finishTraining]);
+  /** Backend creates/assigns an IVC automatically. */
+  const setIvc = useCallback(
+    (voiceId: string) => {
+      if (!profile || !profile.consent) return;
+      persist({
+        ...profile,
+        status: "ivc",
+        modelRef: `elevenlabs-ivc:${voiceId}`,
+      });
+    },
+    [profile, persist],
+  );
 
-  /** Re-train from the current samples (ready → training → ready). */
-  const retrain = useCallback(() => {
-    if (!profile) return;
-    const training: VoiceProfile = { ...profile, status: "training" };
-    persist(training);
-    finishTraining(training);
-  }, [profile, persist, finishTraining]);
-
-  /** Honour a consent revocation: drop the model, mark the profile revoked. */
+  /** Honour a consent revocation: drop the model, mark the profile unlinked/revoked. */
   const revoke = useCallback(() => {
     persist({
-      sampleReplies: [],
-      status: "revoked",
+      status: "unlinked",
       consent: false,
       createdAt: profile?.createdAt ?? new Date().toISOString(),
     });
   }, [profile, persist]);
 
-  return { profile, startClone, addSample, retrain, revoke, samplesForReady: SAMPLES_FOR_READY };
+  return { profile, startClone, linkPvc, setIvc, revoke };
 }
+
