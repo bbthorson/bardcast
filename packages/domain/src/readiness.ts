@@ -84,14 +84,14 @@ export function evaluateCharacter(
       : `${exemplars}/${thresholds.minBehaviorExemplars} behavior exemplars`,
   };
 
-  const voiceReady = signal.voice?.status === "ready" && signal.voice.consent === true;
+  const voiceReady = (signal.voice?.status === "ivc" || signal.voice?.status === "pvc") && signal.voice?.consent === true;
   const voice: AxisStatus = {
     ready: !thresholds.requireVoice || voiceReady,
     progress: voiceReady ? 1 : 0,
     detail: thresholds.requireVoice
       ? voiceReady
-        ? "voice clone ready"
-        : `voice ${signal.voice?.status ?? "missing"}${signal.voice && !signal.voice.consent ? " (no consent)" : ""}`
+        ? `voice clone active (${signal.voice?.status})`
+        : `voice ${signal.voice?.status ?? "missing"}${signal.voice && !signal.voice?.consent ? " (no consent)" : ""}`
       : "voice not required",
   };
 

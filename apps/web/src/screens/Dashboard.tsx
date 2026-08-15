@@ -3,16 +3,15 @@ import type { Player, VoiceProfile } from "@bardcast/domain";
 import { styles } from "../ui.js";
 
 const VOICE_LABEL: Record<VoiceProfile["status"], string> = {
-  collecting: "Collecting samples",
-  training: "Training…",
-  ready: "Ready",
-  revoked: "Revoked",
+  unlinked: "Not linked yet",
+  ivc: "Instant voice clone active",
+  pvc: "Professional voice clone active",
 };
 
 function voiceTone(status: VoiceProfile["status"] | null): string {
-  if (status === "ready") return color.moss;
-  if (status === "revoked" || status === null) return color.parchmentDim;
-  return color.candleGold;
+  if (status === "pvc") return color.moss;
+  if (status === "ivc") return color.candleGold;
+  return color.parchmentDim;
 }
 
 /**

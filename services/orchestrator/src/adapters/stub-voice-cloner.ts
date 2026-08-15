@@ -7,24 +7,28 @@ import type { VoiceCloner } from "../ports/voice-cloner.js";
  * a voice-cloning provider; `modelRef` becomes the provider's model handle.
  */
 export class StubVoiceCloner implements VoiceCloner {
-  private static readonly SAMPLES_FOR_READY = 3;
-
-  async train(input: { characterId: string; sampleReplies: AtUri[]; consent: boolean }): Promise<VoiceProfile> {
-    const ready = input.sampleReplies.length >= StubVoiceCloner.SAMPLES_FOR_READY;
-    return {
-      modelRef: `stub-voice:${input.characterId}`,
-      sampleReplies: input.sampleReplies,
-      status: ready ? "ready" : "collecting",
-      consent: input.consent,
-      createdAt: new Date().toISOString(),
-    };
+  async createIvc(input: { characterId: string; sampleAudioUrls: string[] }): Promise<string> {
+    // Generate a stub model reference indicating an IVC created from samples
+    return `stub-voice-ivc:${input.characterId}-${input.sampleAudioUrls.length}-samples`;
   }
 
-  async status(): Promise<VoiceProfile["status"]> {
-    return "ready";
+  async linkSharedPvc(input: { sharingLink: string }): Promise<string> {
+    // Import the shared ElevenLabs voice ID reference from the link, stripping trailing slashes/query parameters
+    try {
+      const url = new URL(input.sharingLink);
+      const segments = url.pathname.split("/").filter(Boolean);
+      const voiceId = segments[segments.length - 1] || "unknown";
+      return `elevenlabs-pvc:${voiceId}`;
+    } catch {
+      // Fallback if it's not a valid URL (e.g. just raw voiceId)
+      const clean = input.sharingLink.split("?")[0].replace(/\/+$/, "");
+      const voiceId = clean.split("/").pop() || "unknown";
+      return `elevenlabs-pvc:${voiceId}`;
+    }
   }
 
-  async revoke(): Promise<void> {
+  async revoke(modelRef: string): Promise<void> {
     // no-op for the stub
   }
 }
+
