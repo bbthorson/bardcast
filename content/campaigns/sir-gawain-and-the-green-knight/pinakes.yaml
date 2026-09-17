@@ -1,0 +1,12 @@
+# pinakes.yaml
+spec: 0.1
+project:
+  name: "Sir Gawain and the Green Knight"
+  nsid: "game.bardcast.campaign.gawain"
+paths:
+  registry: "entities.yaml"
+  nonEntities: "non_entities.yaml"
+  stories: "."
+  locations: "world/places"
+  characters: "world/npcs"
+  output: "records"

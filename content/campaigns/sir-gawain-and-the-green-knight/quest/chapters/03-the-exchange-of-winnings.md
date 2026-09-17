@@ -2,11 +2,14 @@
 type: QuestBeat
 title: "Beat 3 — The Exchange of Winnings"
 id: beat.gawain.03-exchange-of-winnings
+chapter: 3
+date: 2026-12-21
 description: Three days at the castle — the lord hunts, the lady tempts, and a concealed gift breaks the bargain.
 tags: [beat, temptation, moral-test, three-days]
-timestamp: 2026-06-24T00:00:00Z
+timestamp: 2026-12-21T00:00:00Z
 location: place.castle-hautdesert
 npcs: [npc.lord-bertilak, npc.lady-bertilak]
+characters_present: [npc.lord-bertilak, npc.lady-bertilak]
 ---
 
 ## Setting

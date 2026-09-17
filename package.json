@@ -14,12 +14,15 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
+    "lint:lore": "pinakes lint --root content/campaigns/sir-gawain-and-the-green-knight",
+    "compile:lore": "pinakes compile --root content/campaigns/sir-gawain-and-the-green-knight",
     "dev:orchestrator": "npm run dev -w @bardcast/orchestrator",
     "dev:player": "npm run dev -w @bardcast/player",
     "dev:dm": "npm run dev -w @bardcast/dm",
     "dev:web": "npm run dev -w @bardcast/web"
   },
   "devDependencies": {
+    "@bbthorson/pinakes": "0.1.1",
     "typescript": "^5.7.2"
   },
   "engines": {

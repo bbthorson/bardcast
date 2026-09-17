@@ -14,6 +14,6 @@ they have won that day.
 
 While the lord hunts, [his lady](../npcs/lady-bertilak.md) visits Gawain's
 chamber — so the real contest at Hautdesert is **social and moral**, not martial.
-This is the stage for [The Exchange of Winnings](../../quest/beats/03-the-exchange-of-winnings.md).
+This is the stage for [The Exchange of Winnings](../../quest/chapters/03-the-exchange-of-winnings.md).
 Nothing here is what it seems: the castle and its lord are bound up with the
 [Green Chapel](./the-green-chapel.md) and [Morgan le Fay](../npcs/morgan-le-fay.md).

@@ -12,7 +12,7 @@ sheer crags, and (by the poem's telling) skirmishes with wolves, wild men, and
 worse. The land itself is the antagonist here: exposure and exhaustion, not a
 villain.
 
-This is the setting for [The Journey North](../../quest/beats/02-the-journey-north.md).
+This is the setting for [The Journey North](../../quest/chapters/02-the-journey-north.md).
 The hazards are mostly **survival checks** — good candidates for non-lethal
 setbacks (lost supplies, a wound, a delay) rather than death. Gawain's prayer for
 shelter is what brings [Castle Hautdesert](./castle-hautdesert.md) out of the snow.

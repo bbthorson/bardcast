@@ -2,11 +2,14 @@
 type: QuestBeat
 title: "Beat 4 — The Green Chapel"
 id: beat.gawain.04-green-chapel
+chapter: 4
+date: 2027-01-01
 description: The reckoning. The knight kneels for the return blow; the Green Knight is revealed; honesty is weighed and judged.
 tags: [beat, climax, reckoning, reveal]
-timestamp: 2026-06-24T00:00:00Z
-location: place.green-chapel
+timestamp: 2027-01-01T00:00:00Z
+location: place.the-green-chapel
 npcs: [npc.green-knight, npc.lord-bertilak, npc.morgan-le-fay]
+characters_present: [npc.green-knight, npc.lord-bertilak, npc.morgan-le-fay]
 ---
 
 ## Setting

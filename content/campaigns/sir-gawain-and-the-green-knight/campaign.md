@@ -33,10 +33,10 @@ versus self-preservation.
 
 Four beats, each a [QuestBeat](./quest/index.md):
 
-1. [The Beheading Game](./quest/beats/01-the-beheading-game.md) — the bargain is struck.
-2. [The Journey North](./quest/beats/02-the-journey-north.md) — the perilous winter road.
-3. [The Exchange of Winnings](./quest/beats/03-the-exchange-of-winnings.md) — the castle, the hunts, the temptation.
-4. [The Green Chapel](./quest/beats/04-the-green-chapel.md) — the blow is repaid; the truth revealed.
+1. [The Beheading Game](./quest/chapters/01-the-beheading-game.md) — the bargain is struck.
+2. [The Journey North](./quest/chapters/02-the-journey-north.md) — the perilous winter road.
+3. [The Exchange of Winnings](./quest/chapters/03-the-exchange-of-winnings.md) — the castle, the hunts, the temptation.
+4. [The Green Chapel](./quest/chapters/04-the-green-chapel.md) — the blow is repaid; the truth revealed.
 
 ## Type vocabulary
 
