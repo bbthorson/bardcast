@@ -2,11 +2,14 @@
 type: QuestBeat
 title: "Beat 2 — The Journey North"
 id: beat.gawain.02-journey-north
+chapter: 2
+date: 2026-11-01
 description: Months later, the knight rides into the winter wilderness to keep the bargain, beset by cold and hazard, until a castle appears.
 tags: [beat, travel, survival]
-timestamp: 2026-06-24T00:00:00Z
-location: place.wilderness-of-wirral
+timestamp: 2026-11-01T00:00:00Z
+location: place.the-wilderness-of-wirral
 npcs: []
+characters_present: []
 ---
 
 ## Setting

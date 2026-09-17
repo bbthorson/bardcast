@@ -2,11 +2,14 @@
 type: QuestBeat
 title: "Beat 1 — The Beheading Game"
 id: beat.gawain.01-beheading-game
+chapter: 1
+date: 2026-06-24
 description: At the Camelot feast, the Green Knight proposes his bargain; a knight accepts and strikes — and the stranger does not die.
 tags: [beat, opening, bargain]
 timestamp: 2026-06-24T00:00:00Z
 location: place.camelot
 npcs: [npc.king-arthur, npc.green-knight]
+characters_present: [npc.king-arthur, npc.green-knight]
 ---
 
 ## Setting

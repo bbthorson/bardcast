@@ -16,5 +16,5 @@ interrupts when he rides in. Camelot is the campaign's anchor of safety and
 reputation — everything Gawain risks losing on the road begins here.
 
 **Opening scene.** The chapter-one feast (see
-[The Beheading Game](../../quest/beats/01-the-beheading-game.md)). Good place for DM
+[The Beheading Game](../../quest/chapters/01-the-beheading-game.md)). Good place for DM
 prompts that establish who each player-knight is before the stranger arrives.

@@ -1,0 +1,71 @@
+characters:
+  - id: npc.king-arthur
+    type: character
+    displayName: "King Arthur"
+    aliases: ["King Arthur", "Arthur"]
+    sourceFile: "world/npcs/king-arthur.md"
+    status: active
+  - id: npc.green-knight
+    type: character
+    displayName: "The Green Knight"
+    aliases: ["The Green Knight", "Green Knight", "the stranger"]
+    sourceFile: "world/npcs/the-green-knight.md"
+    status: active
+  - id: npc.lord-bertilak
+    type: character
+    displayName: "Lord Bertilak"
+    aliases: ["Lord Bertilak", "Bertilak", "the host"]
+    sourceFile: "world/npcs/lord-bertilak.md"
+    status: active
+  - id: npc.lady-bertilak
+    type: character
+    displayName: "Lady Bertilak"
+    aliases: ["Lady Bertilak", "the lady"]
+    sourceFile: "world/npcs/lady-bertilak.md"
+    status: active
+  - id: npc.morgan-le-fay
+    type: character
+    displayName: "Morgan le Fay"
+    aliases: ["Morgan le Fay", "Morgana", "the old woman"]
+    sourceFile: "world/npcs/morgan-le-fay.md"
+    status: active
+
+places:
+  - id: place.camelot
+    type: place
+    displayName: "Camelot"
+    aliases: ["Camelot"]
+    sourceFile: "world/places/camelot.md"
+    status: active
+  - id: place.castle-hautdesert
+    type: place
+    displayName: "Castle Hautdesert"
+    aliases: ["Castle Hautdesert", "Hautdesert"]
+    sourceFile: "world/places/castle-hautdesert.md"
+    status: active
+  - id: place.the-green-chapel
+    type: place
+    displayName: "The Green Chapel"
+    aliases: ["The Green Chapel", "Green Chapel"]
+    sourceFile: "world/places/the-green-chapel.md"
+    status: active
+  - id: place.the-wilderness-of-wirral
+    type: place
+    displayName: "The Wilderness of Wirral"
+    aliases: ["The Wilderness of Wirral", "Wirral"]
+    sourceFile: "world/places/the-wilderness-of-wirral.md"
+    status: active
+
+items:
+  - id: item.green-axe
+    type: item
+    displayName: "The Green Knight's Axe"
+    aliases: ["the axe", "the giant's axe", "axe"]
+    sourceFile: "world/items/the-axe.md"
+    status: active
+  - id: item.green-girdle
+    type: item
+    displayName: "The Green Girdle"
+    aliases: ["the green girdle", "the girdle", "lace"]
+    sourceFile: "world/items/the-green-girdle.md"
+    status: active
