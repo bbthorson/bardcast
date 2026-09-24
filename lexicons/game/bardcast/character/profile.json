@@ -4,7 +4,7 @@
     "defs": {
         "main": {
             "type": "record",
-            "description": "A Bardcast character's static identity. Portable across campaigns: keyed in-app on the player's DID so the character can follow them. One record per character at the well-known `self` rkey.",
+            "description": "A Bardcast character's durable identity: who they are, independent of any campaign. Lives in the player's own repo, keyed on their DID, so it stays portable off Bardcast. Campaign-specific mechanics live in game.bardcast.character.sheet inside the campaign's space, never here. One record per character at the well-known `self` rkey.",
             "key": "literal:self",
             "record": {
                 "type": "object",
@@ -29,6 +29,12 @@
                     "pronouns": {
                         "type": "string",
                         "maxLength": 40
+                    },
+                    "drives": {
+                        "type": "array",
+                        "maxLength": 32,
+                        "items": { "type": "string", "maxLength": 200 },
+                        "description": "What motivates the character, across every campaign they appear in. Used by the narrative engine."
                     },
                     "createdAt": {
                         "type": "string",

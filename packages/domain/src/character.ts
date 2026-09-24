@@ -1,12 +1,18 @@
 import { z } from "zod";
 import { AtUri, Did, IsoDateTime, StoryDate } from "./ids.js";
 
-/** Zod mirror of game.bardcast.character.profile. Keep in sync with the lexicon. */
+/**
+ * Zod mirror of game.bardcast.character.profile. Keep in sync with the lexicon.
+ * DURABLE identity: lives under the player's DID and is the same in every
+ * campaign. Anything that can differ between two campaigns belongs on the
+ * campaign-scoped CharacterSheet instead.
+ */
 export const CharacterProfile = z.object({
   player: Did.optional(),
   displayName: z.string().min(1).max(120),
   concept: z.string().max(300).optional(),
   pronouns: z.string().max(40).optional(),
+  drives: z.array(z.string().max(200)).max(32).default([]),
   createdAt: IsoDateTime,
 });
 export type CharacterProfile = z.infer<typeof CharacterProfile>;
@@ -20,12 +26,16 @@ export const Trait = z.object({
 export type Trait = z.infer<typeof Trait>;
 
 /**
- * Zod mirror of game.bardcast.character.sheet. DERIVED state: regenerated as
- * more replies arrive. `sourceReplies` records provenance back to vox-pop.
+ * Zod mirror of game.bardcast.character.sheet. CAMPAIGN-SCOPED: one sheet per
+ * (campaign, character), so the same character can carry 25 AC in one
+ * campaign and not the other. Lives in the campaign's space, not the player's
+ * repo. DERIVED state: regenerated as more replies arrive. `sourceReplies`
+ * records provenance back to the Antiphony replies it was built from.
  */
 export const CharacterSheet = z.object({
+  campaign: AtUri,
+  character: AtUri,
   traits: z.array(Trait).max(64).default([]),
-  drives: z.array(z.string().max(200)).max(32).default([]),
   sourceReplies: z.array(AtUri).max(512).default([]),
   createdAt: IsoDateTime,
 });
