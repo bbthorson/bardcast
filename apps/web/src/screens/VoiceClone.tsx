@@ -21,10 +21,10 @@ export function VoiceClone({ profile, startClone, linkPvc, setIvc, revoke, onBac
   return (
     <div style={styles.page}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <button style={styles.ghost} onClick={onBack}>← Back to your table</button>
-        <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.8rem", background: color.walnut, padding: "0.25rem 0.5rem", borderRadius: 4 }}>
-          <button style={{ border: "none", background: role === "player" ? color.candleGold : "transparent", color: role === "player" ? color.walnut : color.parchment, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }} onClick={() => setRole("player")}>Player Flow</button>
-          <button style={{ border: "none", background: role === "dm" ? color.candleGold : "transparent", color: role === "dm" ? color.walnut : color.parchment, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }} onClick={() => setRole("dm")}>DM Flow</button>
+        <button style={{ ...styles.back, marginLeft: -10 }} onClick={onBack}>‹ Back to your table</button>
+        <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.8rem", background: color.felt, padding: "0.25rem 0.5rem", borderRadius: 4 }}>
+          <button style={{ border: "none", background: role === "player" ? color.chalk : "transparent", color: role === "player" ? color.felt : color.chalk, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }} onClick={() => setRole("player")}>Player Flow</button>
+          <button style={{ border: "none", background: role === "dm" ? color.chalk : "transparent", color: role === "dm" ? color.felt : color.chalk, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }} onClick={() => setRole("dm")}>DM Flow</button>
         </div>
       </div>
 
@@ -57,7 +57,7 @@ function ConsentGate({ onConsent }: { onConsent: () => void }) {
       <p style={styles.muted}>
         Bardcast uses voice clones so chapters are read back to your group in your own voices. We only store an opaque ElevenLabs reference, never raw biometrics. You can revoke this permission at any time.
       </p>
-      <button style={{ ...styles.ember, marginTop: "0.5rem" }} onClick={onConsent}>
+      <button style={{ ...styles.candle, marginTop: "0.5rem" }} onClick={onConsent}>
         I consent — set up my voice clone
       </button>
     </article>
@@ -86,9 +86,9 @@ function DmOrientation({ onLink }: { onLink: (link: string) => void }) {
           value={linkInput} 
           onChange={(e) => setLinkInput(e.target.value)} 
           placeholder="https://elevenlabs.io/app/share/..."
-          style={{ width: "100%", padding: "0.5rem", borderRadius: 4, border: `1px solid ${color.walnutRaised}`, background: color.walnut, color: color.parchment, marginBottom: "0.5rem" }}
+          style={{ ...styles.input, marginBottom: 12 }}
         />
-        <button style={styles.ember} onClick={() => onLink(linkInput)} disabled={!linkInput}>
+        <button style={styles.candle} onClick={() => onLink(linkInput)} disabled={!linkInput}>
           Link my Narrator voice
         </button>
       </div>
@@ -108,7 +108,7 @@ function PlayerOrientation({ onAutoIvc, onLink }: { onAutoIvc: () => void; onLin
       </p>
       
       <div style={{ marginTop: "1.25rem", display: "flex", gap: "0.5rem" }}>
-        <button style={styles.ember} onClick={onAutoIvc}>
+        <button style={styles.candle} onClick={onAutoIvc}>
           Continue (Use Auto-Clone)
         </button>
         <button style={styles.secondary} onClick={() => setShowOverride(!showOverride)}>
@@ -117,16 +117,16 @@ function PlayerOrientation({ onAutoIvc, onLink }: { onAutoIvc: () => void; onLin
       </div>
 
       {showOverride && (
-        <div style={{ marginTop: "1.25rem", borderTop: `1px solid ${color.walnutRaised}`, paddingTop: "1rem" }}>
+        <div style={{ marginTop: "1.25rem", borderTop: `1px solid ${color.feltLine}`, paddingTop: "1rem" }}>
           <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.35rem" }}>Paste private ElevenLabs sharing link:</label>
           <input 
             type="text" 
             value={linkInput} 
             onChange={(e) => setLinkInput(e.target.value)} 
             placeholder="https://elevenlabs.io/app/share/..."
-            style={{ width: "100%", padding: "0.5rem", borderRadius: 4, border: `1px solid ${color.walnutRaised}`, background: color.walnut, color: color.parchment, marginBottom: "0.5rem" }}
+            style={{ ...styles.input, marginBottom: 12 }}
           />
-          <button style={styles.ember} onClick={() => onLink(linkInput)} disabled={!linkInput}>
+          <button style={styles.candle} onClick={() => onLink(linkInput)} disabled={!linkInput}>
             Link PVC Voice
           </button>
         </div>
@@ -150,11 +150,11 @@ function Ready({ status, modelRef, onRevoke, onDone }: { status: "ivc" | "pvc"; 
           : "Your Professional Voice Clone has been linked to your account."}
       </p>
       <p style={{ ...styles.muted, fontSize: "0.78rem" }}>
-        Reference: <span style={{ fontFamily: font.mono, color: color.candleGold }}>{modelRef}</span>
+        Reference: <span style={{ fontFamily: font.mono, color: color.chalk }}>{modelRef}</span>
       </p>
       <div style={{ ...styles.row, marginTop: "1rem", gap: "0.5rem" }}>
         <button style={styles.danger} onClick={onRevoke}>Revoke consent &amp; unlink</button>
-        <button style={styles.ember} onClick={onDone}>Done</button>
+        <button style={styles.candle} onClick={onDone}>Done</button>
       </div>
     </article>
   );

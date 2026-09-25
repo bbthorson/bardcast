@@ -23,12 +23,12 @@ export function JoinInvite({ onBack }: { onBack: () => void }) {
   if (joined) {
     return (
       <div style={styles.page}>
-        <button style={styles.ghost} onClick={onBack}>← Back to your table</button>
+        <button style={{ ...styles.back, marginLeft: -10 }} onClick={onBack}>‹ Back to your table</button>
         <p style={{ ...styles.eyebrow, marginTop: "1rem" }}>You're in</p>
         <h1 style={styles.h1}>Pull up a chair.</h1>
         <p style={styles.muted}>
           You've joined the campaign behind invite{" "}
-          <span style={{ fontFamily: font.mono, color: color.candleGold }}>{joined}</span>. When the DM
+          <span style={{ fontFamily: font.mono, color: color.chalk }}>{joined}</span>. When the DM
           sends a prompt, you'll answer it in your own voice from the player app.
         </p>
         <p style={{ ...styles.muted, fontSize: "0.8rem", marginTop: "1rem" }}>
@@ -40,7 +40,7 @@ export function JoinInvite({ onBack }: { onBack: () => void }) {
 
   return (
     <div style={styles.page}>
-      <button style={styles.ghost} onClick={onBack}>← Back</button>
+      <button style={{ ...styles.back, marginLeft: -10 }} onClick={onBack}>‹ Back</button>
       <h1 style={{ ...styles.h1, marginTop: "0.75rem" }}>Join with an invite</h1>
       <p style={styles.muted}>Enter the code your DM shared with you.</p>
 
@@ -58,8 +58,8 @@ export function JoinInvite({ onBack }: { onBack: () => void }) {
             onChange={(e) => setCode(e.target.value)}
           />
         </div>
-        {/* The one ember action on this screen. */}
-        <button type="submit" style={{ ...styles.ember, ...(canSubmit ? null : styles.disabled) }} disabled={!canSubmit}>
+        {/* The one candle on this screen. */}
+        <button type="submit" style={{ ...styles.candle, ...(canSubmit ? null : styles.disabled) }} disabled={!canSubmit}>
           Join campaign
         </button>
       </form>

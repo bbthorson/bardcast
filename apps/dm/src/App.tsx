@@ -50,7 +50,7 @@ export function App() {
 
         <div style={styles.row}>
           <button style={styles.btnSecondary} onClick={refresh}>Check readiness</button>
-          {/* The ember rule (docs/brand.md): generation is the next action only
+          {/* The candle rule (docs/brand.md): generation is the next action only
               once the gate opens; until then it sits unlit. */}
           <button
             style={{ ...styles.btn, ...(readiness?.ready ? null : styles.btnUnlit) }}
@@ -77,7 +77,7 @@ export function App() {
 
 function CharacterCard({ id, r }: { id: string; r: CharacterReadiness }) {
   return (
-    <article style={{ ...styles.card, borderColor: r.ready ? color.moss : color.hearthRed }}>
+    <article style={{ ...styles.card, borderColor: r.ready ? color.moss : color.hearth }}>
       <h3 style={{ margin: "0 0 0.5rem" }}>{id}</h3>
       <Axis label="Sheet" pct={r.sheet.progress} detail={r.sheet.detail} />
       <Axis label="Behavior" pct={r.behavior.progress} detail={r.behavior.detail} />
@@ -104,18 +104,18 @@ function Axis({ label, pct, detail }: { label: string; pct: number; detail: stri
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  main: { minHeight: "100vh", background: color.walnut, color: color.parchment, fontFamily: font.ui },
+  main: { minHeight: "100vh", background: color.felt, color: color.chalk, fontFamily: font.ui },
   page: { maxWidth: 880, margin: "0 auto", padding: "2rem" },
-  h1: { fontFamily: font.display, fontWeight: 600 },
-  muted: { color: color.parchmentDim, fontSize: "0.85rem" },
+  h1: { fontFamily: font.display, fontWeight: 400 },
+  muted: { color: color.chalkDim, fontSize: "0.85rem" },
   row: { display: "flex", gap: "0.75rem", margin: "1rem 0" },
-  btn: { padding: "0.7rem 1.1rem", borderRadius: 10, border: "none", color: color.walnut, background: color.ember, fontWeight: 600 },
-  btnUnlit: { background: color.walnutRaised, color: color.parchmentDim, fontWeight: 400 },
-  btnSecondary: { padding: "0.7rem 1.1rem", borderRadius: 10, border: `1px solid ${color.candleGold}`, color: color.candleGold, background: "transparent" },
-  status: { padding: "0.75rem 1rem", background: color.walnutRaised, color: color.candleGold, borderRadius: 8 },
+  btn: { padding: "0.7rem 1.1rem", borderRadius: 10, border: "none", color: color.felt, background: color.candle, fontWeight: 600 },
+  btnUnlit: { background: color.feltRaised, color: color.chalkDim, fontWeight: 400 },
+  btnSecondary: { padding: "0.7rem 1.1rem", borderRadius: 10, border: `1px solid ${color.chalkDim}`, color: color.chalkDim, background: "transparent" },
+  status: { padding: "0.75rem 1rem", background: color.feltRaised, color: color.chalkDim, borderRadius: 8 },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem", marginTop: "1rem" },
-  card: { border: "2px solid", borderRadius: 12, padding: "1rem", background: color.walnutRaised },
+  card: { border: "2px solid", borderRadius: 12, padding: "1rem", background: color.feltRaised },
   axisHead: { display: "flex", justifyContent: "space-between", fontSize: "0.85rem" },
-  track: { height: 8, background: color.walnut, borderRadius: 999, overflow: "hidden" },
-  fill: { height: "100%", background: color.candleGold },
+  track: { height: 8, background: color.felt, borderRadius: 999, overflow: "hidden" },
+  fill: { height: "100%", background: color.chalkDim },
 };

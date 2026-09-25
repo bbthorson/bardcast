@@ -36,13 +36,13 @@ export function App() {
       ) : (
         <div style={styles.controls}>
           {state !== "recording" ? (
-            // The ember rule (docs/brand.md): the accent marks the single next
+            // The candle rule (docs/brand.md): the accent marks the single next
             // action — record until there's a take, then send.
             <button style={blob ? styles.secondaryPill : styles.record} onClick={start}>
               {blob ? "Re-record" : "Hold the mic — tap to record"}
             </button>
           ) : (
-            <button style={{ ...styles.record, background: color.hearthRed, color: color.parchment }} onClick={stop}>
+            <button style={{ ...styles.record, background: color.hearth, color: color.chalk }} onClick={stop}>
               Stop ({Math.floor(durationMs / 1000)}s)
             </button>
           )}
@@ -71,11 +71,11 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     gap: "1.5rem",
     padding: "1.5rem",
-    background: color.walnut,
-    color: color.parchment,
+    background: color.felt,
+    color: color.chalk,
     fontFamily: font.ui,
   },
-  scene: { color: color.parchmentDim, fontFamily: font.body, fontStyle: "italic", margin: 0 },
+  scene: { color: color.chalkDim, fontFamily: font.ui, fontStyle: "italic", margin: 0 },
   title: { fontFamily: font.display, fontSize: "1.6rem", lineHeight: 1.2, margin: 0 },
   controls: { display: "flex", flexDirection: "column", gap: "1rem" },
   record: {
@@ -84,19 +84,19 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     borderRadius: "999px",
     border: "none",
-    background: color.ember,
-    color: color.walnut,
+    background: color.candle,
+    color: color.felt,
   },
   secondaryPill: {
     padding: "1.1rem",
     fontSize: "1.1rem",
     borderRadius: "999px",
-    border: `1px solid ${color.candleGold}`,
+    border: `1px solid ${color.chalkDim}`,
     background: "transparent",
-    color: color.candleGold,
+    color: color.chalkDim,
   },
   row: { display: "flex", gap: "0.75rem" },
-  secondary: { flex: 1, padding: "0.9rem", borderRadius: "12px", border: `1px solid ${color.candleGold}`, background: "transparent", color: color.candleGold },
-  primary: { flex: 2, padding: "0.9rem", borderRadius: "12px", border: "none", background: color.ember, color: color.walnut, fontWeight: 600 },
-  sent: { fontFamily: font.body, fontSize: "1.2rem", textAlign: "center" },
+  secondary: { flex: 1, padding: "0.9rem", borderRadius: "12px", border: `1px solid ${color.chalkDim}`, background: "transparent", color: color.chalkDim },
+  primary: { flex: 2, padding: "0.9rem", borderRadius: "12px", border: "none", background: color.candle, color: color.felt, fontWeight: 600 },
+  sent: { fontFamily: font.ui, fontSize: "1.2rem", textAlign: "center" },
 };
