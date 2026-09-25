@@ -8,8 +8,9 @@ import { z } from "zod";
  *              Never changes even if a display name or file does.
  * - Did      — the AT-Protocol decentralized identifier the LocalId maps to.
  *
- * Characters, sheets, and voice profiles hang off the player's Did so a
- * character can follow its player across campaigns ("portable canon").
+ * Characters, behavior models, and voice profiles hang off the player's Did so
+ * a character can follow its player across campaigns ("portable canon"). The
+ * character sheet is campaign-scoped instead; see docs/character-model.md.
  */
 
 export const LocalId = z

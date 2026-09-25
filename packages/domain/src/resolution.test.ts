@@ -28,8 +28,9 @@ describe("resolution", () => {
 
   it("reads a modifier from the character sheet (replies → sheet → modifier)", () => {
     const sheet: CharacterSheet = {
+      campaign: "at://campaign.thornwood",
+      character: "at://char.alice",
       traits: [{ name: "dexterity", value: "16", confidence: 80 }],
-      drives: [],
       sourceReplies: [],
       createdAt: "2026-01-01T00:00:00Z",
     };

@@ -51,9 +51,10 @@ function services(gateway: AntiphonyGateway): CoreServices {
 }
 
 const CHAR = "char.alice";
+const CAMPAIGN = "campaign.thornwood";
 
 async function seedCharacter(svc: CoreServices) {
-  const profile: CharacterProfile = { displayName: "Alice the Bold", createdAt: "2026-01-01T00:00:00Z" };
+  const profile: CharacterProfile = { displayName: "Alice the Bold", drives: [], createdAt: "2026-01-01T00:00:00Z" };
   await svc.store.putCharacter(CHAR, profile);
   const campaign: Campaign = {
     title: "Thornwood",
@@ -61,7 +62,7 @@ async function seedCharacter(svc: CoreServices) {
     party: [`at://${CHAR}`],
     createdAt: "2026-01-01T00:00:00Z",
   };
-  await svc.store.putCampaign("campaign.thornwood", campaign);
+  await svc.store.putCampaign(CAMPAIGN, campaign);
   // consent must exist before voice can train
   await svc.store.putVoice(CHAR, {
     status: "unlinked",
@@ -75,11 +76,11 @@ describe("the Bardcast loop", () => {
     const svc = services(fakeGateway(["a", "b"]));
     await seedCharacter(svc);
 
-    const before = await checkReadiness(svc, { characterIds: [CHAR] });
+    const before = await checkReadiness(svc, { campaignId: CAMPAIGN, characterIds: [CHAR] });
     expect(before.ready).toBe(false);
 
     await expect(
-      generateChapter(svc, { campaignId: "campaign.thornwood", characterIds: [CHAR] }),
+      generateChapter(svc, { campaignId: CAMPAIGN, characterIds: [CHAR] }),
     ).rejects.toBeInstanceOf(NotReadyError);
   });
 
@@ -88,25 +89,49 @@ describe("the Bardcast loop", () => {
     const svc = services(fakeGateway(Array.from({ length: 8 }, (_, i) => `decision ${i}`)));
     await seedCharacter(svc);
     // give the sheet enough confident traits directly (sheet inference is TODO).
-    await svc.store.putSheet(CHAR, {
+    await svc.store.putSheet(CAMPAIGN, CHAR, {
+      campaign: `at://${CAMPAIGN}`,
+      character: `at://${CHAR}`,
       traits: Array.from({ length: 5 }, (_, i) => ({ name: `t${i}`, confidence: 80 })),
-      drives: [],
       sourceReplies: [],
       createdAt: "2026-01-01T00:00:00Z",
     });
 
-    await ingestReplies(svc, { characterId: CHAR, voxPopPromptUri: "at://prompt/1", intent: "story" });
+    await ingestReplies(svc, {
+      campaignId: CAMPAIGN,
+      characterId: CHAR,
+      voxPopPromptUri: "at://prompt/1",
+      intent: "story",
+    });
 
-    const readiness = await checkReadiness(svc, { characterIds: [CHAR] });
+    const readiness = await checkReadiness(svc, { campaignId: CAMPAIGN, characterIds: [CHAR] });
     expect(readiness.ready).toBe(true);
 
     const { chapter, events } = await generateChapter(svc, {
-      campaignId: "campaign.thornwood",
+      campaignId: CAMPAIGN,
       characterIds: [CHAR],
     });
     expect(chapter.status).toBe("ready");
     expect(chapter.audioRef).toBeTruthy();
     expect(events).toHaveLength(1);
     expect(events[0]?.subject).toBe(`at://${CHAR}`);
+  });
+
+  it("keeps a character's sheet separate per campaign", async () => {
+    const svc = services(fakeGateway([]));
+    await seedCharacter(svc);
+    const OTHER = "campaign.saltmarsh";
+    const sheet = (campaign: string, ac: string) => ({
+      campaign: `at://${campaign}`,
+      character: `at://${CHAR}`,
+      traits: [{ name: "armor class", value: ac, confidence: 90 }],
+      sourceReplies: [],
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+    await svc.store.putSheet(CAMPAIGN, CHAR, sheet(CAMPAIGN, "25"));
+    await svc.store.putSheet(OTHER, CHAR, sheet(OTHER, "14"));
+
+    expect((await svc.store.getSheet(CAMPAIGN, CHAR))?.traits[0]?.value).toBe("25");
+    expect((await svc.store.getSheet(OTHER, CHAR))?.traits[0]?.value).toBe("14");
   });
 });

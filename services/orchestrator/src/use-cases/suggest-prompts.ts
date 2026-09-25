@@ -25,7 +25,10 @@ export async function suggestPrompts(
   svc: CoreServices,
   input: { campaignId: string; characterIds: string[] },
 ): Promise<PromptSuggestion[]> {
-  const readiness = await checkReadiness(svc, { characterIds: input.characterIds });
+  const readiness = await checkReadiness(svc, {
+    campaignId: input.campaignId,
+    characterIds: input.characterIds,
+  });
   const suggestions: PromptSuggestion[] = [];
 
   for (const { characterId, nextFocus } of readiness.blocking) {
