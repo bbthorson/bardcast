@@ -1,44 +1,64 @@
 /*
- * The Tavern Table — Bardcast design tokens (see docs/brand.md).
+ * Felt & Vellum — Bardcast design tokens (see docs/brand.md).
  * Mirrors packages/brand/src/index.ts; keep the two in sync.
  */
 :root {
-  --bc-walnut: #241a12;
-  --bc-walnut-raised: #2e2218;
-  --bc-parchment: #f0e3c9;
-  --bc-parchment-dim: #b9a98c;
-  --bc-ember: #e07b39; /* reserved for the single next action on any screen */
-  --bc-candle-gold: #d9a441;
-  --bc-hearth-red: #9c3f2e;
-  --bc-moss: #6d7a50;
+  --bc-room: #0b110e;
+  --bc-felt: #111a16;
+  --bc-felt-raised: #18231e;
+  --bc-felt-line: #26352e;
+  --bc-felt-worn: #4a5c53;
+  --bc-chalk: #ece7db;
+  --bc-chalk-dim: #a2aa9e;
 
-  --bc-font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --bc-font-body: "Source Serif 4", "Iowan Old Style", Palatino, Georgia, serif;
-  --bc-font-ui: Seravek, "Avenir Next", system-ui, sans-serif;
-  --bc-font-mono: "SF Mono", Menlo, Consolas, monospace;
+  --bc-vellum: #efe8d8;
+  --bc-vellum-raised: #f4eee1;
+  --bc-vellum-line: #d9d0bc;
+  --bc-ink: #1e1a15;
+  --bc-ink-dim: #605849;
+  --bc-pencil: #5a554c;
+  --bc-learning: #a89e8a;
 
-  --bc-radius-pill: 999px;
-  --bc-radius-card: 12px;
+  --bc-candle: #ebaa4c; /* reserved for the single next action on any screen */
+  --bc-hearth: #c4543f;
+  --bc-hearth-soft: #e4826e;
+  --bc-moss: #8dbe7a;
+
+  --bc-ale: #c9a56a;
+  --bc-tea: #7a5a32;
+  --bc-blood: #9e3a2a;
+
+  --bc-font-display: "Young Serif", "Iowan Old Style", Georgia, serif;
+  --bc-font-ui: Figtree, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --bc-font-mono: "DM Mono", "SF Mono", Menlo, Consolas, monospace;
+  --bc-font-hand: Kalam, "Bradley Hand", cursive;
+
+  --bc-radius-card: 6px;
+  --bc-radius-well: 4px;
+  --bc-radius-chip: 3px;
 }
 
-/* The Chronicle's one borrowed move: chapter titles open with an illuminated initial. */
-.bc-dropcap::first-letter {
-  font-family: var(--bc-font-display);
-  font-weight: 700;
-  color: var(--bc-candle-gold);
-  float: left;
-  font-size: 3.2em;
-  line-height: 0.85;
-  padding-right: 0.08em;
+/* Felt: a two-layer dot weave at 9px. */
+.bc-felt {
+  background-color: var(--bc-felt);
+  background-image:
+    radial-gradient(rgba(236, 231, 219, 0.06) 1px, transparent 1.3px),
+    radial-gradient(rgba(0, 0, 0, 0.3) 1px, transparent 1.3px);
+  background-size: 9px 9px, 9px 9px;
+  background-position: 0 0, 4.5px 4.5px;
 }
 
-/* The Arcane Signal's one borrowed move: SRD dice results read as an instrument panel. */
-.bc-dice-log {
-  font-family: var(--bc-font-mono);
-  font-size: 0.85rem;
-  letter-spacing: 0.04em;
-  color: var(--bc-candle-gold);
-  background: var(--bc-walnut-raised);
-  border-radius: 6px;
-  padding: 0.5rem 0.75rem;
+/* Vellum: a fine 5px grain. */
+.bc-vellum {
+  background-color: var(--bc-vellum);
+  background-image: radial-gradient(rgba(96, 88, 73, 0.12) 0.8px, transparent 1px);
+  background-size: 5px 5px;
+  color: var(--bc-ink);
+}
+
+/* The DM's hand: chalk on felt, pencil on vellum. Never more than a line. */
+.bc-hand {
+  font-family: var(--bc-font-hand);
+  font-size: 19px;
+  line-height: 1.3;
 }

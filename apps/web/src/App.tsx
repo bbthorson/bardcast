@@ -1,4 +1,3 @@
-import { color } from "@bardcast/brand";
 import { useState } from "react";
 import { useSession } from "./session.js";
 import { useRouter } from "./router.js";
@@ -10,9 +9,20 @@ import { Dashboard } from "./screens/Dashboard.js";
 import { CreateCampaign } from "./screens/CreateCampaign.js";
 import { JoinInvite } from "./screens/JoinInvite.js";
 import { VoiceClone } from "./screens/VoiceClone.js";
+import { CampaignProgress } from "./screens/CampaignProgress.js";
+import { CharacterSheet } from "./screens/CharacterSheet.js";
+import { campaign, characters, party } from "./fixtures/gawain.js";
 
 /** Routes for the signed-in views. Home ("/") is the dashboard. */
-const path = { home: "/", create: "/campaigns/new", join: "/join", voice: "/voice" } as const;
+const path = {
+  home: "/",
+  create: "/campaigns/new",
+  join: "/join",
+  voice: "/voice",
+  campaign: `/campaigns/${campaign.id}`,
+  character: (id: string) => `/campaigns/${campaign.id}/characters/${id}`,
+} as const;
+const CHARACTER_ROUTE = new RegExp(`^/campaigns/${campaign.id}/characters/([a-z0-9-]+)$`);
 
 /**
  * The web front door. Views are URL-driven (see router.ts) so the browser
@@ -41,9 +51,9 @@ export function App() {
       <main style={styles.main}>
         <TopBar
           actions={
-            // The always-present twin of the hero CTA — quieter (outline) so the
-            // hero keeps the single ember.
-            <button style={styles.secondary} onClick={() => setShowLogin(true)}>
+            // The always-present twin of the hero CTA — quieter (felt) so the
+            // hero keeps the single candle.
+            <button style={styles.compact} onClick={() => setShowLogin(true)}>
               Sign in
             </button>
           }
@@ -79,26 +89,40 @@ function SignedIn({
   const player = session.player!;
   const voice = useVoiceClone(player.did);
   const { navigate, back } = router;
+  const characterId = CHARACTER_ROUTE.exec(router.path)?.[1];
 
   return (
     <main style={styles.main}>
       <TopBar
         onHome={() => navigate(path.home)}
         actions={
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             {session.simulated && (
-              <span style={{ ...styles.muted, fontSize: "0.75rem", color: color.candleGold }} title="No orchestrator reachable — signed in with a local stand-in session.">
+              <span style={styles.meta} title="No orchestrator reachable — signed in with a local stand-in session.">
                 demo session
               </span>
             )}
-            <button style={styles.ghost} onClick={() => { navigate(path.home); session.signOut(); }}>
+            <button style={styles.quiet} onClick={() => { navigate(path.home); session.signOut(); }}>
               Sign out
             </button>
           </div>
         }
       />
 
-      {router.path === path.create ? (
+      {router.path === path.campaign ? (
+        <CampaignProgress
+          // TODO(bardcast): open the player app's recorder for this prompt.
+          onAnswer={() => undefined}
+          onOpenCharacter={(id) => navigate(path.character(id))}
+        />
+      ) : characterId && characters[characterId] ? (
+        <CharacterSheet
+          character={characters[characterId]}
+          hue={party.find((p) => p.id === characterId)?.hue ?? 35}
+          chapterLabel={`Sir Gawain · Ch. ${campaign.currentChapter}`}
+          onBack={back}
+        />
+      ) : router.path === path.create ? (
         <CreateCampaign player={player} onBack={back} />
       ) : router.path === path.join ? (
         <JoinInvite onBack={back} />
@@ -111,6 +135,7 @@ function SignedIn({
           onCreate={() => navigate(path.create)}
           onJoin={() => navigate(path.join)}
           onManageVoice={() => navigate(path.voice)}
+          onOpenCampaign={() => navigate(path.campaign)}
         />
       )}
     </main>

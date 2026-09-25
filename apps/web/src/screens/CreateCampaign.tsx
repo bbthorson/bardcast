@@ -44,7 +44,7 @@ export function CreateCampaign({ player, onBack }: { player: Player; onBack: () 
   if (created) {
     return (
       <div style={styles.page}>
-        <button style={styles.ghost} onClick={onBack}>← Back to your table</button>
+        <button style={{ ...styles.back, marginLeft: -10 }} onClick={onBack}>‹ Back to your table</button>
         <p style={{ ...styles.eyebrow, marginTop: "1rem" }}>Campaign created</p>
         <h1 style={styles.h1}>{created.title}</h1>
         <p style={styles.muted}>
@@ -53,7 +53,7 @@ export function CreateCampaign({ player, onBack }: { player: Player; onBack: () 
         </p>
         <div style={{ ...styles.card, marginTop: "1rem" }}>
           <p style={styles.label}>Invite code</p>
-          <p style={{ fontFamily: font.mono, fontSize: "1.6rem", letterSpacing: "0.12em", color: color.candleGold, margin: 0 }}>
+          <p style={{ fontFamily: font.mono, fontSize: "1.6rem", letterSpacing: "0.12em", color: color.chalk, margin: 0 }}>
             {invite}
           </p>
           <p style={{ ...styles.muted, fontSize: "0.8rem", marginTop: "0.75rem", marginBottom: 0 }}>
@@ -70,7 +70,7 @@ export function CreateCampaign({ player, onBack }: { player: Player; onBack: () 
 
   return (
     <div style={styles.page}>
-      <button style={styles.ghost} onClick={onBack}>← Back</button>
+      <button style={{ ...styles.back, marginLeft: -10 }} onClick={onBack}>‹ Back</button>
       <h1 style={{ ...styles.h1, marginTop: "0.75rem" }}>Start a campaign</h1>
       <p style={styles.muted}>You'll be the DM. You can change any of this later.</p>
 
@@ -81,15 +81,15 @@ export function CreateCampaign({ player, onBack }: { player: Player; onBack: () 
           {title.trim() && <p style={{ ...styles.muted, fontSize: "0.78rem", marginTop: "0.35rem" }}>id: <span style={{ fontFamily: font.mono }}>{localId}</span></p>}
         </div>
         <div>
-          <label htmlFor="premise" style={styles.label}>Premise <span style={{ color: color.parchmentDim }}>(optional)</span></label>
-          <textarea id="premise" style={{ ...styles.input, minHeight: 110, resize: "vertical", fontFamily: font.body }} placeholder="A hush has fallen over the northern woods, and the last patrol never came home…" value={premise} onChange={(e) => setPremise(e.target.value)} />
+          <label htmlFor="premise" style={styles.label}>Premise <span style={{ color: color.chalkDim }}>(optional)</span></label>
+          <textarea id="premise" style={{ ...styles.input, minHeight: 110, resize: "vertical", fontFamily: font.ui }} placeholder="A hush has fallen over the northern woods, and the last patrol never came home…" value={premise} onChange={(e) => setPremise(e.target.value)} />
         </div>
         <div>
-          <label htmlFor="calendar" style={styles.label}>Calendar name <span style={{ color: color.parchmentDim }}>(optional)</span></label>
+          <label htmlFor="calendar" style={styles.label}>Calendar name <span style={{ color: color.chalkDim }}>(optional)</span></label>
           <input id="calendar" style={styles.input} placeholder="Reckoning of Ash" value={calendar} onChange={(e) => setCalendar(e.target.value)} />
         </div>
-        {/* The one ember action on this screen. */}
-        <button type="submit" style={{ ...styles.ember, ...(canSubmit ? null : styles.disabled) }} disabled={!canSubmit}>
+        {/* The one candle on this screen. */}
+        <button type="submit" style={{ ...styles.candle, ...(canSubmit ? null : styles.disabled) }} disabled={!canSubmit}>
           Create campaign
         </button>
       </form>
