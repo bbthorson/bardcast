@@ -27,7 +27,7 @@ export type Did = z.infer<typeof Did>;
 export const AtUri = z.string().startsWith("at://");
 export type AtUri = z.infer<typeof AtUri>;
 
-export const IsoDateTime = z.string().datetime({ offset: true });
+export const IsoDateTime = z.iso.datetime({ offset: true });
 export type IsoDateTime = z.infer<typeof IsoDateTime>;
 
 /**

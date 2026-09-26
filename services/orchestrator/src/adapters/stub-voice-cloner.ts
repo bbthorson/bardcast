@@ -21,7 +21,7 @@ export class StubVoiceCloner implements VoiceCloner {
       return `elevenlabs-pvc:${voiceId}`;
     } catch {
       // Fallback if it's not a valid URL (e.g. just raw voiceId)
-      const clean = input.sharingLink.split("?")[0].replace(/\/+$/, "");
+      const clean = (input.sharingLink.split("?")[0] ?? "").replace(/\/+$/, "");
       const voiceId = clean.split("/").pop() || "unknown";
       return `elevenlabs-pvc:${voiceId}`;
     }

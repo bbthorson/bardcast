@@ -11,8 +11,10 @@ import { StubVoiceCloner } from "./stub-voice-cloner.js";
 import { ClientAntiphonyGateway } from "./antiphony-gateway.js";
 
 export interface BuildServicesConfig {
-  /** Base URL of the (Bardcast-controlled) vox-pop-core deployment. */
-  voxPopBaseUrl: string;
+  /** Base URL of the (Bardcast-controlled) Antiphony deployment. */
+  antiphonyBaseUrl?: string;
+  /** @deprecated use antiphonyBaseUrl */
+  voxPopBaseUrl?: string;
   /** Player PWA base URL — engagement deep links + post-login redirect. */
   appBaseUrl: string;
   /** This service's own public URL — roots the AT-Proto client_id/redirect_uri. */
@@ -20,7 +22,9 @@ export interface BuildServicesConfig {
   /** "atproto" = real AT-Proto OAuth identity; "stub" = dev header-based. */
   auth: "stub" | "atproto";
   appName?: string;
-  /** Bearer Bardcast presents to its own vox-pop-core (DID-trusting) deployment. */
+  /** Bearer Bardcast presents to its own Antiphony deployment. */
+  antiphonyServiceToken?: string;
+  /** @deprecated use antiphonyServiceToken */
   voxPopServiceToken?: string;
 }
 
@@ -28,19 +32,19 @@ export interface BuildServicesConfig {
  * The composition root. Wires every port to an adapter and returns the bundle
  * the use-cases run against. This scaffold wires STUB adapters (except the
  * Antiphony client, which is real but points at a configured base URL).
- * Replacing a capability = swapping one line here. Mirrors the engine's
- * core-services-firebase.ts composition root.
+ * Replacing a capability = swapping one line here.
  */
 export function buildServices(config: BuildServicesConfig): CoreServices {
+  const serviceToken = config.antiphonyServiceToken ?? config.voxPopServiceToken;
+  const baseUrl = config.antiphonyBaseUrl ?? config.voxPopBaseUrl ?? "http://localhost:8080";
+
   const identity: IdentityProvider =
     config.auth === "atproto"
       ? new AtprotoIdentityProvider({
           baseUrl: config.orchestratorBaseUrl,
           appName: config.appName ?? "Bardcast",
           postLoginRedirect: config.appBaseUrl,
-          ...(config.voxPopServiceToken !== undefined
-            ? { voxPopServiceToken: config.voxPopServiceToken }
-            : {}),
+          ...(serviceToken !== undefined ? { antiphonyServiceToken: serviceToken } : {}),
         })
       : new StubIdentityProvider();
 
@@ -49,8 +53,8 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
   // per write via the gateway's `actingDid`, not a per-player engine token — so
   // identity.tokenForPlayer is no longer on this path (see docs/integration-with-core.md).
   const antiphony = new AntiphonyClient({
-    baseUrl: config.voxPopBaseUrl,
-    getServiceToken: () => config.voxPopServiceToken ?? "",
+    baseUrl,
+    getServiceToken: () => serviceToken ?? "",
   });
 
   const engagement = new PwaEngagementChannel({

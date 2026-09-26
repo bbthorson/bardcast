@@ -32,10 +32,11 @@ No external dependencies; can start immediately.
       the `VoxPopPrompt`/`VoxPopReply` types → `AntiphonyPrompt`/`AntiphonyReply`, the `voxpop`
       service field → `antiphony`, gateway file names, and a doc sweep. Also bumped `@antiphony/shared`
       to `^0.4.0` and dropped the local `BlobRef` mirror in favour of its `BlobRefSchema`.
-- [ ] **Finish the voxpop→antiphony purge** (deferred, separate pass): the `voxPopPromptUri`/
-      `voxPopReplyUri` domain + engagement-port field names (they map to lexicon record fields, so
-      this rides with a lexicon change), and the `VOXPOP_BASE_URL`/`VOXPOP_SERVICE_TOKEN` env vars +
-      their `voxPopBaseUrl`/`voxPopServiceToken` config fields (an ops-coordinated rename).
+- [x] **Finish the voxpop→antiphony purge**: purged `voxPopPromptUri`/
+      `voxPopReplyUri` domain + engagement-port field names to `antiphonyPromptUri`/
+      `antiphonyReplyUri`, the `VOXPOP_BASE_URL`/`VOXPOP_SERVICE_TOKEN` env vars to
+      `ANTIPHONY_BASE_URL`/`ANTIPHONY_SERVICE_TOKEN`, updated config fields, and
+      bumped `@antiphony/shared` to `^0.6.0`.
 - [ ] Zod-validate orchestrator request bodies and gate writes behind an authenticated DID session
       (`services/orchestrator/src/app.ts` TODO).
 - [ ] Identity prod-hardening: mint a real signed (service-JWT) assertion over the DID; replace the

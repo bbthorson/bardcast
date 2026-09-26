@@ -4,15 +4,22 @@ import { createApp } from "./app.js";
 
 const port = Number(process.env["PORT"] ?? 8787);
 
+const antiphonyBaseUrl =
+  process.env["ANTIPHONY_BASE_URL"] ??
+  process.env["VOXPOP_BASE_URL"] ??
+  "http://localhost:8080";
+
+const antiphonyServiceToken =
+  process.env["ANTIPHONY_SERVICE_TOKEN"] ??
+  process.env["VOXPOP_SERVICE_TOKEN"];
+
 const svc = buildServices({
-  voxPopBaseUrl: process.env["VOXPOP_BASE_URL"] ?? "http://localhost:8080",
+  antiphonyBaseUrl,
   appBaseUrl: process.env["APP_BASE_URL"] ?? "http://localhost:5173",
   orchestratorBaseUrl: process.env["ORCHESTRATOR_BASE_URL"] ?? `http://localhost:${port}`,
   auth: process.env["AUTH_MODE"] === "atproto" ? "atproto" : "stub",
   ...(process.env["APP_NAME"] !== undefined ? { appName: process.env["APP_NAME"] } : {}),
-  ...(process.env["VOXPOP_SERVICE_TOKEN"] !== undefined
-    ? { voxPopServiceToken: process.env["VOXPOP_SERVICE_TOKEN"] }
-    : {}),
+  ...(antiphonyServiceToken !== undefined ? { antiphonyServiceToken } : {}),
 });
 
 const app = createApp(svc);

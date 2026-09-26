@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from "react";
  *
  * TODO(bardcast): replace this with calls to the orchestrator — `train` on add,
  * `status` polling while training, `revoke` on revoke — uploading each sample to
- * vox-pop-core and passing its reply AT-URI here. This hook keeps the front door
+ * Antiphony and passing its reply AT-URI here. This hook keeps the front door
  * walkable until those endpoints exist.
  */
 

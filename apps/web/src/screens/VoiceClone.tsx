@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { color, font } from "@bardcast/brand";
 import type { VoiceProfile } from "@bardcast/domain";
-import { useAudioRecorder } from "../useAudioRecorder.js";
 import { styles } from "../ui.js";
 
 interface VoiceActions {

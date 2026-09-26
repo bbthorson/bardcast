@@ -5,8 +5,8 @@ export interface IngestRepliesInput {
   campaignId: string;
   /** The character whose player authored the replies. */
   characterId: string;
-  /** vox-pop prompt whose replies to pull. */
-  voxPopPromptUri: `at://${string}`;
+  /** Antiphony prompt whose replies to pull. */
+  antiphonyPromptUri: `at://${string}`;
   /** The prompt's intent — which signal axis these replies primarily feed. */
   intent: "sheet" | "behavior" | "voice" | "story";
 }
@@ -20,7 +20,7 @@ export interface IngestRepliesInput {
  * is delegated and marked TODO — it likely calls an LLM and/or the VoiceCloner.
  */
 export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput): Promise<void> {
-  const replies = await svc.antiphony.listReplies(input.voxPopPromptUri);
+  const replies = await svc.antiphony.listReplies(input.antiphonyPromptUri);
   const replyUris = replies.map((r) => r.uri as `at://${string}`);
   const now = svc.clock().toISOString();
 
@@ -60,7 +60,7 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
   if (input.intent === "voice" || input.intent === "story") {
     const existing = await svc.store.getVoice(input.characterId);
     if (existing?.consent && existing.status !== "pvc") {
-      const sampleAudioUrls = replies.map((r) => r.audioUri).filter((u): u is string => Boolean(u));
+      const sampleAudioUrls = replies.map((r) => r.audioUrl).filter((u): u is string => Boolean(u));
       if (sampleAudioUrls.length > 0) {
         const voiceId = await svc.voice.createIvc({
           characterId: input.characterId,

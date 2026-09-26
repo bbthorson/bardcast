@@ -7,15 +7,15 @@ import type { AtUri, Did } from "@bardcast/domain";
  * replies arrive. The decision "PWA vs Bluesky communities" is a choice of
  * adapter, not a change to the loop.
  *
- * The audio reply payload itself always lives in vox-pop-core; a channel deals
- * in delivery + notification, and returns vox-pop reply AT-URIs.
+ * The audio reply payload itself always lives in Antiphony; a channel deals
+ * in delivery + notification, and returns Antiphony reply AT-URIs.
  */
 
 export interface DeliverablePrompt {
   /** Bardcast prompt AT-URI (or local id pre-publish). */
   promptRef: string;
-  /** The vox-pop prompt the player will reply to. */
-  voxPopPromptUri: AtUri;
+  /** The Antiphony prompt the player will reply to. */
+  antiphonyPromptUri: AtUri;
   title: string;
   scene?: string;
   /** DIDs of the players this prompt is aimed at. */
@@ -24,7 +24,7 @@ export interface DeliverablePrompt {
 
 export interface ReplyNotice {
   promptRef: string;
-  voxPopReplyUri: AtUri;
+  antiphonyReplyUri: AtUri;
   player: Did;
   receivedAt: string;
 }

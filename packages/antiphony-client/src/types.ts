@@ -1,4 +1,5 @@
 import { BlobRefSchema, EMBED_NSID } from "@antiphony/shared";
+import { httpsUrl } from "@antiphony/shared/types/url";
 import { z } from "zod";
 
 /**
@@ -60,7 +61,7 @@ export const CreatePostResult = z.object({ postId: z.string() });
 
 /** The hydrated audio embed on a read view: a signed playback URL + transcript. */
 export const AudioEmbedView = z.object({
-  url: z.string().optional(),
+  url: httpsUrl().optional(),
   durationMs: z.number().int().optional(),
   transcript: z.object({ text: z.string().optional() }).optional(),
 });
@@ -72,7 +73,7 @@ export const AudioPostView = z.object({
   kind: z.enum(["prompt", "reply"]),
   authorId: z.string(),
   authorDid: z.string().optional(),
-  record: z.object({ text: z.string().optional(), title: z.string().optional(), createdAt: z.string().optional() }).passthrough(),
+  record: z.looseObject({ text: z.string().optional(), title: z.string().optional(), createdAt: z.string().optional() }),
   embed: AudioEmbedView.optional(),
 });
 export type AudioPostView = z.infer<typeof AudioPostView>;

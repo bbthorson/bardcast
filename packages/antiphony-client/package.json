@@ -13,8 +13,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@antiphony/shared": "^0.4.0",
-    "zod": "^3.24.1"
+    "@antiphony/shared": "^0.7.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

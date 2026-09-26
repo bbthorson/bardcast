@@ -26,7 +26,7 @@ function fakeGateway(transcripts: string[]): AntiphonyGateway {
         author: "did:example:alice",
         authorDid: "did:example:alice",
         transcript: t,
-        audioUri: `http://audio/reply-${i}.mp3`,
+        audioUrl: `http://audio/reply-${i}.mp3`,
         createdAt: "2026-01-01T00:00:00Z",
       }));
     },
@@ -100,7 +100,7 @@ describe("the Bardcast loop", () => {
     await ingestReplies(svc, {
       campaignId: CAMPAIGN,
       characterId: CHAR,
-      voxPopPromptUri: "at://prompt/1",
+      antiphonyPromptUri: "at://prompt/1",
       intent: "story",
     });
 

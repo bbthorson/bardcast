@@ -11,7 +11,7 @@ posture, not a lock-in — revisit as load and team preferences evolve.
 | Chapter / voice audio | **Cloudflare R2** | The product *is* audio streaming; R2 has **zero egress fees** |
 | Orchestrator API (`services/orchestrator`) | **GCP Cloud Run** (Node) | Keeps the Node AT-Proto OAuth client as-is; colocates with the engine |
 | Generation pipeline (write → render) | **Async job + queue → R2** | Long audio renders exceed any edge CPU budget; async regardless |
-| Engine (`vox-pop-core` / Antiphony) | **Firebase App Hosting** (existing) | Already configured; Firestore-backed today |
+| Engine (Antiphony) | **Firebase App Hosting** (existing) | Already configured; Firestore-backed today |
 
 ## Why not all-in on Cloudflare Workers
 

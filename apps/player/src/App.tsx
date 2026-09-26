@@ -1,6 +1,6 @@
 import { color, font } from "@bardcast/brand";
+import { useAudioRecorder } from "@antiphony/capture-kit";
 import { useState } from "react";
-import { useAudioRecorder } from "./useAudioRecorder.js";
 
 /**
  * The entire player surface is one screen: see the prompt, tap to record, send.
@@ -8,7 +8,7 @@ import { useAudioRecorder } from "./useAudioRecorder.js";
  * this stays deliberately bare. AT-Proto sign-in and prompt fetch are stubbed.
  *
  * TODO(bardcast): fetch the active prompt for the signed-in player; on send,
- * upload the audio blob to vox-pop-core as a reply to `voxPopPromptUri`.
+ * upload the audio blob to Antiphony as a reply to `antiphonyPromptUri`.
  */
 export function App() {
   // TODO(bardcast): load from the orchestrator instead of this placeholder.
@@ -17,12 +17,15 @@ export function App() {
     scene: "The party makes camp. Firelight catches an old mark on your skin.",
   };
 
-  const { state, durationMs, start, stop, blob, reset } = useAudioRecorder();
+  const { status, elapsedMs, start, stop, recording, reset, error, errorKind } = useAudioRecorder({
+    maxDurationMs: 120_000,
+  });
+  const blob = recording?.blob;
   const [sent, setSent] = useState(false);
 
   async function send() {
     if (!blob) return;
-    // TODO(bardcast): POST the blob to vox-pop-core via the uploads + reply API.
+    // TODO(bardcast): POST the blob to Antiphony via the uploads + reply API.
     setSent(true);
   }
 
@@ -35,7 +38,15 @@ export function App() {
         <p style={styles.sent}>Sent. The bard will weave it in. ✨</p>
       ) : (
         <div style={styles.controls}>
-          {state !== "recording" ? (
+          {status === "error" && (
+            <p style={{ color: color.hearth, fontSize: "0.9rem", margin: 0, textAlign: "center" }}>
+              {errorKind === "permission-denied"
+                ? "Microphone access was denied. Please allow microphone permissions in your browser."
+                : error ?? "Could not access microphone."}
+            </p>
+          )}
+
+          {status !== "recording" ? (
             // The candle rule (docs/brand.md): the accent marks the single next
             // action — record until there's a take, then send.
             <button style={blob ? styles.secondaryPill : styles.record} onClick={start}>
@@ -43,11 +54,11 @@ export function App() {
             </button>
           ) : (
             <button style={{ ...styles.record, background: color.hearth, color: color.chalk }} onClick={stop}>
-              Stop ({Math.floor(durationMs / 1000)}s)
+              Stop ({Math.floor(elapsedMs / 1000)}s)
             </button>
           )}
 
-          {blob && state !== "recording" && (
+          {blob && status !== "recording" && (
             <div style={styles.row}>
               <button style={styles.secondary} onClick={reset}>
                 Discard

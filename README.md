@@ -22,15 +22,14 @@ DM scene + prompts ──▶ players record audio replies ──▶ readiness ga
 ## How it's built
 
 Bardcast does **not** reinvent audio call-and-response. It is a *consumer* of
-[**vox-pop-core**](https://docs.voxpop.phonicfactory.com) (the open-source Hono `/api/v1/*` engine
-that owns audio prompts, asynchronous audio replies, and storage — being renamed **Antiphony** to
-delineate the engine from the VoxPop app). Bardcast adds the parts that are genuinely new:
+[**Antiphony**](https://docs.antiphony.dev) (the open-source Hono `/api/v1/*` engine
+that owns audio prompts, asynchronous audio replies, and storage). Bardcast adds the parts that are genuinely new:
 
 1. **A world/narrative engine** — curated campaign canon + character data → a written, then spoken, chapter.
 2. **A readiness gate** — decides when a character has enough signal (sheet + behavior + voice) to appear.
 3. **A seeded dice/resolution engine** — SRD 5.1 ability checks resolve outcomes; failure is usually a
    setback, and a forbidden outcome (a PC death) backtracks to the last decision node.
-4. **Its own AT-Protocol identity layer** — players authenticate by **DID** (no VoxPop identity), so a
+4. **Its own AT-Protocol identity layer** — players authenticate by **DID** (Antiphony is headless and has no user auth), so a
    character can follow its player across campaigns (the "portable canon" thesis).
 5. **Two human surfaces** — a low-friction player client and a richer DM console.
 
