@@ -33,7 +33,7 @@ user data — profiles live in the calling app (Bardcast, the BFF).
 
 1. **Register Bardcast as an app** in the Antiphony deployment's
    `ANTIPHONY_APP_TOKENS` (`appId:token`). The token becomes
-   `VOXPOP_SERVICE_TOKEN`; the `appId` is Bardcast's `originAppId` (tenancy).
+   `ANTIPHONY_SERVICE_TOKEN`; the `appId` is Bardcast's `originAppId` (tenancy).
 2. Tenancy scoping (R2) is automatic: posts are isolated by `originAppId`, so
    Bardcast content never appears in another app's surfaces.
 

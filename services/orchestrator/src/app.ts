@@ -13,7 +13,7 @@ import { AtprotoIdentityProvider } from "./adapters/atproto/identity-provider.js
 /**
  * The orchestrator's HTTP surface. One thin handler per use-case — validate,
  * delegate, serialize. No business logic lives here (it's in use-cases), no
- * vendor SDKs (they're behind ports). Mirrors vox-pop-core's "Hono handlers
+ * vendor SDKs (they're behind ports). Mirrors Antiphony's "Hono handlers
  * talking to typed services" shape.
  *
  * TODO(bardcast): Zod-validate request bodies and gate writes behind
@@ -25,12 +25,12 @@ export function createApp(svc: CoreServices): Hono {
   app.get("/healthz", (c) => c.json({ ok: true, service: "bardcast-orchestrator" }));
 
   // Bardcast's own AT-Proto OAuth (login/callback/client-metadata), mounted only
-  // when the atproto identity adapter is in use. Self-contained — no vox-pop dep.
+  // when the atproto identity adapter is in use. Self-contained.
   if (svc.identity instanceof AtprotoIdentityProvider) {
     app.route("/atproto", svc.identity.routes());
   }
 
-  // Step 1 — DM publishes a prompt (creates the vox-pop prompt + delivers it).
+  // Step 1 — DM publishes a prompt (creates the Antiphony prompt + delivers it).
   app.post("/api/campaigns/:campaignId/prompts", async (c) => {
     const campaignId = c.req.param("campaignId");
     const body = await c.req.json();

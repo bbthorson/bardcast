@@ -12,11 +12,11 @@ export interface PwaChannelOptions {
 /**
  * PWA engagement channel — the live-ish first surface. Delivers a prompt by
  * sending a Web Push notification deep-linking into the player PWA, where the
- * player records a reply (which posts to vox-pop-core). Reply notices arrive via
+ * player records a reply (which posts to Antiphony). Reply notices arrive via
  * the orchestrator's webhook, surfaced through `emit`.
  *
  * TODO(bardcast): wire `sendPush` to a real Web Push provider (VAPID), and route
- * the orchestrator's vox-pop reply webhook into `emit`.
+ * the orchestrator's Antiphony reply webhook into `emit`.
  */
 export class PwaEngagementChannel implements EngagementChannel {
   readonly kind = "pwa";

@@ -11,13 +11,12 @@ behavioral model + voice clone). When a character has enough signal, Bardcast wr
 
 ## The three roles this product plays
 
-1. **vox-pop-core consumer.** Audio prompts and asynchronous audio replies are NOT ours — they belong
-   to [`vox-pop-core`](https://docs.voxpop.phonicfactory.com) (`/api/v1/*` Hono API). We reach it only
+1. **Antiphony consumer.** Audio prompts and asynchronous audio replies are NOT ours — they belong
+   to [`Antiphony`](https://docs.antiphony.dev) (`/api/v1/*` Hono API). We reach it only
    through `packages/antiphony-client` behind the `AntiphonyGateway` port. Do not reimplement call/response.
 2. **World/narrative engine.** Campaign lore + character state → chapter. This is the new value.
 3. **AT-Protocol identity layer.** Characters are keyed on the player's **DID** so a character is
-   portable across campaigns. AT-Proto OAuth is OUR job — vox-pop-core deliberately keeps OAuth in its
-   closed `apps/web` tier, not in core.
+   portable across campaigns. AT-Proto OAuth is OUR job — Antiphony is a headless engine and does not handle user OAuth.
 
 ## Load-bearing principles
 
@@ -55,10 +54,10 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 ## Stack
 
 - npm workspaces, Node ≥ 22, TypeScript strict.
-- `services/orchestrator`: **Hono** (matches vox-pop-core — lean JSON service, no framework magic).
+- `services/orchestrator`: **Hono** (matches Antiphony — lean JSON service, no framework magic).
 - `apps/player`, `apps/dm`: **Vite + React** (player is a PWA).
-- Validation: **Zod** (matches vox-pop-core).
-- Identity: **@atproto/api** (matches vox-pop-core's AT-Proto-first tooling).
+- Validation: **Zod** (matches Antiphony).
+- Identity: **@atproto/api** (matches Antiphony's AT-Proto-first tooling).
 
 ## Conventions
 
@@ -69,7 +68,7 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 - The visual identity is **locked** — "The Tavern Table", `docs/brand.md`. Colors, fonts, and voice
   lines come from `@bardcast/brand` (tokens + assets); never hard-code a hex in an app. The ember
   accent marks the single next action on a screen — one per screen, always.
-- This is a sibling of `../vox-pop-core` (the engine) and `../universe-starter-kit` (the
+- This is a sibling of `../antiphony` (the engine) and `../universe-starter-kit` (the
   canonical home of the canon/records conventions this repo follows — extracted from
   `../supper_club_secrets`, the original design precedent and an example world). Read those,
   don't fork them.

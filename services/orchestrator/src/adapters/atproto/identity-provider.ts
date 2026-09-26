@@ -19,11 +19,10 @@ export interface AtprotoConfig {
   /** Where to send the browser after a successful login (the player PWA). */
   postLoginRedirect: string;
   /**
-   * Bearer Bardcast presents to ITS OWN vox-pop-core deployment. Bardcast's
-   * identity is independent of vox-pop's — core must run a DID-trusting auth
-   * adapter (its auth-port.ts anticipates a DidAuthAdapter). We never call
-   * vox-pop's identity endpoints.
+   * Bearer Bardcast presents to its own Antiphony deployment.
    */
+  antiphonyServiceToken?: string;
+  /** @deprecated use antiphonyServiceToken */
   voxPopServiceToken?: string;
 }
 
@@ -32,8 +31,8 @@ export interface AtprotoConfig {
  * `@atproto/oauth-client-node` client, our own stores, our own app sessions.
  * The DID is the durable player identity a character follows across campaigns.
  *
- * Pattern borrowed from Bluesky's Statusphere example and vox-pop/apps/web;
- * the code and all state are Bardcast's, with no dependency on the vox-pop repo.
+ * Pattern borrowed from Bluesky's Statusphere example;
+ * the code and all state are Bardcast's.
  */
 export class AtprotoIdentityProvider implements IdentityProvider {
   private readonly client: NodeOAuthClient;
@@ -71,10 +70,7 @@ export class AtprotoIdentityProvider implements IdentityProvider {
   }
 
   async tokenForPlayer(did: string): Promise<string> {
-    // Independence: NOT a vox-pop identity token. This is what Bardcast presents
-    // to its own vox-pop-core deployment, which must trust Bardcast's DID auth.
-    // TODO(bardcast): mint a real signed (e.g. service-JWT) assertion over the DID.
-    return this.config.voxPopServiceToken ?? `bardcast-did:${did}`;
+    return this.config.antiphonyServiceToken ?? this.config.voxPopServiceToken ?? `bardcast-did:${did}`;
   }
 
   // --- OAuth HTTP routes (mounted at /atproto) -------------------------------

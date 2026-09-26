@@ -2,7 +2,7 @@
   "name": "bardcast",
   "version": "0.0.0",
   "private": true,
-  "description": "Turn a group of friends into characters in an ongoing RPG actual-play podcast, generated from their own audio replies. Built on vox-pop-core.",
+  "description": "Turn a group of friends into characters in an ongoing RPG actual-play podcast, generated from their own audio replies. Built on Antiphony.",
   "license": "MIT",
   "workspaces": [
     "packages/*",
@@ -16,13 +16,14 @@
     "lint": "npm run lint --workspaces --if-present",
     "lint:lore": "pinakes lint --root content/campaigns/sir-gawain-and-the-green-knight",
     "compile:lore": "pinakes compile --root content/campaigns/sir-gawain-and-the-green-knight",
+    "prose:lore": "pinakes prose-check --root content/campaigns/sir-gawain-and-the-green-knight",
     "dev:orchestrator": "npm run dev -w @bardcast/orchestrator",
     "dev:player": "npm run dev -w @bardcast/player",
     "dev:dm": "npm run dev -w @bardcast/dm",
     "dev:web": "npm run dev -w @bardcast/web"
   },
   "devDependencies": {
-    "@bbthorson/pinakes": "0.1.1",
+    "@bbthorson/pinakes": "0.4.0",
     "typescript": "^5.7.2"
   },
   "engines": {

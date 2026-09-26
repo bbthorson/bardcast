@@ -7,8 +7,8 @@ export type Role = z.infer<typeof Role>;
 
 /**
  * A person, authenticated via AT-Protocol. The DID is the durable key.
- * AT-Proto OAuth is Bardcast's responsibility (vox-pop-core keeps OAuth in its
- * closed tier) — see the IdentityProvider port in services/orchestrator.
+ * AT-Proto OAuth is Bardcast's responsibility (Antiphony is headless and holds
+ * no user data) — see the IdentityProvider port in services/orchestrator.
  */
 export const Player = z.object({
   did: Did,

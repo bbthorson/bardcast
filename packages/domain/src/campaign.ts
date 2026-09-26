@@ -80,13 +80,13 @@ export const Chapter = z.object({
 export type Chapter = z.infer<typeof Chapter>;
 
 /**
- * A prompt the DM sends the party. Bridges to vox-pop: when published, this is
- * backed by a com.voxpop.audio.prompt record whose AT-URI is `voxPopPromptUri`.
+ * A prompt the DM sends the party. Bridges to Antiphony: when published, this is
+ * backed by a dev.antiphony.audio.post record whose AT-URI is `antiphonyPromptUri`.
  * Bardcast adds the campaign framing and the prompt's narrative intent.
  */
 export const Prompt = z.object({
   campaign: AtUri,
-  /** Short text of the question, mirrored into the vox-pop prompt title. */
+  /** Short text of the question, mirrored into the Antiphony prompt title. */
   title: z.string().min(1).max(300),
   /** Scene-setting context the DM speaks/writes. */
   scene: z.string().max(3000).optional(),
@@ -94,8 +94,8 @@ export const Prompt = z.object({
   audience: z.array(AtUri).max(32).default([]),
   /** What the answer is meant to develop — drives sheet/behavior/voice growth. */
   intent: z.enum(["sheet", "behavior", "voice", "story"]).default("story"),
-  /** Set once published to vox-pop-core. */
-  voxPopPromptUri: AtUri.optional(),
+  /** Set once published to Antiphony. */
+  antiphonyPromptUri: AtUri.optional(),
   createdAt: IsoDateTime,
 });
 export type Prompt = z.infer<typeof Prompt>;

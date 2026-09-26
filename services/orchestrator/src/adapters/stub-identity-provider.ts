@@ -4,8 +4,7 @@ import type { IdentityProvider } from "../ports/identity-provider.js";
 /**
  * Stub IdentityProvider — resolves a dev DID from an `x-bardcast-did` header and
  * mints a fake token. TODO(bardcast): real adapter wrapping
- * @atproto/oauth-client-node — full AT-Proto OAuth, session storage, and a token
- * vox-pop-core will accept as a bearer.
+ * @atproto/oauth-client-node — full AT-Proto OAuth and session storage.
  */
 export class StubIdentityProvider implements IdentityProvider {
   async resolveSession(headers: Headers): Promise<Player | null> {

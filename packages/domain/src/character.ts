@@ -21,7 +21,7 @@ export type Trait = z.infer<typeof Trait>;
 
 /**
  * Zod mirror of game.bardcast.character.sheet. DERIVED state: regenerated as
- * more replies arrive. `sourceReplies` records provenance back to vox-pop.
+ * more replies arrive. `sourceReplies` records provenance back to Antiphony.
  */
 export const CharacterSheet = z.object({
   traits: z.array(Trait).max(64).default([]),

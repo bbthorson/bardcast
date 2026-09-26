@@ -11,9 +11,7 @@ import type {
  * DPoP sessions.
  *
  * TODO(bardcast): persistent, encrypted stores for production (a process
- * restart drops these, forcing re-auth). vox-pop/apps/web's session-crypto +
- * HTTP-backed stores are the production reference — but the persistence is
- * Bardcast's own, not shared with vox-pop.
+ * restart drops these, forcing re-auth). The persistence is Bardcast's own.
  */
 export class InMemoryStateStore implements NodeSavedStateStore {
   private map = new Map<string, NodeSavedState>();
