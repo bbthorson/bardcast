@@ -38,18 +38,21 @@ export function createApp(svc: CoreServices): Hono {
     return c.json(prompt, 201);
   });
 
-  // Step 2 — fold a character's replies into their derived signal.
-  app.post("/api/characters/:characterId/ingest", async (c) => {
+  // Step 2 — fold a character's replies into their derived signal. Campaign-
+  // scoped because the sheet these replies build belongs to one campaign.
+  app.post("/api/campaigns/:campaignId/characters/:characterId/ingest", async (c) => {
+    const campaignId = c.req.param("campaignId");
     const characterId = c.req.param("characterId");
     const body = await c.req.json();
-    await ingestReplies(svc, { characterId, ...body });
+    await ingestReplies(svc, { ...body, campaignId, characterId });
     return c.body(null, 204);
   });
 
   // Step 3 — the readiness gate (DM console polls this).
   app.get("/api/campaigns/:campaignId/readiness", async (c) => {
+    const campaignId = c.req.param("campaignId");
     const characterIds = c.req.queries("character") ?? [];
-    const readiness = await checkReadiness(svc, { characterIds });
+    const readiness = await checkReadiness(svc, { campaignId, characterIds });
     return c.json(readiness);
   });
 

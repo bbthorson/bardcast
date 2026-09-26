@@ -1,6 +1,8 @@
 import type { CoreServices } from "../ports/index.js";
 
 export interface IngestRepliesInput {
+  /** The campaign the prompt belongs to. The sheet these replies build is scoped to it. */
+  campaignId: string;
   /** The character whose player authored the replies. */
   characterId: string;
   /** Antiphony prompt whose replies to pull. */
@@ -23,17 +25,21 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
   const now = svc.clock().toISOString();
 
   // --- Sheet: record provenance; infer traits from transcripts. ---
+  // Campaign-scoped: replies to this campaign's prompts only shape this
+  // campaign's sheet. Behavior and voice below are durable, per character.
   if (input.intent === "sheet" || input.intent === "story") {
-    const sheet = (await svc.store.getSheet(input.characterId)) ?? {
+    const sheet = (await svc.store.getSheet(input.campaignId, input.characterId)) ?? {
+      campaign: `at://${input.campaignId}`,
+      character: `at://${input.characterId}`,
       traits: [],
-      drives: [],
       sourceReplies: [],
       createdAt: now,
     };
     sheet.sourceReplies = dedupe([...sheet.sourceReplies, ...replyUris]);
-    // TODO(bardcast): infer traits/drives from reply transcripts (LLM) and
-    // merge with confidence scoring before persisting.
-    await svc.store.putSheet(input.characterId, sheet);
+    // TODO(bardcast): infer traits from reply transcripts (LLM) and merge with
+    // confidence scoring before persisting. Drives inferred here belong on the
+    // durable CharacterProfile, not the sheet.
+    await svc.store.putSheet(input.campaignId, input.characterId, sheet);
   }
 
   // --- Behavior: accumulate exemplar lines from transcripts. ---

@@ -23,8 +23,9 @@ export interface Store {
   // characters and their derived signal
   getCharacter(id: string): Promise<CharacterProfile | null>;
   putCharacter(id: string, profile: CharacterProfile): Promise<void>;
-  getSheet(characterId: string): Promise<CharacterSheet | null>;
-  putSheet(characterId: string, sheet: CharacterSheet): Promise<void>;
+  /** Sheets are campaign-scoped: the same character has one per campaign. */
+  getSheet(campaignId: string, characterId: string): Promise<CharacterSheet | null>;
+  putSheet(campaignId: string, characterId: string, sheet: CharacterSheet): Promise<void>;
   getBehavior(characterId: string): Promise<BehaviorModel | null>;
   putBehavior(characterId: string, behavior: BehaviorModel): Promise<void>;
   getVoice(characterId: string): Promise<VoiceProfile | null>;

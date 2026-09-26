@@ -28,8 +28,11 @@ kit, not the private repo.
 - **State drives the derived record layer, never the reverse.** Campaign/character state is the source
   of truth; AT-Proto records in `lexicons/` shapes are a *projection*. If state changes, records
   regenerate. Never edit a record to "fix" state.
-- **DID is the durable identity key.** Local stable IDs (`char.*`, `campaign.*`) map to DIDs. Character
-  sheets, behavior models, and voice references hang off the DID, not a campaign-local row.
+- **DID is the durable identity key.** Local stable IDs (`char.*`, `campaign.*`) map to DIDs. A
+  character's profile, behavior model, and voice reference hang off the player's DID, not a
+  campaign-local row. The **character sheet is the exception**: it is campaign-scoped, one per
+  (campaign, character), so mechanics can differ between concurrent campaigns. See
+  `docs/character-model.md`.
 - **Fantasy time vs. real time.** In-world dates (fantasy calendars) are a plain **string** field. Each
   record's `createdAt` carries a real ISO timestamp for ordering, so a timeline can be scrubbed. Never
   put a 5-digit fantasy year in `createdAt`.

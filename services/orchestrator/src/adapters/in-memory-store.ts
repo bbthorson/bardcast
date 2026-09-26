@@ -17,6 +17,7 @@ import type { Store } from "../ports/store.js";
 export class InMemoryStore implements Store {
   private campaigns = new Map<string, Campaign>();
   private characters = new Map<string, CharacterProfile>();
+  /** Keyed by `${campaignId}/${characterId}`: a sheet is per campaign. */
   private sheets = new Map<string, CharacterSheet>();
   private behaviors = new Map<string, BehaviorModel>();
   private voices = new Map<string, VoiceProfile>();
@@ -35,11 +36,11 @@ export class InMemoryStore implements Store {
   async putCharacter(id: string, profile: CharacterProfile) {
     this.characters.set(id, profile);
   }
-  async getSheet(characterId: string) {
-    return this.sheets.get(characterId) ?? null;
+  async getSheet(campaignId: string, characterId: string) {
+    return this.sheets.get(`${campaignId}/${characterId}`) ?? null;
   }
-  async putSheet(characterId: string, sheet: CharacterSheet) {
-    this.sheets.set(characterId, sheet);
+  async putSheet(campaignId: string, characterId: string, sheet: CharacterSheet) {
+    this.sheets.set(`${campaignId}/${characterId}`, sheet);
   }
   async getBehavior(characterId: string) {
     return this.behaviors.get(characterId) ?? null;

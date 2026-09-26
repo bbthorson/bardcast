@@ -28,7 +28,10 @@ export async function generateChapter(
   svc: CoreServices,
   input: GenerateChapterInput,
 ): Promise<{ chapter: Chapter; chapterId: string; events: CharacterStateEvent[] }> {
-  const readiness = await checkReadiness(svc, { characterIds: input.characterIds });
+  const readiness = await checkReadiness(svc, {
+    campaignId: input.campaignId,
+    characterIds: input.characterIds,
+  });
   if (!readiness.ready) throw new NotReadyError(readiness.blocking);
 
   const campaign = await svc.store.getCampaign(input.campaignId);
@@ -46,7 +49,7 @@ export async function generateChapter(
     const profile = await svc.store.getCharacter(id);
     if (!profile) continue;
     const [sheet, behavior, voice] = await Promise.all([
-      svc.store.getSheet(id),
+      svc.store.getSheet(input.campaignId, id),
       svc.store.getBehavior(id),
       svc.store.getVoice(id),
     ]);

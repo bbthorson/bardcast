@@ -4,7 +4,7 @@ import { styles } from "../ui.js";
 
 /**
  * The sign-in dialog. Login lives behind a header button now (not a full-page
- * gate), so the marketing landing stays visible behind this overlay. The ember
+ * gate), so the marketing landing stays visible behind this overlay. The candle
  * rule applies to the dialog while it's open — the submit is the single lit
  * action.
  */
@@ -52,7 +52,7 @@ export function LoginDialog({
           }}
         >
           <label htmlFor="handle" style={styles.label}>
-            Your AT-Protocol handle
+            Your AT Protocol handle
           </label>
           <input
             ref={inputRef}
@@ -66,17 +66,17 @@ export function LoginDialog({
             onChange={(e) => setHandle(e.target.value)}
           />
           {error && (
-            <p role="alert" style={{ color: color.hearthRed, fontSize: "0.85rem", marginTop: "0.5rem", marginBottom: 0 }}>
+            <p role="alert" style={{ color: color.hearthSoft, fontSize: "0.85rem", marginTop: "0.5rem", marginBottom: 0 }}>
               {error}
             </p>
           )}
-          {/* The one ember action while the dialog is open. */}
-          <button type="submit" style={{ ...styles.ember, width: "100%", marginTop: "1rem", ...(canSubmit ? null : styles.disabled) }} disabled={!canSubmit}>
+          {/* The one candle while the dialog is open. */}
+          <button type="submit" style={{ ...styles.candle, width: "100%", marginTop: "1rem", ...(canSubmit ? null : styles.disabled) }} disabled={!canSubmit}>
             {loading ? "Opening your PDS…" : "Sign in with your handle"}
           </button>
           <p style={{ ...styles.muted, fontSize: "0.8rem", marginTop: "0.75rem", marginBottom: 0 }}>
             You'll authorize Bardcast at your own PDS. We key everything on your{" "}
-            <span style={{ fontFamily: font.mono, color: color.candleGold }}>did</span> — so a
+            <span style={{ fontFamily: font.mono, color: color.chalk }}>did</span> — so a
             character follows you across campaigns.
           </p>
         </form>
@@ -88,7 +88,7 @@ export function LoginDialog({
 const overlay: React.CSSProperties = {
   position: "fixed",
   inset: 0,
-  background: "rgba(15, 10, 6, 0.72)",
+  background: "rgba(11, 17, 14, 0.8)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -102,7 +102,7 @@ const closeBtn: React.CSSProperties = {
   right: "0.75rem",
   background: "transparent",
   border: "none",
-  color: color.parchmentDim,
+  color: color.chalkDim,
   fontSize: "1.6rem",
   lineHeight: 1,
   cursor: "pointer",

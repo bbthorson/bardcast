@@ -4,29 +4,33 @@
     "defs": {
         "main": {
             "type": "record",
-            "description": "A Bardcast character sheet: structured traits assembled from the player's prompt replies. Derived state — regenerated as more replies arrive. One current record per character at the `self` rkey.",
-            "key": "literal:self",
+            "description": "A character's mechanical state in ONE campaign: structured traits assembled from the player's prompt replies in that campaign. Campaign-scoped on purpose, so the same character can hold different mechanics in two concurrent campaigns. Written into the campaign's space (authority: Bardcast's DID, skey: the campaign), never into the player's own repo. Derived state, regenerated as more replies arrive. The rkey is the player's DID, so a campaign holds one current sheet per player.",
+            "key": "any",
             "record": {
                 "type": "object",
-                "required": ["createdAt"],
+                "required": ["campaign", "character", "createdAt"],
                 "properties": {
+                    "campaign": {
+                        "type": "string",
+                        "format": "at-uri",
+                        "description": "The campaign this sheet belongs to. Redundant with the space the record lives in; kept so the record stands on its own when read out of context."
+                    },
+                    "character": {
+                        "type": "string",
+                        "format": "at-uri",
+                        "description": "AT-URI of the character.profile in the player's repo. The durable identity this sheet is one campaign's view of."
+                    },
                     "traits": {
                         "type": "array",
                         "maxLength": 64,
                         "items": { "type": "ref", "ref": "#trait" },
                         "description": "Named traits (ability scores, virtues, flaws, skills) inferred from replies."
                     },
-                    "drives": {
-                        "type": "array",
-                        "maxLength": 32,
-                        "items": { "type": "string", "maxLength": 200 },
-                        "description": "What motivates the character — used by the narrative engine."
-                    },
                     "sourceReplies": {
                         "type": "array",
                         "maxLength": 512,
                         "items": { "type": "string", "format": "at-uri" },
-                        "description": "AT-URIs of the Antiphony reply records this sheet was derived from (provenance)."
+                        "description": "AT-URIs of the Antiphony reply records this sheet was derived from (provenance). Replies to this campaign's prompts only."
                     },
                     "createdAt": {
                         "type": "string",
