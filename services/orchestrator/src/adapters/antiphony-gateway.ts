@@ -21,4 +21,21 @@ export class ClientAntiphonyGateway implements AntiphonyGateway {
   async listReplies(promptUri: AtUri): Promise<AntiphonyReply[]> {
     return this.client.listReplies({ prompt: promptUri });
   }
+
+  async createReply(input: {
+    promptUri: AtUri;
+    promptCid?: string;
+    audioBlob: Blob;
+    actingDid: `did:${string}`;
+    text?: string;
+  }): Promise<string> {
+    return this.client.createReply(
+      {
+        prompt: { uri: input.promptUri, cid: input.promptCid ?? "bafyplaceholder" },
+        audio: { blob: input.audioBlob },
+        ...(input.text !== undefined ? { text: input.text } : {}),
+      },
+      input.actingDid,
+    );
+  }
 }

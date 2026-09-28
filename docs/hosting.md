@@ -1,6 +1,6 @@
 # Bardcast hosting
 
-Where Bardcast runs and why. Decision recorded 2026-06-24. This is a starting
+Where Bardcast runs and why. Decision recorded 2026-06-24; updated 2026-09-28 (PostgreSQL store decision). This is a starting
 posture, not a lock-in — revisit as load and team preferences evolve.
 
 ## Decision: a hybrid
@@ -10,8 +10,20 @@ posture, not a lock-in — revisit as load and team preferences evolve.
 | Player PWA + DM console | **Cloudflare Pages** | Static Vite builds; cheap, fast, no caveats |
 | Chapter / voice audio | **Cloudflare R2** | The product *is* audio streaming; R2 has **zero egress fees** |
 | Orchestrator API (`services/orchestrator`) | **GCP Cloud Run** (Node) | Keeps the Node AT-Proto OAuth client as-is; colocates with the engine |
+| Database / Persistence (`Store` + AT-Proto Sessions) | **PostgreSQL** (Neon / Cloud SQL) | Matches Antiphony's portable SQL choice via narrow `SqlClient` port; PGlite for tests |
 | Generation pipeline (write → render) | **Async job + queue → R2** | Long audio renders exceed any edge CPU budget; async regardless |
-| Engine (Antiphony) | **Firebase App Hosting** (existing) | Already configured; Firestore-backed today |
+| Engine (Antiphony) | **Cloudflare Workers / Postgres** | Headless audio store, Postgres-backed |
+
+## Database decision: PostgreSQL via SqlClient
+
+Decided 2026-09-28. The orchestrator's `Store` port and AT-Proto session/state stores are backed by **PostgreSQL**:
+- Portability: identical to Antiphony's design, standard parameterised queries against a narrow `SqlClient` interface (`query(text, params)`).
+- Multiple drivers behind one port:
+  - `@neondatabase/serverless` over HTTP for Neon serverless deployments.
+  - `pg` Pool for Cloud Run, Cloud SQL, Docker, or self-hosted PostgreSQL.
+  - `@electric-sql/pglite` in-process for instantaneous, zero-network unit/integration test execution.
+- Auto-migrations run on boot if `DATABASE_URL` is set, with seed data for *Sir Gawain and the Green Knight*.
+- Fallback: `InMemoryStore` remains available for zero-config local dev when `DATABASE_URL` is unset.
 
 ## Why not all-in on Cloudflare Workers
 

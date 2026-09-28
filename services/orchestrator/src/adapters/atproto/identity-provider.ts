@@ -1,5 +1,10 @@
 import type { Player } from "@bardcast/domain";
-import { NodeOAuthClient, requestLocalLock } from "@atproto/oauth-client-node";
+import {
+  NodeOAuthClient,
+  requestLocalLock,
+  type NodeSavedSessionStore,
+  type NodeSavedStateStore,
+} from "@atproto/oauth-client-node";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { IdentityProvider } from "../../ports/identity-provider.js";
@@ -24,6 +29,12 @@ export interface AtprotoConfig {
   antiphonyServiceToken?: string;
   /** @deprecated use antiphonyServiceToken */
   voxPopServiceToken?: string;
+  /** Optional custom/persistent store for app sessions */
+  appSessionStore?: AppSessionStore;
+  /** Optional custom/persistent store for oauth session */
+  sessionStore?: NodeSavedSessionStore;
+  /** Optional custom/persistent store for oauth state */
+  stateStore?: NodeSavedStateStore;
 }
 
 /**
@@ -42,13 +53,13 @@ export class AtprotoIdentityProvider implements IdentityProvider {
 
   constructor(private readonly config: AtprotoConfig) {
     this.isLocalDev = config.baseUrl.includes("localhost") || config.baseUrl.includes("127.0.0.1");
-    this.appSessions = new InMemoryAppSessionStore();
+    this.appSessions = config.appSessionStore ?? new InMemoryAppSessionStore();
     this.clientMetadata = this.buildClientMetadata();
     this.client = new NodeOAuthClient({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       clientMetadata: this.clientMetadata as any,
-      stateStore: new InMemoryStateStore(),
-      sessionStore: new InMemorySessionStore(),
+      stateStore: config.stateStore ?? new InMemoryStateStore(),
+      sessionStore: config.sessionStore ?? new InMemorySessionStore(),
       // Single-instance dev lock. TODO(bardcast): a real cross-instance lock when
       // the orchestrator runs more than one replica.
       requestLock: requestLocalLock,
@@ -84,9 +95,6 @@ export class AtprotoIdentityProvider implements IdentityProvider {
     // Current session for the browser: the web front door polls this on load to
     // learn whether it's signed in (the session cookie is httpOnly, so JS can't
     // read it directly). Reuses resolveSession — the same seam writes use.
-    // TODO(bardcast): the web app lives on a different origin (Cloudflare Pages)
-    // than this API (Cloud Run), so production needs CORS with credentials and a
-    // SameSite=None; Secure cookie for the cookie to ride cross-site.
     app.get("/session", async (c) => {
       const player = await this.resolveSession(c.req.raw.headers);
       return c.json(player ? { authenticated: true, player } : { authenticated: false });
@@ -116,7 +124,7 @@ export class AtprotoIdentityProvider implements IdentityProvider {
         await this.appSessions.set(sid, { did: session.did, createdAt: new Date().toISOString() });
         setCookie(c, SESSION_COOKIE, sid, {
           httpOnly: true,
-          sameSite: "Lax",
+          sameSite: this.isLocalDev ? "Lax" : "None",
           secure: !this.isLocalDev,
           path: "/",
           maxAge: 60 * 60 * 24 * 30,

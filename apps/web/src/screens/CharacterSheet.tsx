@@ -1,8 +1,9 @@
 import { color, font, seal, shape, tornEdge, voiceColor } from "@bardcast/brand";
 import { DEFAULT_THRESHOLDS, type Register } from "@bardcast/domain";
-import { useMemo, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type CSSProperties, type ReactNode } from "react";
 import type { CharacterView } from "../fixtures/gawain.js";
 import { Dot, HandNote, HexKey, PlayGlyph, RingStain, SealMark, styles, Waveform } from "../ui.js";
+import { fetchCharacterDetail, type CharacterDetailResponse } from "../api.js";
 
 const REGISTER: Record<Register, string> = {
   public: "public",
@@ -19,23 +20,103 @@ const LINE = DEFAULT_THRESHOLDS.minTraitConfidence;
  * vellum torn off a pad — light stats, what drives them, traits as heard with
  * their confidence, quotes in their own voice, and their arc so far.
  *
+ * Fetches real character signal from the orchestrator, falling back seamlessly
+ * to the starter fixture if unavailable.
+ *
  * No candle on this screen: there's no single next action here, only reading.
  */
 export function CharacterSheet({
-  character: c,
-  hue,
-  chapterLabel,
+  characterId,
+  campaignId,
+  character: fallback,
+  hue: propHue,
+  chapterLabel: propChapterLabel,
   onBack,
 }: {
-  character: CharacterView;
-  hue: number;
-  chapterLabel: string;
+  characterId: string;
+  campaignId?: string | undefined;
+  character?: CharacterView | undefined;
+  hue?: number | undefined;
+  chapterLabel?: string | undefined;
   onBack: () => void;
 }) {
+  const [liveData, setLiveData] = useState<CharacterDetailResponse | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const cId = campaignId || "gawain-green-knight";
+    fetchCharacterDetail(cId, characterId).then((res) => {
+      if (!cancelled && res) {
+        setLiveData(res);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignId, characterId]);
+
+  const c: CharacterView = useMemo(() => {
+    if (!liveData) {
+      return (
+        fallback ?? {
+          id: characterId,
+          name: characterId,
+          concept: "Adventurer",
+          pronouns: "they/them",
+          player: "Unknown",
+          voice: { status: "unlinked", sampledMinutes: 0 },
+          stats: { level: 1, ac: 10, hp: [10, 10], abilities: [["STR", 10], ["DEX", 10], ["CON", 10], ["INT", 10], ["WIS", 10], ["CHA", 10]] },
+          drives: [],
+          dmNote: "",
+          traits: [],
+          exemplars: [],
+          arc: [],
+        }
+      );
+    }
+    return {
+      id: characterId,
+      name: liveData.profile.displayName || characterId,
+      concept: liveData.profile.concept || fallback?.concept || "",
+      pronouns: liveData.profile.pronouns || fallback?.pronouns || "they/them",
+      player: liveData.profile.player || fallback?.player || "",
+      voice: liveData.voice
+        ? { status: liveData.voice.status, sampledMinutes: liveData.voice.status !== "unlinked" ? 3 : 0 }
+        : fallback?.voice ?? { status: "unlinked", sampledMinutes: 0 },
+      stats: fallback?.stats ?? {
+        level: 1,
+        ac: 10,
+        hp: [10, 10],
+        abilities: [["STR", 10], ["DEX", 10], ["CON", 10], ["INT", 10], ["WIS", 10], ["CHA", 10]],
+      },
+      drives: liveData.profile.drives?.length ? liveData.profile.drives : fallback?.drives ?? [],
+      dmNote: fallback?.dmNote ?? "",
+      traits:
+        liveData.sheet?.traits?.length
+          ? liveData.sheet.traits.map((t) => [t.name, t.confidence] as [string, number])
+          : fallback?.traits ?? [],
+      exemplars:
+        liveData.behavior?.exemplars?.length
+          ? liveData.behavior.exemplars.map((quote, i) => ({
+              quote,
+              chapter: "Recent reply",
+              rotate: i % 2 === 0 ? 1 : -1,
+            }))
+          : fallback?.exemplars ?? [],
+      arc: fallback?.arc ?? [],
+    };
+  }, [liveData, fallback, characterId]);
+
+  const hue = propHue ?? 35;
+  const chapterLabel = propChapterLabel ?? "Character Profile";
   const heroSeal = useMemo(() => seal(c.id, { hue, bars: 72, amp: 15 }), [c.id, hue]);
   const torn = useMemo(() => tornEdge(`sheet-${c.id}`), [c.id]);
   const inkVoice = voiceColor(hue, "vellum");
-  const pronoun = c.pronouns.startsWith("she") ? { subj: "her", poss: "Her" } : c.pronouns.startsWith("they") ? { subj: "them", poss: "Their" } : { subj: "him", poss: "His" };
+  const pronoun = c.pronouns.startsWith("she")
+    ? { subj: "her", poss: "Her" }
+    : c.pronouns.startsWith("they")
+      ? { subj: "them", poss: "Their" }
+      : { subj: "him", poss: "His" };
 
   return (
     <div style={{ width: "100%", maxWidth: 480, margin: "0 auto" }}>

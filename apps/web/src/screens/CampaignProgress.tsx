@@ -1,7 +1,14 @@
-import { color, font, seal, shape, trail, voice, voiceColor, type Seal } from "@bardcast/brand";
-import { useMemo } from "react";
-import { campaign, characters, dm, party, readinessOf, speakerColor, type ChapterView } from "../fixtures/gawain.js";
+import { color, font, seal, shape, trail, voice, voiceColor, voiceHues, type Seal } from "@bardcast/brand";
+import { useMemo, useState, useEffect } from "react";
+import { campaign, dm, party, readinessOf, speakerColor, type ChapterView, type PartyMember } from "../fixtures/gawain.js";
 import { Die, EpisodeWave, HandNote, HexKey, PlayGlyph, SealMark, SplatterStain, Stop, styles } from "../ui.js";
+import {
+  fetchCampaignDetail,
+  fetchCampaignPrompts,
+  fetchPartyReadiness,
+  type CampaignDetail,
+} from "../api.js";
+import type { PartyReadiness, Prompt } from "@bardcast/domain";
 
 /**
  * Campaign progress: the quest spine as a hand-drawn trail with a stop per
@@ -9,28 +16,137 @@ import { Die, EpisodeWave, HandNote, HexKey, PlayGlyph, SealMark, SplatterStain,
  * (with the die that decided them); the chapter being gathered shows who's
  * ready to be heard across the readiness gate's three axes.
  *
+ * Connects to the orchestrator for live campaign state while falling back
+ * gracefully to the Sir Gawain fixture.
+ *
  * The candle rule: "Answer as <character>" on the DM's question is the single
  * lit action on this screen.
  */
-export function CampaignProgress({ onAnswer, onOpenCharacter }: { onAnswer: () => void; onOpenCharacter: (id: string) => void }) {
-  const seals = useMemo(() => Object.fromEntries(party.map((p) => [p.id, seal(p.id, { hue: p.hue, bars: 29 })])), []);
+export function CampaignProgress({
+  campaignId,
+  onAnswer,
+  onOpenCharacter,
+}: {
+  campaignId?: string;
+  onAnswer: (promptUri?: string) => void;
+  onOpenCharacter: (id: string) => void;
+}) {
+  const [campaignData, setCampaignData] = useState<CampaignDetail | null>(null);
+  const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [readiness, setReadiness] = useState<PartyReadiness | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const cId = campaignId || "gawain-green-knight";
+    fetchCampaignDetail(cId).then(async (detail) => {
+      if (cancelled || !detail) return;
+      setCampaignData(detail);
+      const charIds = detail.party.map((p) => p.id);
+      const [promptList, ready] = await Promise.all([
+        fetchCampaignPrompts(cId),
+        charIds.length > 0 ? fetchPartyReadiness(cId, charIds) : Promise.resolve(null),
+      ]);
+      if (!cancelled) {
+        setPrompts(promptList);
+        setReadiness(ready);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignId]);
+
+  const partyList: PartyMember[] = useMemo(() => {
+    if (!campaignData?.party || campaignData.party.length === 0) {
+      return party;
+    }
+    return campaignData.party.map((p, idx) => {
+      const defaultFixture = party.find((fp) => fp.id === p.id);
+      const r = readiness?.perCharacter[p.id];
+      return {
+        id: p.id,
+        name: p.profile?.displayName || defaultFixture?.name || p.id,
+        shortName: (p.profile?.displayName || defaultFixture?.shortName || p.id).split(" ")[0]!,
+        handle: p.profile?.player
+          ? `@${p.profile.player.replace(/^did:[^:]+:/, "").slice(0, 10)}`
+          : defaultFixture?.handle || `@${p.id}`,
+        hue: defaultFixture?.hue ?? voiceHues[idx % voiceHues.length]!,
+        confidentTraits: r ? Math.round(r.sheet.progress * 5) : defaultFixture?.confidentTraits ?? 5,
+        exemplars: r ? Math.round(r.behavior.progress * 8) : defaultFixture?.exemplars ?? 8,
+        voice: r ? (r.voice.progress > 0 ? "ivc" : "unlinked") : defaultFixture?.voice ?? "unlinked",
+      };
+    });
+  }, [campaignData, readiness]);
+
+  const activePrompt = useMemo(() => {
+    if (prompts.length > 0) {
+      const p = prompts[prompts.length - 1]!;
+      const targetId = p.audience?.[0]?.replace(/^at:\/\//, "") || partyList[0]?.id || "gawain";
+      return {
+        to: targetId,
+        asked: `asked ${new Date(p.createdAt).toLocaleDateString()}`,
+        text: p.title + (p.scene ? ` — ${p.scene}` : ""),
+        seconds: 30,
+        antiphonyPromptUri: p.antiphonyPromptUri,
+      };
+    }
+    return {
+      to: campaign.prompt.to,
+      asked: campaign.prompt.asked,
+      text: campaign.prompt.text,
+      seconds: campaign.prompt.seconds,
+      antiphonyPromptUri: undefined as string | undefined,
+    };
+  }, [prompts, partyList]);
+
+  const chapterList: ChapterView[] = useMemo(() => {
+    if (campaignData?.chapters && campaignData.chapters.length > 0) {
+      const romanNumerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+      return campaignData.chapters.map((ch, idx) => ({
+        numeral: romanNumerals[idx] ?? String(ch.index),
+        title: ch.title,
+        state: ch.status === "ready" ? "told" : ch.status === "drafting" ? "sealed" : "gathering",
+        when: ch.storyDate ?? (ch.status === "ready" ? "recorded" : "gathering voices"),
+        minutes: Math.max(1, Math.round((ch.script.length * 4) / 60)),
+        beats: ch.beats.map((b) => ({ who: ch.script[0]?.speaker ?? "narrator", text: b.summary })),
+        played: ch.status === "ready" ? 1 : 0,
+      }));
+    }
+    return campaign.chapters;
+  }, [campaignData]);
+
+  const walkedRatio = useMemo(() => {
+    const told = chapterList.filter((c) => c.state === "told").length;
+    return chapterList.length > 0 ? told / chapterList.length : campaign.walked;
+  }, [chapterList]);
+
+  const title = campaignData?.campaign.title || campaign.title;
+  const eyebrow = campaignData?.campaign.premise || campaign.eyebrow;
+  const dmHandle = campaignData?.campaign.dm
+    ? `@${campaignData.campaign.dm.replace(/^did:[^:]+:/, "").slice(0, 10)}`
+    : dm.handle;
+
+  const seals = useMemo(
+    () => Object.fromEntries(partyList.map((p) => [p.id, seal(p.id, { hue: p.hue, bars: 29 })])),
+    [partyList],
+  );
   const dmSeal = useMemo(() => seal(dm.seed, { bone: true, bars: 29 }), []);
-  const path = useMemo(() => trail("trail", campaign.walked), []);
-  const asked = party.find((p) => p.id === campaign.prompt.to)!;
+  const path = useMemo(() => trail("trail", walkedRatio), [walkedRatio]);
+  const asked = partyList.find((p) => p.id === activePrompt.to) || partyList[0]!;
 
   return (
     <div style={{ width: "100%", maxWidth: 480, margin: "0 auto" }}>
       <div style={{ padding: "8px 24px 0", display: "flex", flexDirection: "column", gap: 10 }}>
-        <span style={styles.eyebrow}>{campaign.eyebrow}</span>
-        <h1 style={{ ...styles.h1, fontSize: 32, margin: 0 }}>{campaign.title}</h1>
+        <span style={styles.eyebrow}>{eyebrow}</span>
+        <h1 style={{ ...styles.h1, fontSize: 32, margin: 0 }}>{title}</h1>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
           <div style={{ display: "flex" }}>
-            {party.map((p) => (
+            {partyList.map((p) => (
               <SealMark key={p.id} seal={seals[p.id]!} size={34} label={p.name} style={{ marginRight: -4 }} />
             ))}
           </div>
           <span style={{ fontSize: 14, color: color.chalkDim, marginLeft: 8 }}>
-            {party.length} players · DM <span style={{ fontFamily: font.mono }}>{dm.handle}</span>
+            {partyList.length} players · DM <span style={{ fontFamily: font.mono }}>{dmHandle}</span>
           </span>
         </div>
       </div>
@@ -41,14 +157,14 @@ export function CampaignProgress({ onAnswer, onOpenCharacter }: { onAnswer: () =
           <SealMark seal={dmSeal} size={36} />
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ fontSize: 14, fontWeight: 600 }}>{voice.promptNotification(asked.shortName)}</span>
-            <span style={styles.meta}>{campaign.prompt.asked}</span>
+            <span style={styles.meta}>{activePrompt.asked}</span>
           </div>
         </div>
-        <p style={{ fontFamily: font.display, fontSize: 20, lineHeight: 1.35, margin: 0, textWrap: "pretty" }}>{campaign.prompt.text}</p>
+        <p style={{ fontFamily: font.display, fontSize: 20, lineHeight: 1.35, margin: 0, textWrap: "pretty" }}>{activePrompt.text}</p>
         {/* The one candle on this screen. */}
-        <button style={styles.candle} onClick={onAnswer}>
+        <button style={styles.candle} onClick={() => onAnswer(activePrompt.antiphonyPromptUri)}>
           <span style={{ width: 12, height: 12, borderRadius: 999, background: color.felt }} />
-          {voice.answerAs(asked.shortName)} · 0:{String(campaign.prompt.seconds).padStart(2, "0")}
+          {voice.answerAs(asked.shortName)} · 0:{String(activePrompt.seconds).padStart(2, "0")}
         </button>
       </section>
 
@@ -59,13 +175,13 @@ export function CampaignProgress({ onAnswer, onOpenCharacter }: { onAnswer: () =
         </svg>
 
         <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
-          {campaign.chapters.map((ch, i) => (
+          {chapterList.map((ch, i) => (
             <li key={ch.numeral} style={{ display: "grid", gridTemplateColumns: "40px 1fr", gap: 14, position: "relative", marginTop: i === 0 ? 0 : i === 1 ? 26 : 30 }}>
               <Stop numeral={ch.numeral} state={ch.state} />
               {ch.state === "told" ? (
                 <ToldChapter ch={ch} />
               ) : ch.state === "gathering" ? (
-                <GatheringChapter ch={ch} seals={seals} onOpenCharacter={onOpenCharacter} />
+                <GatheringChapter ch={ch} seals={seals} partyList={partyList} onOpenCharacter={onOpenCharacter} />
               ) : (
                 <SealedChapter ch={ch} />
               )}
@@ -107,8 +223,18 @@ function ToldChapter({ ch }: { ch: ChapterView }) {
   );
 }
 
-function GatheringChapter({ ch, seals, onOpenCharacter }: { ch: ChapterView; seals: Record<string, Seal>; onOpenCharacter: (id: string) => void }) {
-  const rows = party.map((p) => ({ p, r: readinessOf(p) }));
+function GatheringChapter({
+  ch,
+  seals,
+  partyList,
+  onOpenCharacter,
+}: {
+  ch: ChapterView;
+  seals: Record<string, Seal>;
+  partyList: PartyMember[];
+  onOpenCharacter: (id: string) => void;
+}) {
+  const rows = partyList.map((p) => ({ p, r: readinessOf(p) }));
   const ready = rows.filter((x) => x.r.ready).length;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
@@ -127,15 +253,12 @@ function GatheringChapter({ ch, seals, onOpenCharacter }: { ch: ChapterView; sea
           </span>
         </div>
         {rows.map(({ p, r }) => {
-          // Rows open the character's sheet where one exists.
-          const hasSheet = p.id in characters;
           return (
           <button
             key={p.id}
-            onClick={hasSheet ? () => onOpenCharacter(p.id) : undefined}
-            disabled={!hasSheet}
+            onClick={() => onOpenCharacter(p.id)}
             aria-label={`${p.name}: ${r.status}`}
-            style={{ display: "grid", gridTemplateColumns: "32px 1fr", gap: 10, alignItems: "center", background: "transparent", border: "none", padding: 0, color: "inherit", font: "inherit", textAlign: "left", cursor: hasSheet ? "pointer" : "default" }}
+            style={{ display: "grid", gridTemplateColumns: "32px 1fr", gap: 10, alignItems: "center", background: "transparent", border: "none", padding: 0, color: "inherit", font: "inherit", textAlign: "left", cursor: "pointer" }}
           >
             <SealMark seal={seals[p.id]!} size={32} />
             <span style={{ display: "flex", flexDirection: "column", gap: 6 }}>

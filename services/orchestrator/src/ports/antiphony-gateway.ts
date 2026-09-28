@@ -13,4 +13,11 @@ import type { AntiphonyPrompt, AntiphonyReply } from "@bardcast/antiphony-client
 export interface AntiphonyGateway {
   createPrompt(input: { title: string; scene?: string; actingDid: `did:${string}` }): Promise<AntiphonyPrompt>;
   listReplies(promptUri: AtUri): Promise<AntiphonyReply[]>;
+  createReply(input: {
+    promptUri: AtUri;
+    promptCid?: string;
+    audioBlob: Blob;
+    actingDid: `did:${string}`;
+    text?: string;
+  }): Promise<string>;
 }

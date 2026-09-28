@@ -1,4 +1,5 @@
-export type { Store } from "./store.js";
+export type { Store, CampaignInvite } from "./store.js";
+export type { SqlClient } from "./sql-client.js";
 export type {
   NarrativeWriter,
   NarrativeCharacter,
