@@ -23,6 +23,9 @@ if (databaseUrl) {
   await runMigrations(sql);
 }
 
+const elevenLabsApiKey = process.env["ELEVENLABS_API_KEY"];
+const defaultNarratorVoiceId = process.env["ELEVENLABS_NARRATOR_VOICE_ID"];
+
 const svc = buildServices({
   antiphonyBaseUrl,
   appBaseUrl: process.env["APP_BASE_URL"] ?? "http://localhost:5173",
@@ -31,6 +34,8 @@ const svc = buildServices({
   ...(process.env["APP_NAME"] !== undefined ? { appName: process.env["APP_NAME"] } : {}),
   ...(antiphonyServiceToken !== undefined ? { antiphonyServiceToken } : {}),
   ...(databaseUrl !== undefined ? { databaseUrl } : {}),
+  ...(elevenLabsApiKey !== undefined ? { elevenLabsApiKey } : {}),
+  ...(defaultNarratorVoiceId !== undefined ? { defaultNarratorVoiceId } : {}),
 });
 
 const app = createApp(svc);

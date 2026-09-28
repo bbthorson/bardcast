@@ -1,9 +1,12 @@
+import type { ScriptLine } from "@bardcast/domain";
+
 export interface RenderChapterInput {
   transcript: string;
+  script?: ScriptLine[] | undefined;
   /** Maps a character id to the VoiceCloner modelRef that voices their lines. */
   voices: Record<string, string>;
   /** Voice/model for the DM-narrator portions. */
-  narratorVoiceRef?: string;
+  narratorVoiceRef?: string | undefined;
 }
 
 export interface RenderedAudio {

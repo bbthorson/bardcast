@@ -17,6 +17,17 @@ export class StubNarrativeWriter implements NarrativeWriter {
         `Party: ${names.join(", ")}\n` +
         (input.directorNote ? `DM note: ${input.directorNote}\n` : "") +
         `\nTODO(bardcast): real narrative generation from lore + character state.`,
+      script: [
+        {
+          speaker: "narrator",
+          text: `The road stretches out under a pale sky. ${input.campaign.title} begins its next telling.`,
+        },
+        ...input.characters.map((c) => ({
+          speaker: c.id,
+          text: `“I am ready,” ${c.profile.displayName} murmurs, checking their gear.`,
+        })),
+        { speaker: "narrator", text: "And so the company journeys forth into the unknown." },
+      ],
       storyDate: "the 1st of Firstmoon",
       beats: input.characters.map((c) => ({
         characterId: c.id,

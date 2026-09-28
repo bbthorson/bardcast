@@ -16,11 +16,15 @@ import {
   PostgresStateStore,
 } from "./postgres/postgres-atproto-stores.js";
 import { neonSqlClient, pgSqlClient } from "./postgres/client.js";
+import { ElevenLabsVoiceCloner } from "./elevenlabs/voice-cloner.js";
+import { ElevenLabsAudioRenderer } from "./elevenlabs/audio-renderer.js";
 
 export * from "./postgres/client.js";
 export * from "./postgres/postgres-store.js";
 export * from "./postgres/postgres-atproto-stores.js";
 export * from "./postgres/migrate.js";
+export * from "./elevenlabs/voice-cloner.js";
+export * from "./elevenlabs/audio-renderer.js";
 
 export interface BuildServicesConfig {
   /** Base URL of the (Bardcast-controlled) Antiphony deployment. */
@@ -38,6 +42,10 @@ export interface BuildServicesConfig {
   antiphonyServiceToken?: string;
   /** @deprecated use antiphonyServiceToken */
   voxPopServiceToken?: string;
+  /** ElevenLabs API key for voice cloning and multi-voice audio synthesis. */
+  elevenLabsApiKey?: string;
+  /** Default ElevenLabs voice ID for DM narration. */
+  defaultNarratorVoiceId?: string;
   /** PostgreSQL connection string. If provided, activates PostgresStore and persistent OAuth stores. */
   databaseUrl?: string;
   /** Optional pre-configured SqlClient (e.g. for testing). */
@@ -94,12 +102,23 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
     promptUrl: (promptRef) => `${config.appBaseUrl}/play/${encodeURIComponent(promptRef)}`,
   });
 
+  const voice = config.elevenLabsApiKey
+    ? new ElevenLabsVoiceCloner({ apiKey: config.elevenLabsApiKey })
+    : new StubVoiceCloner();
+
+  const audio = config.elevenLabsApiKey
+    ? new ElevenLabsAudioRenderer({
+        apiKey: config.elevenLabsApiKey,
+        ...(config.defaultNarratorVoiceId ? { defaultNarratorVoiceId: config.defaultNarratorVoiceId } : {}),
+      })
+    : new StubAudioRenderer();
+
   return {
     store,
     antiphony: new ClientAntiphonyGateway(antiphony),
     narrative: new StubNarrativeWriter(),
-    voice: new StubVoiceCloner(),
-    audio: new StubAudioRenderer(),
+    voice,
+    audio,
     identity,
     engagement,
     clock: () => new Date(),

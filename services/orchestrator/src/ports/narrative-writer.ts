@@ -1,4 +1,4 @@
-import type { BehaviorModel, Campaign, CharacterProfile, CharacterSheet } from "@bardcast/domain";
+import type { BehaviorModel, Campaign, CharacterProfile, CharacterSheet, ScriptLine } from "@bardcast/domain";
 
 export interface NarrativeCharacter {
   id: string;
@@ -20,6 +20,7 @@ export interface WriteChapterInput {
 export interface WrittenChapter {
   title: string;
   transcript: string;
+  script?: ScriptLine[];
   /** In-world date (plain string — fantasy calendar). */
   storyDate?: string;
   /** Per-character beats to project into character.stateEvent records. */

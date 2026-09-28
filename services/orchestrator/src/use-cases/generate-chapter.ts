@@ -83,12 +83,17 @@ export async function generateChapter(
     ...chapter,
     title: written.title,
     transcript: written.transcript,
+    script: written.script ?? [],
     ...(written.storyDate !== undefined ? { storyDate: written.storyDate } : {}),
     status: "rendering",
   };
   await svc.store.putChapter(chapterId, chapter);
 
-  const rendered = await svc.audio.render({ transcript: written.transcript, voices: voiceRefs });
+  const rendered = await svc.audio.render({
+    transcript: written.transcript,
+    script: written.script,
+    voices: voiceRefs,
+  });
 
   // --- ready ---
   chapter = { ...chapter, audioRef: rendered.audioRef, status: "ready" };
