@@ -23,7 +23,7 @@
     "dev:web": "npm run dev -w @bardcast/web"
   },
   "devDependencies": {
-    "@bbthorson/pinakes": "0.4.0",
+    "@bbthorson/pinakes": "0.9.1",
     "typescript": "^5.7.2"
   },
   "engines": {

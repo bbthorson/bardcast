@@ -1,8 +1,8 @@
 # Bardcast MVP roadmap
 
 Tracking doc for the path to a first real episode. Check items off as they land; keep this file
-honest — it should always match what's actually in the tree. Last full audit: **2026-07-11**
-(typecheck green across all workspaces, 14/14 tests passing).
+honest — it should always match what's actually in the tree. Last full audit: **2026-09-28**
+(typecheck green across all workspaces, 17/17 tests passing across domain + orchestrator with in-process PGlite).
 
 ## MVP definition (exit criteria)
 
@@ -21,7 +21,7 @@ What's real and verified today, so the checkboxes below start from an honest flo
 - **Antiphony client** (`packages/antiphony-client`) wired behind the gateway port, fetch-mock tested.
 - Orchestrator loop skeleton: five use-cases with API routes, loop test runs end-to-end on stubs.
 - `apps/web` front door: six screens, branded, deployed to Cloudflare Pages.
-- Campaign canon seed: *Sir Gawain and the Green Knight* (OKF).
+- Campaign canon seed: *Sir Gawain and the Green Knight* (OKF, Pinakes 0.9.1).
 
 ## M1 — Rename + hardening
 
@@ -31,35 +31,38 @@ No external dependencies; can start immediately.
       `VoxPopGateway` port → `AntiphonyGateway`, `@bardcast/voxpop-client` → `@bardcast/antiphony-client`,
       the `VoxPopPrompt`/`VoxPopReply` types → `AntiphonyPrompt`/`AntiphonyReply`, the `voxpop`
       service field → `antiphony`, gateway file names, and a doc sweep. Also bumped `@antiphony/shared`
-      to `^0.4.0` and dropped the local `BlobRef` mirror in favour of its `BlobRefSchema`.
+      to `^0.7.0` and dropped the local `BlobRef` mirror in favour of its `BlobRefSchema`.
 - [x] **Finish the voxpop→antiphony purge**: purged `voxPopPromptUri`/
       `voxPopReplyUri` domain + engagement-port field names to `antiphonyPromptUri`/
       `antiphonyReplyUri`, the `VOXPOP_BASE_URL`/`VOXPOP_SERVICE_TOKEN` env vars to
       `ANTIPHONY_BASE_URL`/`ANTIPHONY_SERVICE_TOKEN`, updated config fields, and
-      bumped `@antiphony/shared` to `^0.6.0`.
-- [ ] Zod-validate orchestrator request bodies and gate writes behind an authenticated DID session
-      (`services/orchestrator/src/app.ts` TODO).
+      bumped `@antiphony/shared` to `^0.7.0`.
+- [x] Zod-validate orchestrator request bodies and gate writes behind an authenticated DID session
+      (`services/orchestrator/src/app.ts`).
+- [x] Handle cross-origin cookie posture (`SameSite=None; Secure` in prod, `Lax` in dev) with CORS credentials
+      support for Cloudflare Pages web app talking to Cloud Run API.
 - [ ] Identity prod-hardening: mint a real signed (service-JWT) assertion over the DID; replace the
-      single-instance OAuth lock with a cross-instance one; handle the cross-origin cookie posture
-      (web on Cloudflare Pages, orchestrator on Cloud Run).
+      single-instance OAuth lock with a cross-instance one.
 
 ## M2 — Persistence
 
 Everything downstream is fake until state survives a restart.
 
-- [ ] Decide the `Store` backing (open: Firestore to colocate with the engine vs. Cloud SQL/Postgres
-      alongside Cloud Run). Record the decision in `docs/hosting.md`.
-- [ ] Real `Store` adapter replacing `in-memory-store.ts`, including bootstrap/migration for the
-      Gawain seed.
-- [ ] Persistent, encrypted AT-Proto session/state stores (`adapters/atproto/stores.ts` TODO).
+- [x] Decide the `Store` backing: **PostgreSQL** matching Antiphony's narrow `SqlClient` port design
+      (supports Neon, Cloud SQL, Supabase, and in-process PGlite for tests). Recorded in `docs/hosting.md`.
+- [x] Real `Store` adapter (`PostgresStore`) replacing `in-memory-store.ts`, with auto-migration (`schema.sql`)
+      and bootstrap for the *Sir Gawain and the Green Knight* seed.
+- [x] Persistent AT-Proto app session and OAuth session/state stores (`PostgresAppSessionStore`,
+      `PostgresSessionStore`, `PostgresStateStore`).
 
 ## M3 — Campaign lifecycle API + wiring the front door
 
 The `apps/web` screens exist but manage state client-side; give them real endpoints.
 
-- [ ] `POST /api/campaigns` — create a campaign, persist via `Store`, creator DID as DM.
-- [ ] Invite codes: mint on create; `POST` join endpoint validates the code and adds the player's
-      DID to the roster.
+- [x] `POST /api/campaigns` — create a campaign, persist via `Store`, creator DID as DM.
+- [x] `GET /api/campaigns` — list campaigns for authenticated DID.
+- [x] Invite codes: `POST /api/campaigns/:campaignId/invites` mints code; `POST /api/campaigns/join`
+      validates code and adds the player's DID to the roster.
 - [ ] Wire `CreateCampaign`, `JoinInvite`, and `Dashboard` to those endpoints; remove the
       client-side stubs and the offline session fallback (`apps/web/src/session.ts` TODO).
 

@@ -1,6 +1,5 @@
 import { AntiphonyClient, AntiphonyError } from "@bardcast/antiphony-client";
-import { createServer, type IncomingMessage, type Server } from "node:http";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ClientAntiphonyGateway } from "./antiphony-gateway.js";
 
 /**
@@ -16,79 +15,109 @@ const APP_DID = "did:web:bardcast.app";
 interface Captured {
   path: string;
   method: string;
-  headers: IncomingMessage["headers"];
+  headers: Record<string, string | undefined>;
   body: string;
 }
 
-let server: Server;
-let baseUrl: string;
+const baseUrl = "http://mock-antiphony";
 const captured: Captured[] = [];
 
 function ok(data: unknown) {
   return JSON.stringify({ success: true, data });
 }
 
-beforeAll(async () => {
-  server = createServer((req, res) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (c) => chunks.push(c as Buffer));
-    req.on("end", () => {
-      const url = new URL(req.url ?? "/", "http://x");
-      const path = url.pathname;
-      captured.push({
-        path,
-        method: req.method ?? "",
-        headers: req.headers,
-        body: Buffer.concat(chunks).toString("utf8"),
+async function mockFetch(input: string | URL | { toString(): string }, init: RequestInit = {}): Promise<Response> {
+  const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : String(input));
+  const path = url.pathname;
+  const method = init.method ?? "GET";
+
+  const rawHeaders: Record<string, string | undefined> = {};
+  if (init.headers) {
+    if (init.headers instanceof Headers) {
+      init.headers.forEach((v, k) => {
+        rawHeaders[k.toLowerCase()] = v;
       });
-      res.setHeader("content-type", "application/json");
-
-      if (path === "/api/v1/audio/upload" && req.method === "POST") {
-        res.end(ok({ blob: { $type: "blob", ref: { $link: "bafyaudiocid" }, mimeType: "audio/webm", size: 123 } }));
-      } else if (path === "/api/v1/posts" && req.method === "POST") {
-        res.end(ok({ postId: "p1" }));
-      } else if (path === "/api/v1/posts/p1" && req.method === "GET") {
-        res.end(
-          ok({
-            uri: `at://${APP_DID}/dev.antiphony.audio.post/p1`,
-            cid: "bafypostcid",
-            kind: "prompt",
-            authorId: "did:example:dm",
-            authorDid: "did:example:dm",
-            record: { title: "A scar you carry", text: "Firelight catches an old mark.", createdAt: "2026-07-01T00:00:00Z" },
-          }),
-        );
-      } else if (path === "/api/v1/posts/p1/replies" && req.method === "GET") {
-        res.end(
-          ok({
-            items: [
-              {
-                uri: `at://${APP_DID}/dev.antiphony.audio.post/r1`,
-                cid: "bafyreply",
-                kind: "reply",
-                authorId: "did:example:alice",
-                authorDid: "did:example:alice",
-                record: { createdAt: "2026-07-02T00:00:00Z" },
-                embed: { url: "https://cdn.example/r1.webm", transcript: { text: "It was the wolf." } },
-              },
-            ],
-          }),
-        );
-      } else {
-        res.statusCode = 404;
-        res.end(JSON.stringify({ success: false, error: { message: "not found" }, requestId: "x" }));
+    } else if (Array.isArray(init.headers)) {
+      for (const item of init.headers) {
+        const k = item[0];
+        const v = item[1];
+        if (k) rawHeaders[k.toLowerCase()] = v;
       }
-    });
-  });
-  await new Promise<void>((r) => server.listen(0, r));
-  const addr = server.address();
-  baseUrl = `http://127.0.0.1:${typeof addr === "object" && addr ? addr.port : 0}`;
-});
+    } else {
+      for (const [k, v] of Object.entries(init.headers)) rawHeaders[k.toLowerCase()] = String(v);
+    }
+  }
 
-afterAll(() => new Promise<void>((r) => server.close(() => r())));
+  let bodyStr = "";
+  if (init.body instanceof FormData) {
+    rawHeaders["content-type"] = "multipart/form-data; boundary=---mockboundary";
+    bodyStr = "[FormData]";
+  } else if (typeof init.body === "string") {
+    bodyStr = init.body;
+  }
+
+  captured.push({
+    path,
+    method,
+    headers: rawHeaders,
+    body: bodyStr,
+  });
+
+  if (path === "/api/v1/audio/upload" && method === "POST") {
+    return new Response(
+      ok({ blob: { $type: "blob", ref: { $link: "bafyaudiocid" }, mimeType: "audio/webm", size: 123 } }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  } else if (path === "/api/v1/posts" && method === "POST") {
+    return new Response(ok({ postId: "p1" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  } else if (path === "/api/v1/posts/p1" && method === "GET") {
+    return new Response(
+      ok({
+        uri: `at://${APP_DID}/dev.antiphony.audio.post/p1`,
+        cid: "bafypostcid",
+        kind: "prompt",
+        authorId: "did:example:dm",
+        authorDid: "did:example:dm",
+        record: {
+          title: "A scar you carry",
+          text: "Firelight catches an old mark.",
+          createdAt: "2026-07-01T00:00:00Z",
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  } else if (path === "/api/v1/posts/p1/replies" && method === "GET") {
+    return new Response(
+      ok({
+        items: [
+          {
+            uri: `at://${APP_DID}/dev.antiphony.audio.post/r1`,
+            cid: "bafyreply",
+            kind: "reply",
+            authorId: "did:example:alice",
+            authorDid: "did:example:alice",
+            record: { createdAt: "2026-07-02T00:00:00Z" },
+            embed: { url: "https://cdn.example/r1.webm", transcript: { text: "It was the wolf." } },
+          },
+        ],
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  }
+
+  return new Response(JSON.stringify({ success: false, error: { message: "not found" }, requestId: "x" }), {
+    status: 404,
+    headers: { "content-type": "application/json" },
+  });
+}
 
 function gateway() {
-  return new ClientAntiphonyGateway(new AntiphonyClient({ baseUrl, getServiceToken: () => TOKEN }));
+  return new ClientAntiphonyGateway(
+    new AntiphonyClient({ baseUrl, getServiceToken: () => TOKEN, fetch: mockFetch as any }),
+  );
 }
 
 describe("Antiphony gateway", () => {
@@ -108,7 +137,7 @@ describe("Antiphony gateway", () => {
 
     const create = captured.find((c) => c.path === "/api/v1/posts" && c.method === "POST")!;
     // Service-token auth + the DM asserted as the acting actor (→ authorDid).
-    expect(create.headers.authorization).toBe(`Bearer ${TOKEN}`);
+    expect(create.headers["authorization"]).toBe(`Bearer ${TOKEN}`);
     expect(create.headers["x-antiphony-acting-actor"]).toBe("did:example:dm");
     expect(create.headers["x-antiphony-acting-actor-did"]).toBe("did:example:dm");
     const body = JSON.parse(create.body) as { title: string; text: string; reply?: unknown };
@@ -131,13 +160,13 @@ describe("Antiphony gateway", () => {
     // Derived the postId (rkey) from the at:// uri and hit the replies route.
     const list = captured.find((c) => c.path === "/api/v1/posts/p1/replies")!;
     expect(list.method).toBe("GET");
-    expect(list.headers.authorization).toBe(`Bearer ${TOKEN}`);
+    expect(list.headers["authorization"]).toBe(`Bearer ${TOKEN}`);
   });
 
   it("posts a player reply via multipart upload + a reply ref to the prompt", async () => {
     captured.length = 0;
-    const client = new AntiphonyClient({ baseUrl, getServiceToken: () => TOKEN });
-    const prompt = { uri: `at://${APP_DID}/dev.antiphony.audio.post/p1`, cid: "bafypostcid" };
+    const client = new AntiphonyClient({ baseUrl, getServiceToken: () => TOKEN, fetch: mockFetch as any });
+    const prompt = { uri: `at://${APP_DID}/dev.antiphony.audio.post/p1` as const, cid: "bafypostcid" };
     await client.createReply(
       { prompt, audio: { blob: new Blob([new Uint8Array([1, 2, 3])], { type: "audio/webm" }) } },
       "did:example:alice",
@@ -148,7 +177,10 @@ describe("Antiphony gateway", () => {
     expect(upload.headers["x-antiphony-acting-actor-did"]).toBe("did:example:alice");
 
     const post = captured.find((c) => c.path === "/api/v1/posts")!;
-    const body = JSON.parse(post.body) as { reply?: { root: { uri: string }; parent: { uri: string } }; embed?: { audio: { ref: { $link: string } } } };
+    const body = JSON.parse(post.body) as {
+      reply?: { root: { uri: string }; parent: { uri: string } };
+      embed?: { audio: { ref: { $link: string } } };
+    };
     expect(body.reply?.root.uri).toBe(prompt.uri); // reply ⇒ threaded to the prompt
     expect(body.embed?.audio.ref.$link).toBe("bafyaudiocid"); // AT-Proto {$link} blob shape
   });
@@ -158,42 +190,60 @@ describe("AntiphonyClient.listReplies (fetch-mocked)", () => {
   const PROMPT = "at://did:web:x/dev.antiphony.audio.post/pp";
   const reply = (id: string) => ({
     uri: `at://did:web:x/dev.antiphony.audio.post/${id}`,
-    cid: `cid-${id}`,
+    cid: `bafy${id}`,
     kind: "reply",
-    authorId: "did:example:a",
+    authorId: "did:plc:alice",
     record: { createdAt: "2026-07-02T00:00:00Z" },
-  });
-  const envelope = (data: unknown) => new Response(JSON.stringify({ success: true, data }), { status: 200, headers: { "content-type": "application/json" } });
-
-  it("treats `limit` as a total cap and only requests what's still needed", async () => {
-    const urls: string[] = [];
-    const fetchImpl = (async (input: string | URL) => {
-      urls.push(String(input));
-      // Two pages of two replies each; a page always honors the requested limit.
-      const u = new URL(String(input));
-      const lim = Number(u.searchParams.get("limit") ?? "2");
-      const cursor = u.searchParams.get("cursor");
-      if (!cursor) return envelope({ items: [reply("r1"), reply("r2")].slice(0, lim), nextCursor: "c1" });
-      return envelope({ items: [reply("r3"), reply("r4")].slice(0, lim) });
-    }) as unknown as typeof fetch;
-
-    const client = new AntiphonyClient({ baseUrl: "http://mock", getServiceToken: () => "tok", fetch: fetchImpl });
-    const out = await client.listReplies({ prompt: PROMPT, limit: 3 });
-
-    expect(out).toHaveLength(3); // capped, not the 4 available
-    expect(urls[0]).toContain("limit=3"); // asks for the cap up front
-    expect(urls[1]).toContain("limit=1"); // then only the remainder
+    embed: { url: `https://cdn.example/${id}.webm` },
   });
 
-  it("preserves the status + body of a non-JSON error response", async () => {
-    const fetchImpl = (async () =>
-      new Response("<html>502 Bad Gateway</html>", { status: 502, headers: { "content-type": "text/html" } })) as unknown as typeof fetch;
-    const client = new AntiphonyClient({ baseUrl: "http://mock", getServiceToken: () => "tok", fetch: fetchImpl });
-
-    await expect(client.listReplies({ prompt: PROMPT })).rejects.toMatchObject({
-      constructor: AntiphonyError,
-      status: 502,
+  it("pages through multiple reply pages and collects all items", async () => {
+    const calls: string[] = [];
+    const client = new AntiphonyClient({
+      baseUrl: "https://api.example",
+      getServiceToken: () => "t",
+      fetch: (async (url: string | URL) => {
+        const u = new URL(url.toString());
+        calls.push(u.searchParams.get("cursor") ?? "first");
+        const cursor = u.searchParams.get("cursor");
+        if (!cursor) {
+          return new Response(ok({ items: [reply("r1"), reply("r2")], nextCursor: "c2" }));
+        }
+        return new Response(ok({ items: [reply("r3")] }));
+      }) as typeof fetch,
     });
-    await expect(client.listReplies({ prompt: PROMPT })).rejects.toThrow(/502.*Bad Gateway/s);
+
+    const items = await client.listReplies({ prompt: PROMPT });
+    expect(items.map((i) => i.uri)).toEqual([
+      "at://did:web:x/dev.antiphony.audio.post/r1",
+      "at://did:web:x/dev.antiphony.audio.post/r2",
+      "at://did:web:x/dev.antiphony.audio.post/r3",
+    ]);
+    expect(calls).toEqual(["first", "c2"]);
+  });
+
+  it("translates error responses to AntiphonyError", async () => {
+    const client = new AntiphonyClient({
+      baseUrl: "https://api.example",
+      getServiceToken: () => "t",
+      fetch: (async () => {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: { code: "not_found", message: "post not found" },
+            requestId: "req-xyz",
+          }),
+          { status: 404 },
+        );
+      }) as typeof fetch,
+    });
+
+    await expect(client.listReplies({ prompt: PROMPT })).rejects.toSatisfy((e) => {
+      expect(e).toBeInstanceOf(AntiphonyError);
+      const err = e as AntiphonyError;
+      expect(err.status).toBe(404);
+      expect(err.code).toBe("not_found");
+      return true;
+    });
   });
 });

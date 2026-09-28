@@ -19,10 +19,12 @@ const path = {
   create: "/campaigns/new",
   join: "/join",
   voice: "/voice",
-  campaign: `/campaigns/${campaign.id}`,
-  character: (id: string) => `/campaigns/${campaign.id}/characters/${id}`,
+  campaign: (id: string = campaign.id) => `/campaigns/${id}`,
+  character: (campaignId: string, id: string) => `/campaigns/${campaignId}/characters/${id}`,
 } as const;
-const CHARACTER_ROUTE = new RegExp(`^/campaigns/${campaign.id}/characters/([a-z0-9-]+)$`);
+
+const CAMPAIGN_ROUTE = /^\/campaigns\/([a-zA-Z0-9_.-]+)$/;
+const CHARACTER_ROUTE = /^\/campaigns\/([a-zA-Z0-9_.-]+)\/characters\/([a-zA-Z0-9_.-]+)$/;
 
 /**
  * The web front door. Views are URL-driven (see router.ts) so the browser
@@ -89,7 +91,14 @@ function SignedIn({
   const player = session.player!;
   const voice = useVoiceClone(player.did);
   const { navigate, back } = router;
-  const characterId = CHARACTER_ROUTE.exec(router.path)?.[1];
+
+  const charMatch = CHARACTER_ROUTE.exec(router.path);
+  const routeCharCampaignId = charMatch?.[1];
+  const routeCharacterId = charMatch?.[2];
+
+  const campMatch = CAMPAIGN_ROUTE.exec(router.path);
+  const routeCampaignId = campMatch?.[1];
+  const isCampaignView = routeCampaignId && routeCampaignId !== "new";
 
   return (
     <main style={styles.main}>
@@ -109,23 +118,26 @@ function SignedIn({
         }
       />
 
-      {router.path === path.campaign ? (
-        <CampaignProgress
-          // TODO(bardcast): open the player app's recorder for this prompt.
-          onAnswer={() => undefined}
-          onOpenCharacter={(id) => navigate(path.character(id))}
-        />
-      ) : characterId && characters[characterId] ? (
+      {routeCharacterId ? (
         <CharacterSheet
-          character={characters[characterId]}
-          hue={party.find((p) => p.id === characterId)?.hue ?? 35}
+          characterId={routeCharacterId}
+          campaignId={routeCharCampaignId}
+          character={characters[routeCharacterId]}
+          hue={party.find((p) => p.id === routeCharacterId)?.hue ?? 35}
           chapterLabel={`Sir Gawain · Ch. ${campaign.currentChapter}`}
           onBack={back}
+        />
+      ) : isCampaignView ? (
+        <CampaignProgress
+          campaignId={routeCampaignId}
+          // TODO(bardcast): open the player app's recorder for this prompt.
+          onAnswer={() => undefined}
+          onOpenCharacter={(id) => navigate(path.character(routeCampaignId, id))}
         />
       ) : router.path === path.create ? (
         <CreateCampaign player={player} onBack={back} />
       ) : router.path === path.join ? (
-        <JoinInvite onBack={back} />
+        <JoinInvite player={player} onBack={back} />
       ) : router.path === path.voice ? (
         <VoiceClone {...voice} onBack={back} />
       ) : (
@@ -135,7 +147,7 @@ function SignedIn({
           onCreate={() => navigate(path.create)}
           onJoin={() => navigate(path.join)}
           onManageVoice={() => navigate(path.voice)}
-          onOpenCampaign={() => navigate(path.campaign)}
+          onOpenCampaign={(campId) => navigate(path.campaign(campId || campaign.id))}
         />
       )}
     </main>

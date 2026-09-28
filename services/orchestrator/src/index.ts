@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import { buildServices } from "./adapters/index.js";
+import { buildServices, pgSqlClient, neonSqlClient, runMigrations } from "./adapters/index.js";
 import { createApp } from "./app.js";
 
 const port = Number(process.env["PORT"] ?? 8787);
@@ -13,6 +13,16 @@ const antiphonyServiceToken =
   process.env["ANTIPHONY_SERVICE_TOKEN"] ??
   process.env["VOXPOP_SERVICE_TOKEN"];
 
+const databaseUrl = process.env["DATABASE_URL"];
+
+if (databaseUrl) {
+  const sql = databaseUrl.includes("neon.tech")
+    ? neonSqlClient(databaseUrl)
+    : pgSqlClient(databaseUrl);
+  // Ensure tables and indexes are ready on boot
+  await runMigrations(sql);
+}
+
 const svc = buildServices({
   antiphonyBaseUrl,
   appBaseUrl: process.env["APP_BASE_URL"] ?? "http://localhost:5173",
@@ -20,6 +30,7 @@ const svc = buildServices({
   auth: process.env["AUTH_MODE"] === "atproto" ? "atproto" : "stub",
   ...(process.env["APP_NAME"] !== undefined ? { appName: process.env["APP_NAME"] } : {}),
   ...(antiphonyServiceToken !== undefined ? { antiphonyServiceToken } : {}),
+  ...(databaseUrl !== undefined ? { databaseUrl } : {}),
 });
 
 const app = createApp(svc);
