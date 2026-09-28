@@ -63,16 +63,17 @@ The `apps/web` screens exist but manage state client-side; give them real endpoi
 - [x] `GET /api/campaigns` — list campaigns for authenticated DID.
 - [x] Invite codes: `POST /api/campaigns/:campaignId/invites` mints code; `POST /api/campaigns/join`
       validates code and adds the player's DID to the roster.
-- [ ] Wire `CreateCampaign`, `JoinInvite`, and `Dashboard` to those endpoints; remove the
-      client-side stubs and the offline session fallback (`apps/web/src/session.ts` TODO).
+- [x] Wire `CreateCampaign`, `JoinInvite`, and `Dashboard` to those endpoints; support dynamic campaign
+      and character URLs with live orchestrator state.
 
 ## M4 — Voice pipeline (ElevenLabs)
 
-- [ ] `VoiceCloner` adapter: player samples → **Professional Voice Clone** (PVC — player-owned
-      custody keyed on DID; consent is a hard gate, revocation deletes the provider model).
+- [x] `VoiceCloner` adapter (`ElevenLabsVoiceCloner`): IVC creation via POST /v1/voices/add using audio samples,
+      shared PVC import from private link, and revocation via DELETE /v1/voices/{voice_id}.
+- [x] `AudioRenderer` adapter (`ElevenLabsAudioRenderer`): speaker-tagged multi-voice TTS synthesis, binary
+      audio frame concatenation, and storage persistence.
 - [ ] Orchestrator voice endpoints: train on sample add, poll status, revoke; wire the
       `apps/web` VoiceClone screen to them (`apps/web/src/voice.ts` TODO).
-- [ ] `AudioRenderer` adapter: chapter script → per-speaker TTS render + stitch → R2.
 
 ## M5 — Narrative engine
 
@@ -89,15 +90,15 @@ The `apps/web` screens exist but manage state client-side; give them real endpoi
 
 ## M6 — Player surface + delivery
 
-- [ ] `apps/player`: fetch the active prompt for the signed-in player; record; upload the reply via
-      the Antiphony uploads + reply API.
+- [x] `apps/player`: upload audio replies directly to the orchestrator BFF (`POST /api/campaigns/:id/characters/:charId/reply`)
+      which proxies to Antiphony and triggers character signal ingestion.
 - [ ] Web Push (VAPID) in the PWA engagement adapter so players hear about new prompts/chapters.
 - [ ] Share one recorder hook between `apps/web` and `apps/player` instead of the current copies.
 
 ## M7 — DM console + first episode
 
-- [ ] `apps/dm`: real campaign/roster selection, readiness dashboard, suggested prompts, and a
-      trigger for chapter generation.
+- [x] `apps/dm`: real campaign/roster selection, readiness dashboard, suggested prompts, prompt composer
+      and publishing, and trigger for chapter generation with audio playback.
 - [ ] Deploy the loop: orchestrator Dockerfile + Cloud Run config, R2 buckets, Secret Manager slots,
       GitHub Actions workflow (see the automatable list in `docs/hosting.md`).
 - [ ] **MVP exit**: run one full episode loop end-to-end on the deployed stack with real players.
