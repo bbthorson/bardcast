@@ -28,10 +28,11 @@ const CHARACTER_ROUTE = /^\/campaigns\/([a-zA-Z0-9_.-]+)\/characters\/([a-zA-Z0-
 
 /**
  * The web front door. Views are URL-driven (see router.ts) so the browser
- * back/forward buttons work and a refresh keeps your place. The header is always
- * present; logged out shows the public landing page with a "Sign in" button that
- * opens a dialog, logged in the DID drives everything. Kept client-side so the
- * whole thing is a static Cloudflare build (docs/hosting.md).
+ * back/forward buttons work and a refresh keeps your place. Logged out shows the
+ * public landing page, which carries its own bottom bar with a "Sign in" button
+ * that opens a dialog; logged in, the header is always present and the DID
+ * drives everything. Kept client-side so the whole thing is a static Cloudflare
+ * build (docs/hosting.md).
  */
 export function App() {
   const session = useSession();
@@ -51,15 +52,7 @@ export function App() {
   if (!session.player) {
     return (
       <main style={styles.main}>
-        <TopBar
-          actions={
-            // The always-present twin of the hero CTA — quieter (felt) so the
-            // hero keeps the single candle.
-            <button style={styles.compact} onClick={() => setShowLogin(true)}>
-              Sign in
-            </button>
-          }
-        />
+        {/* The landing page brings its own bar: logo, the travelling candle, and Sign in. */}
         <Landing onOpenLogin={() => setShowLogin(true)} />
         {showLogin && (
           <LoginDialog

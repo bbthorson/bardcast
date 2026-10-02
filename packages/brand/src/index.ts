@@ -12,6 +12,7 @@
  */
 
 export * from "./marks.js";
+export * from "./scene.js";
 
 export const color = {
   /** The room behind the table — browser canvas outside the app column. */
