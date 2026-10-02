@@ -77,6 +77,21 @@ presses in bone.
   the lowercase wordmark set in Young Serif. `assets/seal-mark.svg` and `assets/app-icon.svg` are
   generated from that call.
 
+## Home: a night at the table
+
+The signed-out home page (`apps/web/src/screens/Landing.tsx`, from Claude Design "Bardcast Home v4")
+is one night and day at the table, read bottom-up. You land at the hearth on Thursday at 8pm and
+scroll up through the week's loop as six vellum cards, while the sky turns over from night through a
+vellum-pale day and back. The party's voices rise from the fire as strands (the DM in bone, each
+player in their voice hue) and gather into an empty seal at the top: "There's an open seat at the
+table."
+
+- The sky, sun, moon, fire and strand colours are illustration colours in `scene` (`packages/brand/src/scene.ts`),
+  not UI tokens. Nothing outside the home page uses them.
+- The candle still lights once: "Pull up a chair" sits in the hero and at the open seat, and rides in
+  the bottom bar only while neither is on screen.
+- Motion (flicker, smoke, embers, cards easing in) switches off under `prefers-reduced-motion`.
+
 ## Components
 
 - **Recorder.** Recording uses hearth red. The waveform draws in the speaker's voice colour as they
