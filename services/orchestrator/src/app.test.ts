@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { InMemoryStore } from "./adapters/in-memory-store.js";
+import { StubDecisionModel } from "./adapters/stub-decision-model.js";
 import { StubIdentityProvider } from "./adapters/stub-identity-provider.js";
 import { StubNarrativeWriter } from "./adapters/stub-narrative-writer.js";
 import { StubVoiceCloner } from "./adapters/stub-voice-cloner.js";
@@ -37,6 +38,7 @@ function mockServices(): CoreServices {
     voice: new StubVoiceCloner(),
     audio: new StubAudioRenderer(),
     identity: new StubIdentityProvider(),
+    decisions: new StubDecisionModel(),
     engagement: new PwaEngagementChannel({
       apiBaseUrl: "http://test",
       sendPush: async () => {},

@@ -83,8 +83,9 @@ The `apps/web` screens exist but manage state client-side; give them real endpoi
 
 - [ ] Real `NarrativeWriter` adapter (canon + character state → chapter script with dice
       checkpoints).
-- [ ] Trait/drive inference from reply transcripts in `ingest-replies` (LLM), so the readiness gate
-      runs on real signal.
+- [x] Trait inference from reply transcripts in `ingest-replies`, through the `DecisionModel` port
+      (Clef-flash on Workers AI) over a closed trait vocabulary. Independent of the `NarrativeWriter`.
+- [ ] Drive inference from reply transcripts (onto the durable `CharacterProfile`).
 - [ ] `suggest-prompts` consults the `NarrativeWriter` for story-momentum prompts instead of the
       gap-fill heuristic alone.
 

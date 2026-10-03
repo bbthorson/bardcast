@@ -1,4 +1,5 @@
 import type { CoreServices } from "../ports/index.js";
+import { inferTraits, mergeTraits } from "./infer-traits.js";
 
 export interface IngestRepliesInput {
   /** The campaign the prompt belongs to. The sheet these replies build is scoped to it. */
@@ -15,9 +16,8 @@ export interface IngestRepliesInput {
  * Step 2 of the loop: fold a character's new audio replies into their derived
  * signal. Replies are the raw material for all three readiness axes.
  *
- * This scaffold updates provenance + accumulates raw material and advances the
- * voice clone. The actual INFERENCE (transcript → traits, behavior exemplars)
- * is delegated and marked TODO — it likely calls an LLM and/or the VoiceCloner.
+ * Updates provenance, infers sheet traits from transcripts through the
+ * DecisionModel, accumulates behavior exemplars, and advances the voice clone.
  */
 export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput): Promise<void> {
   const replies = await svc.antiphony.listReplies(input.antiphonyPromptUri);
@@ -36,9 +36,20 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
       createdAt: now,
     };
     sheet.sourceReplies = dedupe([...sheet.sourceReplies, ...replyUris]);
-    // TODO(bardcast): infer traits from reply transcripts (LLM) and merge with
-    // confidence scoring before persisting. Drives inferred here belong on the
-    // durable CharacterProfile, not the sheet.
+    const transcripts = replies.map((r) => r.transcript).filter((t): t is string => Boolean(t));
+    const profile = await svc.store.getCharacter(input.characterId);
+    try {
+      const inferred = await inferTraits(svc.decisions, { profile, transcripts });
+      sheet.traits = mergeTraits(sheet.traits, inferred);
+    } catch (err) {
+      // Inference is best effort: a decision-model outage must not stop the
+      // replies from feeding provenance, behavior, and voice. The next ingest
+      // of this prompt re-reads the same replies and tries again.
+      // eslint-disable-next-line no-console
+      console.warn(`trait inference failed for ${input.characterId}:`, err);
+    }
+    // TODO(bardcast): infer drives too. They belong on the durable
+    // CharacterProfile, not the sheet.
     await svc.store.putSheet(input.campaignId, input.characterId, sheet);
   }
 

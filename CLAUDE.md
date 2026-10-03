@@ -46,7 +46,12 @@ The orchestrator's `src/use-cases/*` express the loop in terms of **ports** (int
 real capability, write an adapter — do not reach into a use-case and call a vendor SDK directly.
 
 Ports: `AntiphonyGateway`, `NarrativeWriter`, `VoiceCloner`, `AudioRenderer`, `IdentityProvider`,
-`EngagementChannel`, `Store`. All current adapters are stubs marked `TODO(bardcast)`.
+`EngagementChannel`, `DecisionModel`, `Store`. Unimplemented adapters are stubs marked `TODO(bardcast)`.
+
+`DecisionModel` is a "System One" classifier (Cloudflare's Clef, or TypeSafe's Jev, both via the
+Workers AI REST API): it picks among options we list and returns calibrated probabilities. It never
+writes text. Trait inference uses it against the closed vocabulary in `packages/domain/src/traits.ts`;
+ability-score traits are reserved and never inferred.
 
 ## The engagement seam (why it's a port)
 
@@ -60,7 +65,7 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 - `services/orchestrator`: **Hono** (matches Antiphony — lean JSON service, no framework magic).
 - `apps/player`, `apps/dm`: **Vite + React** (player is a PWA).
 - Validation: **Zod** (matches Antiphony).
-- Identity: **@atproto/api** (matches Antiphony's AT-Proto-first tooling).
+- Identity: **@atproto/oauth-client-node** (AT-Proto OAuth: players sign in with their own PDS; Bardcast never handles passwords).
 
 ## Conventions
 

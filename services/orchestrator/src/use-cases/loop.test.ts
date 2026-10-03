@@ -1,6 +1,7 @@
 import type { CharacterProfile, Campaign } from "@bardcast/domain";
 import { describe, expect, it } from "vitest";
 import { StubAudioRenderer } from "../adapters/stub-audio-renderer.js";
+import { StubDecisionModel } from "../adapters/stub-decision-model.js";
 import { StubIdentityProvider } from "../adapters/stub-identity-provider.js";
 import { StubNarrativeWriter } from "../adapters/stub-narrative-writer.js";
 import { StubVoiceCloner } from "../adapters/stub-voice-cloner.js";
@@ -44,6 +45,7 @@ function services(gateway: AntiphonyGateway): CoreServices {
     voice: new StubVoiceCloner(),
     audio: new StubAudioRenderer(),
     identity: new StubIdentityProvider(),
+    decisions: new StubDecisionModel(),
     engagement: new PwaEngagementChannel({
       apiBaseUrl: "http://test",
       sendPush: async () => {},
@@ -91,7 +93,7 @@ describe("the Bardcast loop", () => {
     // 8 transcripts → clears behavior exemplars + (3+) voice samples.
     const svc = services(fakeGateway(Array.from({ length: 8 }, (_, i) => `decision ${i}`)));
     await seedCharacter(svc);
-    // give the sheet enough confident traits directly (sheet inference is TODO).
+    // give the sheet enough confident traits directly (the stub DecisionModel infers none).
     await svc.store.putSheet(CAMPAIGN, CHAR, {
       campaign: `at://${CAMPAIGN}`,
       character: `at://${CHAR}`,
