@@ -41,12 +41,19 @@ the front door has no live API behind it.
 ## Open questions before the orchestrator can deploy
 
 **AT-Proto OAuth on Workers.** `AtprotoIdentityProvider` is built on
-`@atproto/oauth-client-node`, which uses `node:crypto`, a DNS handle resolver and lock
-primitives. Whether it runs on Workers with `nodejs_compat` has not been verified.
-Cloudflare's own write-up (`blog.cloudflare.com/serverless-atproto`, repo
-`inanna-malick/statusphere-serverless`) rewrote the OAuth client in Rust → WASM
-because the existing libraries assumed a Node or browser context. The OAuth lock
-also needs to become cross-instance (a Durable Object fits).
+`@atproto/oauth-client-node`. A probe on 2026-10-03 bundled the whole orchestrator as a
+Worker with `nodejs_compat` (wrangler 4.147), and it served `/healthz` and
+`/atproto/client-metadata.json` in local workerd. Workers now provides `node:crypto` and
+`node:dns` (`resolveTxt` over DoH; `lookup` is not implemented). What is left:
+
+- Pass a web `handleResolver` to `NodeOAuthClient`; the default one uses undici's SSRF-safe
+  fetch, which does not run on Workers.
+- Replace the single-instance `requestLock` with a Durable Object.
+- Move the session/state stores to D1 or the Neon HTTP driver (see Database below).
+
+A real Bluesky login from a preview Worker has not been tested yet. So the Rust → WASM
+rewrite that Cloudflare's own write-up used (`blog.cloudflare.com/serverless-atproto`)
+looks unnecessary, but that isn't proven.
 
 **Database.** The `Store` port and AT-Proto session/state stores sit behind a narrow
 `SqlClient` interface (`query(text, params)`), with drivers for Neon over HTTP
