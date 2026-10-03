@@ -26,6 +26,10 @@ if (databaseUrl) {
 const elevenLabsApiKey = process.env["ELEVENLABS_API_KEY"];
 const defaultNarratorVoiceId = process.env["ELEVENLABS_NARRATOR_VOICE_ID"];
 
+const cloudflareAccountId = process.env["CLOUDFLARE_ACCOUNT_ID"];
+const cloudflareAiToken = process.env["CLOUDFLARE_AI_TOKEN"];
+const decisionModel = process.env["DECISION_MODEL"];
+
 const svc = buildServices({
   antiphonyBaseUrl,
   appBaseUrl: process.env["APP_BASE_URL"] ?? "http://localhost:5173",
@@ -36,6 +40,9 @@ const svc = buildServices({
   ...(databaseUrl !== undefined ? { databaseUrl } : {}),
   ...(elevenLabsApiKey !== undefined ? { elevenLabsApiKey } : {}),
   ...(defaultNarratorVoiceId !== undefined ? { defaultNarratorVoiceId } : {}),
+  ...(cloudflareAccountId !== undefined ? { cloudflareAccountId } : {}),
+  ...(cloudflareAiToken !== undefined ? { cloudflareAiToken } : {}),
+  ...(decisionModel !== undefined ? { decisionModel } : {}),
 });
 
 const app = createApp(svc);
