@@ -16,8 +16,9 @@ import type { PartyReadiness, Prompt } from "@bardcast/domain";
  * (with the die that decided them); the chapter being gathered shows who's
  * ready to be heard across the readiness gate's three axes.
  *
- * Connects to the orchestrator for live campaign state while falling back
- * gracefully to the Sir Gawain fixture.
+ * Connects to the orchestrator for live campaign state. Only the sample table
+ * (`campaign.id`) falls back to the Sir Gawain fixture; a real campaign shows
+ * what the orchestrator has, even when that is an empty party or no chapters.
  *
  * The candle rule: "Answer as <character>" on the DM's question is the single
  * lit action on this screen.
@@ -34,13 +35,24 @@ export function CampaignProgress({
   const [campaignData, setCampaignData] = useState<CampaignDetail | null>(null);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [readiness, setReadiness] = useState<PartyReadiness | null>(null);
+  const [load, setLoad] = useState<"loading" | "ready" | "missing">("loading");
+  const isSample = !campaignId || campaignId === campaign.id;
 
   useEffect(() => {
     let cancelled = false;
-    const cId = campaignId || "gawain-green-knight";
+    const cId = campaignId || campaign.id;
+    setCampaignData(null);
+    setPrompts([]);
+    setReadiness(null);
+    setLoad("loading");
     fetchCampaignDetail(cId).then(async (detail) => {
-      if (cancelled || !detail) return;
+      if (cancelled) return;
+      if (!detail) {
+        setLoad("missing");
+        return;
+      }
       setCampaignData(detail);
+      setLoad("ready");
       const charIds = detail.party.map((p) => p.id);
       const [promptList, ready] = await Promise.all([
         fetchCampaignPrompts(cId),
@@ -58,7 +70,7 @@ export function CampaignProgress({
 
   const partyList: PartyMember[] = useMemo(() => {
     if (!campaignData?.party || campaignData.party.length === 0) {
-      return party;
+      return isSample ? party : [];
     }
     return campaignData.party.map((p, idx) => {
       const defaultFixture = party.find((fp) => fp.id === p.id);
@@ -76,7 +88,7 @@ export function CampaignProgress({
         voice: r ? (r.voice.progress > 0 ? "ivc" : "unlinked") : defaultFixture?.voice ?? "unlinked",
       };
     });
-  }, [campaignData, readiness]);
+  }, [campaignData, readiness, isSample]);
 
   const activePrompt = useMemo(() => {
     if (prompts.length > 0) {
@@ -90,6 +102,7 @@ export function CampaignProgress({
         antiphonyPromptUri: p.antiphonyPromptUri,
       };
     }
+    if (!isSample) return null;
     return {
       to: campaign.prompt.to,
       asked: campaign.prompt.asked,
@@ -97,12 +110,12 @@ export function CampaignProgress({
       seconds: campaign.prompt.seconds,
       antiphonyPromptUri: undefined as string | undefined,
     };
-  }, [prompts, partyList]);
+  }, [prompts, partyList, isSample]);
 
   const chapterList: ChapterView[] = useMemo(() => {
-    if (campaignData?.chapters && campaignData.chapters.length > 0) {
-      const romanNumerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-      return campaignData.chapters.map((ch, idx) => ({
+    if (isSample && !campaignData?.chapters.length) return campaign.chapters;
+    const romanNumerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+    const chapters: ChapterView[] = (campaignData?.chapters ?? []).map((ch, idx) => ({
         numeral: romanNumerals[idx] ?? String(ch.index),
         title: ch.title,
         state: ch.status === "ready" ? "told" : ch.status === "drafting" ? "sealed" : "gathering",
@@ -111,17 +124,27 @@ export function CampaignProgress({
         beats: ch.beats.map((b) => ({ who: ch.script[0]?.speaker ?? "narrator", text: b.summary })),
         played: ch.status === "ready" ? 1 : 0,
       }));
+    // The trail always ends at the chapter the party is gathering voices for,
+    // so the readiness gate has somewhere to sit.
+    if (partyList.length > 0 && !chapters.some((c) => c.state === "gathering")) {
+      const n = chapters.length;
+      chapters.push({
+        numeral: romanNumerals[n] ?? String(n + 1),
+        title: n === 0 ? "The first chapter" : "The next chapter",
+        state: "gathering",
+        when: "not yet told",
+      });
     }
-    return campaign.chapters;
-  }, [campaignData]);
+    return chapters;
+  }, [campaignData, isSample, partyList.length]);
 
   const walkedRatio = useMemo(() => {
     const told = chapterList.filter((c) => c.state === "told").length;
-    return chapterList.length > 0 ? told / chapterList.length : campaign.walked;
+    return chapterList.length > 0 ? told / chapterList.length : 0;
   }, [chapterList]);
 
-  const title = campaignData?.campaign.title || campaign.title;
-  const eyebrow = campaignData?.campaign.premise || campaign.eyebrow;
+  const title = campaignData?.campaign.title || (isSample ? campaign.title : "");
+  const eyebrow = campaignData?.campaign.premise || (isSample ? campaign.eyebrow : "");
   const dmHandle = campaignData?.campaign.dm
     ? `@${campaignData.campaign.dm.replace(/^did:[^:]+:/, "").slice(0, 10)}`
     : dm.handle;
@@ -132,7 +155,15 @@ export function CampaignProgress({
   );
   const dmSeal = useMemo(() => seal(dm.seed, { bone: true, bars: 29 }), []);
   const path = useMemo(() => trail("trail", walkedRatio), [walkedRatio]);
-  const asked = partyList.find((p) => p.id === activePrompt.to) || partyList[0]!;
+  const asked = activePrompt ? partyList.find((p) => p.id === activePrompt.to) ?? partyList[0] : undefined;
+
+  if (!isSample && load !== "ready") {
+    return (
+      <div style={styles.page}>
+        <p style={styles.muted}>{load === "loading" ? "Setting out the table…" : "We couldn't find that campaign."}</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ width: "100%", maxWidth: 480, margin: "0 auto" }}>
@@ -146,12 +177,17 @@ export function CampaignProgress({
             ))}
           </div>
           <span style={{ fontSize: 14, color: color.chalkDim, marginLeft: 8 }}>
-            {partyList.length} players · DM <span style={{ fontFamily: font.mono }}>{dmHandle}</span>
+            {partyList.length} {partyList.length === 1 ? "player" : "players"} · DM <span style={{ fontFamily: font.mono }}>{dmHandle}</span>
           </span>
         </div>
       </div>
 
+      {partyList.length === 0 && (
+        <p style={{ ...styles.muted, margin: "22px 24px 0" }}>No one has joined yet. Once players take a seat, their readiness shows up here.</p>
+      )}
+
       {/* The DM's question, set down a little crooked. */}
+      {activePrompt && asked && (
       <section style={{ ...styles.card, margin: "22px 16px 0", transform: "rotate(0.9deg)", boxShadow: "0 10px 24px rgba(0,0,0,0.35)", display: "flex", flexDirection: "column", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <SealMark seal={dmSeal} size={36} />
@@ -167,6 +203,7 @@ export function CampaignProgress({
           {voice.answerAs(asked.shortName)} · 0:{String(activePrompt.seconds).padStart(2, "0")}
         </button>
       </section>
+      )}
 
       <div style={{ padding: "34px 24px 44px", position: "relative" }}>
         <svg viewBox="0 0 20 1000" preserveAspectRatio="none" aria-hidden style={{ position: "absolute", left: 34, top: 44, width: 20, height: "calc(100% - 154px)", overflow: "visible" }}>
