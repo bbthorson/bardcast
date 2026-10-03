@@ -68,9 +68,10 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 - Each lexicon JSON has a matching Zod schema in `@bardcast/domain`. Keep them in sync; the Zod schema
   is what runtime code validates against.
 - Mark every unimplemented seam with `TODO(bardcast): ...` so they're greppable.
-- The visual identity is **locked** — "The Tavern Table", `docs/brand.md`. Colors, fonts, and voice
-  lines come from `@bardcast/brand` (tokens + assets); never hard-code a hex in an app. The ember
-  accent marks the single next action on a screen — one per screen, always.
+- The visual identity is "Felt & Vellum", `docs/brand.md` (it replaced the placeholder "Tavern
+  Table" in September 2026). Colors, fonts, and voice lines come from `@bardcast/brand` (tokens +
+  assets); never hard-code a hex in an app. The candle accent marks the single next action on a
+  screen — one per screen, always.
 - This is a sibling of `../antiphony` (the engine) and `../universe-starter-kit` (the
   canonical home of the canon/records conventions this repo follows — extracted from
   `../supper_club_secrets`, the original design precedent and an example world). Read those,
