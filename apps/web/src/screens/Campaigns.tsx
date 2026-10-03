@@ -1,11 +1,12 @@
 import { color, font, seal } from "@bardcast/brand";
 import { useMemo } from "react";
 import { campaign, party } from "../fixtures/gawain.js";
-import type { Table } from "../tables.js";
+import { whereYouAre, type Table } from "../tables.js";
 import { SealMark, styles } from "../ui.js";
 
 /**
- * Left tab: every table you sit at, as DM or player, plus the ways to add one.
+ * Left tab, the widest view: every table you sit at, as DM or player, where
+ * each one is in its story, and the ways to join or start one.
  * With no tables yet, the sample Sir Gawain table stands in so there is
  * something to open.
  */
@@ -33,19 +34,22 @@ export function Campaigns({
         <p style={styles.muted}>Gathering your tables…</p>
       ) : tables.length > 0 ? (
         <section style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
-          {tables.map(({ id, campaign: c, isDm, prompts }) => (
+          {tables.map((t) => {
+            const { id, campaign: c, isDm } = t;
+            return (
             <button key={id} onClick={() => onOpenCampaign(id)} style={cardButton}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                 <span style={{ fontFamily: font.display, fontSize: 20, lineHeight: 1.2 }}>{c.title}</span>
                 <span style={styles.meta}>{isDm ? "DM" : "Player"}</span>
               </div>
               {c.premise && <p style={{ ...styles.muted, margin: 0, fontSize: "0.85rem" }}>{c.premise}</p>}
+              <span style={{ ...styles.meta, color: color.chalk }}>{whereYouAre(t)}</span>
               <span style={{ ...styles.muted, fontSize: 13 }}>
-                {c.party.length} {c.party.length === 1 ? "player" : "players"} · {prompts.length}{" "}
-                {prompts.length === 1 ? "prompt" : "prompts"} →
+                {c.party.length} {c.party.length === 1 ? "player" : "players"} →
               </span>
             </button>
-          ))}
+            );
+          })}
         </section>
       ) : (
         <button
@@ -64,11 +68,11 @@ export function Campaigns({
       )}
 
       <div style={{ ...styles.row, marginTop: 24 }}>
-        <button style={styles.secondary} onClick={onCreate}>
-          Start a campaign
-        </button>
         <button style={styles.secondary} onClick={onJoin}>
           Join with a code
+        </button>
+        <button style={styles.secondary} onClick={onCreate}>
+          Start a campaign
         </button>
       </div>
     </div>
