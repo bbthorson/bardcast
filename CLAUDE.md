@@ -65,7 +65,7 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 - `services/orchestrator`: **Hono** (matches Antiphony — lean JSON service, no framework magic).
 - `apps/player`, `apps/dm`: **Vite + React** (player is a PWA).
 - Validation: **Zod** (matches Antiphony).
-- Identity: **@atproto/api** (matches Antiphony's AT-Proto-first tooling).
+- Identity: **@atproto/oauth-client-node** (AT-Proto OAuth: players sign in with their own PDS; Bardcast never handles passwords).
 
 ## Conventions
 
