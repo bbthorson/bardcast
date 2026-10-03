@@ -20,7 +20,7 @@ export function neonSqlClient(connectionString: string): SqlClient {
 
 /**
  * Creates an SqlClient using Node `pg` Pool over standard TCP.
- * Ideal for Cloud Run, Cloud SQL, Docker, or self-hosted PostgreSQL.
+ * Ideal for Docker, self-hosted PostgreSQL, or Hyperdrive.
  */
 export function pgSqlClient(poolOrConnectionString: pg.Pool | string): SqlClient {
   const pool =

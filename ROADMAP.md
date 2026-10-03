@@ -20,7 +20,7 @@ What's real and verified today, so the checkboxes below start from an honest flo
 - **AT-Proto identity**: real OAuth provider mounted at `/atproto`, consumed by `apps/web` sign-in.
 - **Antiphony client** (`packages/antiphony-client`) wired behind the gateway port, fetch-mock tested.
 - Orchestrator loop skeleton: five use-cases with API routes, loop test runs end-to-end on stubs.
-- `apps/web` front door: six screens, branded, deployed to Cloudflare Pages.
+- `apps/web` front door: six screens, branded, deployed to Cloudflare (Worker `bardcast`, static assets).
 - Campaign canon seed: *Sir Gawain and the Green Knight* (OKF, Pinakes 0.9.1).
 
 ## M1 — Rename + hardening
@@ -40,7 +40,7 @@ No external dependencies; can start immediately.
 - [x] Zod-validate orchestrator request bodies and gate writes behind an authenticated DID session
       (`services/orchestrator/src/app.ts`).
 - [x] Handle cross-origin cookie posture (`SameSite=None; Secure` in prod, `Lax` in dev) with CORS credentials
-      support for Cloudflare Pages web app talking to Cloud Run API.
+      support for the web app talking to the orchestrator on a separate origin.
 - [ ] Identity prod-hardening: mint a real signed (service-JWT) assertion over the DID; replace the
       single-instance OAuth lock with a cross-instance one.
 
@@ -49,7 +49,8 @@ No external dependencies; can start immediately.
 Everything downstream is fake until state survives a restart.
 
 - [x] Decide the `Store` backing: **PostgreSQL** matching Antiphony's narrow `SqlClient` port design
-      (supports Neon, Cloud SQL, Supabase, and in-process PGlite for tests). Recorded in `docs/hosting.md`.
+      (drivers for Neon HTTP, `pg`, and in-process PGlite for tests). Production backing is still open under
+      the Cloudflare-only rule (D1 vs. Postgres via Hyperdrive); see `docs/hosting.md`.
 - [x] Real `Store` adapter (`PostgresStore`) replacing `in-memory-store.ts`, with auto-migration (`schema.sql`)
       and bootstrap for the *Sir Gawain and the Green Knight* seed.
 - [x] Persistent AT-Proto app session and OAuth session/state stores (`PostgresAppSessionStore`,
@@ -99,8 +100,8 @@ The `apps/web` screens exist but manage state client-side; give them real endpoi
 
 - [x] `apps/dm`: real campaign/roster selection, readiness dashboard, suggested prompts, prompt composer
       and publishing, and trigger for chapter generation with audio playback.
-- [ ] Deploy the loop: orchestrator Dockerfile + Cloud Run config, R2 buckets, Secret Manager slots,
-      GitHub Actions workflow (see the automatable list in `docs/hosting.md`).
+- [ ] Deploy the loop on Cloudflare: orchestrator Worker (`nodejs_compat`), player/DM static Workers,
+      R2 buckets, Queues for rendering, `wrangler` secrets (see `docs/hosting.md`).
 - [ ] **MVP exit**: run one full episode loop end-to-end on the deployed stack with real players.
 
 ## Explicitly out of MVP
@@ -108,4 +109,3 @@ The `apps/web` screens exist but manage state client-side; give them real endpoi
 - Bluesky-communities engagement adapter (held open behind the port; API unreleased).
 - Swapping the placeholder `game.bardcast.*` NSID root — required before *publishing* records, not
   before the loop works.
-- The all-Cloudflare migration (blocked on a Workers-native AT-Proto OAuth path).
