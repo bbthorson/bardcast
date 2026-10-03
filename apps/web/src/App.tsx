@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { seal } from "@bardcast/brand";
 import { useSession } from "./session.js";
 import { useRouter } from "./router.js";
 import { useVoiceClone } from "./voice.js";
-import { styles, TopBar } from "./ui.js";
+import { BottomNav, styles, TopBar, type NavTab } from "./ui.js";
+import { useTables } from "./tables.js";
 import { Landing } from "./screens/Landing.js";
 import { LoginDialog } from "./screens/LoginDialog.js";
-import { Dashboard } from "./screens/Dashboard.js";
+import { Campaigns } from "./screens/Campaigns.js";
+import { UpNext, upNextActions } from "./screens/UpNext.js";
+import { You } from "./screens/You.js";
 import { CreateCampaign } from "./screens/CreateCampaign.js";
 import { JoinInvite } from "./screens/JoinInvite.js";
 import { VoiceClone } from "./screens/VoiceClone.js";
@@ -13,9 +17,11 @@ import { CampaignProgress } from "./screens/CampaignProgress.js";
 import { CharacterSheet } from "./screens/CharacterSheet.js";
 import { campaign, characters, party } from "./fixtures/gawain.js";
 
-/** Routes for the signed-in views. Home ("/") is the dashboard. */
+/** Routes for the signed-in views. Home ("/") is Up next, the middle tab. */
 const path = {
   home: "/",
+  campaigns: "/campaigns",
+  you: "/you",
   create: "/campaigns/new",
   join: "/join",
   voice: "/voice",
@@ -27,6 +33,13 @@ const path = {
 // Segments are URI-encoded: a character joined by invite is keyed by its player's DID (did:plc:…).
 const CAMPAIGN_ROUTE = /^\/campaigns\/([^/]+)$/;
 const CHARACTER_ROUTE = /^\/campaigns\/([^/]+)\/characters\/([^/]+)$/;
+
+/** Which bottom-nav tab a path belongs to. */
+function tabFor(p: string): NavTab {
+  if (p === path.you || p === path.voice || CHARACTER_ROUTE.test(p)) return "you";
+  if (p.startsWith("/campaigns") || p === path.join) return "campaigns";
+  return "next";
+}
 
 function segment(raw: string | undefined): string | undefined {
   if (raw === undefined) return undefined;
@@ -81,9 +94,10 @@ export function App() {
 }
 
 /**
- * Signed-in shell. The voice-clone hook lives here so the Dashboard's status
- * strip and the VoiceClone screen share one source of truth. The current view is
- * derived from the URL path.
+ * Signed-in shell, with the bottom nav: Campaigns, Up next (home) and You. The
+ * voice-clone hook and the tables list live here so every tab and the
+ * VoiceClone screen share one source of truth. The current view is derived
+ * from the URL path.
  */
 function SignedIn({
   session,
@@ -95,6 +109,16 @@ function SignedIn({
   const player = session.player!;
   const voice = useVoiceClone(player.did);
   const { navigate, back } = router;
+  const { tables, loading } = useTables(player.did);
+  const youSeal = useMemo(() => seal(player.did, { hue: 35, bars: 36 }), [player.did]);
+  const actions = upNextActions(player, tables, voice.profile, {
+    openCampaign: (id) => navigate(path.campaign(id)),
+    voice: () => navigate(path.voice),
+  });
+  const signOut = () => {
+    navigate(path.home);
+    session.signOut();
+  };
 
   const charMatch = CHARACTER_ROUTE.exec(router.path);
   const routeCharCampaignId = segment(charMatch?.[1]);
@@ -111,16 +135,11 @@ function SignedIn({
       <TopBar
         onHome={() => navigate(path.home)}
         actions={
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            {session.simulated && (
-              <span style={styles.meta} title="No orchestrator reachable — signed in with a local stand-in session.">
-                demo session
-              </span>
-            )}
-            <button style={styles.quiet} onClick={() => { navigate(path.home); session.signOut(); }}>
-              Sign out
-            </button>
-          </div>
+          session.simulated && (
+            <span style={styles.meta} title="No orchestrator reachable — signed in with a local stand-in session.">
+              demo session
+            </span>
+          )
         }
       />
 
@@ -146,16 +165,43 @@ function SignedIn({
         <JoinInvite player={player} onBack={back} />
       ) : router.path === path.voice ? (
         <VoiceClone {...voice} onBack={back} />
-      ) : (
-        <Dashboard
-          player={player}
-          voice={voice.profile}
+      ) : router.path === path.campaigns ? (
+        <Campaigns
+          tables={tables}
+          loading={loading}
           onCreate={() => navigate(path.create)}
           onJoin={() => navigate(path.join)}
-          onManageVoice={() => navigate(path.voice)}
           onOpenCampaign={(campId) => navigate(path.campaign(campId || campaign.id))}
         />
+      ) : router.path === path.you ? (
+        <You
+          player={player}
+          tables={tables}
+          voice={voice.profile}
+          simulated={session.simulated}
+          onOpenCharacter={(campId) => navigate(path.character(campId, player.did))}
+          onManageVoice={() => navigate(path.voice)}
+          onSignOut={signOut}
+        />
+      ) : (
+        <UpNext
+          player={player}
+          actions={actions}
+          loading={loading}
+          hasTables={tables.length > 0}
+          onCreate={() => navigate(path.create)}
+          onJoin={() => navigate(path.join)}
+        />
       )}
+
+      {/* Keeps the last card clear of the fixed bottom bar. */}
+      <div aria-hidden style={{ height: 80, flex: "none" }} />
+      <BottomNav
+        active={tabFor(router.path)}
+        pending={loading ? 0 : actions.length}
+        youSeal={youSeal}
+        onSelect={(tab) => navigate(tab === "campaigns" ? path.campaigns : tab === "you" ? path.you : path.home)}
+      />
     </main>
   );
 }

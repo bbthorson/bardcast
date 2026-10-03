@@ -319,3 +319,121 @@ export function SplatterStain({ seed, style }: { seed: string; style: CSSPropert
     </svg>
   );
 }
+
+export type NavTab = "campaigns" | "next" | "you";
+
+/**
+ * The signed-in bottom bar: campaigns on the left, what needs you now in the
+ * middle (home), your characters and settings on the right. The active tab is
+ * chalk on a raised felt pill; the candle stays reserved for the one next
+ * action on the page above.
+ */
+export function BottomNav({
+  active,
+  onSelect,
+  pending,
+  youSeal,
+}: {
+  active: NavTab;
+  onSelect: (tab: NavTab) => void;
+  /** Count of things waiting in Up next; shown as a badge when > 0. */
+  pending: number;
+  youSeal: Seal;
+}) {
+  const tabs: Array<{ id: NavTab; label: string; icon: ReactNode }> = [
+    { id: "campaigns", label: "Campaigns", icon: <CampaignsGlyph /> },
+    { id: "next", label: "Up next", icon: <FlameGlyph /> },
+    { id: "you", label: "You", icon: <SealMark seal={youSeal} size={24} rotate={-8} /> },
+  ];
+  return (
+    <nav
+      aria-label="Main"
+      style={{
+        position: "fixed",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 30,
+        background: color.felt,
+        borderTop: `1px solid ${color.feltLine}`,
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
+    >
+      <div style={{ display: "flex", maxWidth: 520, margin: "0 auto", padding: "6px 12px" }}>
+        {tabs.map((t) => {
+          const on = t.id === active;
+          return (
+            <button
+              key={t.id}
+              onClick={() => onSelect(t.id)}
+              aria-current={on ? "page" : undefined}
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 3,
+                height: 56,
+                justifyContent: "center",
+                position: "relative",
+                background: on ? color.feltRaised : "transparent",
+                border: "none",
+                borderRadius: shape.radius.card,
+                color: on ? color.chalk : color.chalkDim,
+                fontFamily: font.ui,
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              <span style={{ height: 24, display: "flex", alignItems: "center", opacity: on ? 1 : 0.75 }}>{t.icon}</span>
+              {t.label}
+              {t.id === "next" && pending > 0 && (
+                <span
+                  aria-label={`${pending} waiting`}
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    left: "calc(50% + 8px)",
+                    minWidth: 18,
+                    height: 18,
+                    padding: "0 5px",
+                    boxSizing: "border-box",
+                    borderRadius: 9,
+                    background: color.hearth,
+                    color: color.chalk,
+                    fontFamily: font.mono,
+                    fontSize: 11,
+                    lineHeight: "18px",
+                  }}
+                >
+                  {pending}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+/** Three stacked sheets: the tables you sit at. */
+function CampaignsGlyph() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+      <path d="M5 8.5 12 5l7 3.5-7 3.5-7-3.5Z" />
+      <path d="m5 12.5 7 3.5 7-3.5" />
+      <path d="m5 16.5 7 3.5 7-3.5" />
+    </svg>
+  );
+}
+
+/** A candle flame: what's lit for you now. */
+function FlameGlyph() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+      <path d="M12 3c2.5 3.2 5 5.6 5 9a5 5 0 0 1-10 0c0-2 1-3.4 2.2-4.6.2 1.6 1 2.6 2 3 0-2.6.2-5 .8-7.4Z" />
+      <path d="M9 21h6" />
+    </svg>
+  );
+}
