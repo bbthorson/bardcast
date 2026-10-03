@@ -19,12 +19,23 @@ const path = {
   create: "/campaigns/new",
   join: "/join",
   voice: "/voice",
-  campaign: (id: string = campaign.id) => `/campaigns/${id}`,
-  character: (campaignId: string, id: string) => `/campaigns/${campaignId}/characters/${id}`,
+  campaign: (id: string = campaign.id) => `/campaigns/${encodeURIComponent(id)}`,
+  character: (campaignId: string, id: string) =>
+    `/campaigns/${encodeURIComponent(campaignId)}/characters/${encodeURIComponent(id)}`,
 } as const;
 
-const CAMPAIGN_ROUTE = /^\/campaigns\/([a-zA-Z0-9_.-]+)$/;
-const CHARACTER_ROUTE = /^\/campaigns\/([a-zA-Z0-9_.-]+)\/characters\/([a-zA-Z0-9_.-]+)$/;
+// Segments are URI-encoded: a character joined by invite is keyed by its player's DID (did:plc:…).
+const CAMPAIGN_ROUTE = /^\/campaigns\/([^/]+)$/;
+const CHARACTER_ROUTE = /^\/campaigns\/([^/]+)\/characters\/([^/]+)$/;
+
+function segment(raw: string | undefined): string | undefined {
+  if (raw === undefined) return undefined;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
 
 /**
  * The web front door. Views are URL-driven (see router.ts) so the browser
@@ -86,11 +97,13 @@ function SignedIn({
   const { navigate, back } = router;
 
   const charMatch = CHARACTER_ROUTE.exec(router.path);
-  const routeCharCampaignId = charMatch?.[1];
-  const routeCharacterId = charMatch?.[2];
+  const routeCharCampaignId = segment(charMatch?.[1]);
+  const routeCharacterId = segment(charMatch?.[2]);
+  // The Sir Gawain fixture fills gaps only for the sample table, never for a real campaign.
+  const charIsSample = routeCharCampaignId === campaign.id;
 
   const campMatch = CAMPAIGN_ROUTE.exec(router.path);
-  const routeCampaignId = campMatch?.[1];
+  const routeCampaignId = segment(campMatch?.[1]);
   const isCampaignView = routeCampaignId && routeCampaignId !== "new";
 
   return (
@@ -115,9 +128,9 @@ function SignedIn({
         <CharacterSheet
           characterId={routeCharacterId}
           campaignId={routeCharCampaignId}
-          character={characters[routeCharacterId]}
-          hue={party.find((p) => p.id === routeCharacterId)?.hue ?? 35}
-          chapterLabel={`Sir Gawain · Ch. ${campaign.currentChapter}`}
+          character={charIsSample ? characters[routeCharacterId] : undefined}
+          hue={charIsSample ? party.find((p) => p.id === routeCharacterId)?.hue : undefined}
+          chapterLabel={charIsSample ? `Sir Gawain · Ch. ${campaign.currentChapter}` : undefined}
           onBack={back}
         />
       ) : isCampaignView ? (

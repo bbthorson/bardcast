@@ -16,12 +16,23 @@ const REGISTER: Record<Register, string> = {
 const LINE = DEFAULT_THRESHOLDS.minTraitConfidence;
 
 /**
+ * What the sheet renders. Stats, minutes sampled and the arc only exist in the
+ * sample fixture so far, so they are optional and their sections are left out
+ * for a real character rather than filled with made-up numbers.
+ * TODO(bardcast): read stats and the arc once the orchestrator serves them.
+ */
+type SheetView = Omit<CharacterView, "stats" | "voice"> & {
+  stats?: CharacterView["stats"];
+  voice: { status: CharacterView["voice"]["status"]; sampledMinutes?: number };
+};
+
+/**
  * A character's sheet. The seal and name sit on the felt; the sheet itself is
  * vellum torn off a pad — light stats, what drives them, traits as heard with
  * their confidence, quotes in their own voice, and their arc so far.
  *
- * Fetches real character signal from the orchestrator, falling back seamlessly
- * to the starter fixture if unavailable.
+ * Fetches real character signal from the orchestrator. The sample table passes
+ * its fixture as `character`, which fills anything the orchestrator lacks.
  *
  * No candle on this screen: there's no single next action here, only reading.
  */
@@ -55,17 +66,16 @@ export function CharacterSheet({
     };
   }, [campaignId, characterId]);
 
-  const c: CharacterView = useMemo(() => {
+  const c: SheetView = useMemo(() => {
     if (!liveData) {
       return (
         fallback ?? {
           id: characterId,
           name: characterId,
-          concept: "Adventurer",
+          concept: "",
           pronouns: "they/them",
-          player: "Unknown",
-          voice: { status: "unlinked", sampledMinutes: 0 },
-          stats: { level: 1, ac: 10, hp: [10, 10], abilities: [["STR", 10], ["DEX", 10], ["CON", 10], ["INT", 10], ["WIS", 10], ["CHA", 10]] },
+          player: "",
+          voice: { status: "unlinked" },
           drives: [],
           dmNote: "",
           traits: [],
@@ -80,20 +90,13 @@ export function CharacterSheet({
       concept: liveData.profile.concept || fallback?.concept || "",
       pronouns: liveData.profile.pronouns || fallback?.pronouns || "they/them",
       player: liveData.profile.player || fallback?.player || "",
-      voice: liveData.voice
-        ? { status: liveData.voice.status, sampledMinutes: liveData.voice.status !== "unlinked" ? 3 : 0 }
-        : fallback?.voice ?? { status: "unlinked", sampledMinutes: 0 },
-      stats: fallback?.stats ?? {
-        level: 1,
-        ac: 10,
-        hp: [10, 10],
-        abilities: [["STR", 10], ["DEX", 10], ["CON", 10], ["INT", 10], ["WIS", 10], ["CHA", 10]],
-      },
+      voice: liveData.voice ? { status: liveData.voice.status } : fallback?.voice ?? { status: "unlinked" },
+      ...(fallback?.stats ? { stats: fallback.stats } : {}),
       drives: liveData.profile.drives?.length ? liveData.profile.drives : fallback?.drives ?? [],
       dmNote: fallback?.dmNote ?? "",
       traits:
         liveData.sheet?.traits?.length
-          ? liveData.sheet.traits.map((t) => [t.name, t.confidence] as [string, number])
+          ? liveData.sheet.traits.map((t) => [t.name, t.confidence ?? 0] as [string, number])
           : fallback?.traits ?? [],
       exemplars:
         liveData.behavior?.exemplars?.length
@@ -137,13 +140,17 @@ export function CharacterSheet({
         <p style={{ fontSize: 16, lineHeight: 1.45, color: color.chalkDim, margin: 0, maxWidth: 300, textWrap: "pretty" }}>{c.concept}</p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
           <span style={styles.chip}>{c.pronouns}</span>
-          <span style={styles.chip}>
-            played by <span style={{ fontFamily: font.mono }}>{c.player}</span>
-          </span>
+          {c.player && (
+            <span style={styles.chip}>
+              played by <span style={{ fontFamily: font.mono }}>{c.player}</span>
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, ...styles.meta }}>
           <Dot tone={c.voice.status === "unlinked" ? color.hearthSoft : color.moss} />
-          {c.voice.status === "unlinked" ? "needs voice" : `voice clone · ${c.voice.status} · ${c.voice.sampledMinutes} min sampled`}
+          {c.voice.status === "unlinked"
+            ? "needs voice"
+            : `voice clone · ${c.voice.status}` + (c.voice.sampledMinutes ? ` · ${c.voice.sampledMinutes} min sampled` : "")}
         </div>
       </div>
 
@@ -151,6 +158,7 @@ export function CharacterSheet({
         {/* The one stain on this screen: a cup ring in the corner, clear of the text. */}
         <RingStain seed="cup-3" tone="tea" style={{ right: -46, top: -40, width: 180, height: 180 }} />
 
+        {c.stats && (
         <Section title="Abilities" aside={`lvl ${c.stats.level} · ac ${c.stats.ac} · hp ${c.stats.hp[0]}/${c.stats.hp[1]}`}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 6 }}>
             {c.stats.abilities.map(([k, v]) => {
@@ -165,19 +173,25 @@ export function CharacterSheet({
             })}
           </div>
         </Section>
+        )}
 
+        {(c.drives.length > 0 || c.dmNote) && (
         <Section title={`What drives ${pronoun.subj}`}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: font.display, fontSize: 19, lineHeight: 1.3 }}>
             {c.drives.map((d) => (
               <span key={d}>{d}</span>
             ))}
-            <HandNote ground="vellum" style={{ alignSelf: "flex-end", marginTop: 2 }}>
-              {c.dmNote}
-            </HandNote>
+            {c.dmNote && (
+              <HandNote ground="vellum" style={{ alignSelf: "flex-end", marginTop: 2 }}>
+                {c.dmNote}
+              </HandNote>
+            )}
           </div>
         </Section>
+        )}
 
         <Section title="Traits, as heard" aside="confidence" gap={14}>
+          {c.traits.length === 0 && <span style={{ fontSize: 15, color: color.inkDim }}>Nothing heard yet. Traits show up as replies come in.</span>}
           {c.traits.map(([name, conf]) => {
             const learning = conf < LINE;
             return (
@@ -196,6 +210,7 @@ export function CharacterSheet({
           <span style={{ fontSize: 13, color: color.inkDim }}>Tick marks the {LINE}% line. Traits below it are still being learned.</span>
         </Section>
 
+        {c.exemplars.length > 0 && (
         <Section title={`In ${pronoun.poss.toLowerCase()} own words`}>
           {c.exemplars.map((e, i) => (
             <figure
@@ -214,7 +229,9 @@ export function CharacterSheet({
             </figure>
           ))}
         </Section>
+        )}
 
+        {c.arc.length > 0 && (
         <Section title={`${pronoun.poss} arc so far`} gap={0}>
           {c.arc.map((a) => (
             <div key={a.date} style={{ display: "grid", gridTemplateColumns: "96px 1fr", gap: 12, padding: "12px 0", borderTop: `1px solid ${color.vellumLine}` }}>
@@ -226,6 +243,7 @@ export function CharacterSheet({
             </div>
           ))}
         </Section>
+        )}
       </div>
     </div>
   );
