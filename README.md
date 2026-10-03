@@ -48,7 +48,7 @@ reverse. In-world (fantasy-calendar) dates are stored as plain string fields, wh
 | `packages/antiphony-client` | Typed client for the engine's `/api/v1/*` API. |
 | `packages/engagement` | The engagement **port** + a PWA adapter (live) + a Bluesky-communities adapter (stub). |
 | `services/orchestrator` | Hono service: the readiness gate, chapter pipeline, prompt suggestion, and Bardcast's own AT-Proto OAuth routes. |
-| `apps/web` | Public **front door** (Cloudflare Pages) — AT-Proto sign-in, create/join a campaign, and manage your voice clone. |
+| `apps/web` | Public **front door** (Cloudflare Workers static assets) — AT-Proto sign-in, create/join a campaign, and manage your voice clone. |
 | `apps/player` | Mobile-first **PWA** — hear a prompt, tap to record a reply. Built for near-zero friction. |
 | `apps/dm` | DM console — campaign lore, character roster, generation dashboard, prompt suggestions. |
 | `content/campaigns/*` | Staff-curated, licensing-reviewed campaign canon as **OKF** bundles (seed: *Sir Gawain and the Green Knight*). |
@@ -83,7 +83,7 @@ Design decisions live in [`docs/`](./docs):
 
 - [`story-engine.md`](./docs/story-engine.md) — content/canon model, staged generation, seeded SRD dice, the death-backtrack design.
 - [`integration-with-core.md`](./docs/integration-with-core.md) — the two-layer identity model (DID auth + a headless engine user) and the engine requirements it implies.
-- [`hosting.md`](./docs/hosting.md) — the hybrid hosting posture (Cloud Run + Cloudflare Pages/R2) and ElevenLabs.
+- [`hosting.md`](./docs/hosting.md) — Cloudflare-only hosting: what is deployed today, the target for the rest, and ElevenLabs.
 - [`brand.md`](./docs/brand.md) — the visual identity ("Felt & Vellum"): palette, type, voice seals, dice shapes, and the candle rule. Tokens, generative marks + assets live in `packages/brand`.
 
 ## Status

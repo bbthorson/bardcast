@@ -7,8 +7,9 @@
   // logic has been run in the root of a workspace". This config makes the root
   // deploy an assets-only Worker that serves the built apps/web SPA.
   //
-  // Only apps/web is hosted on Cloudflare — the orchestrator is on Cloud Run
-  // and apps/player + apps/dm ship separately (see docs/hosting.md).
+  // Bardcast hosts on Cloudflare only. This Worker serves apps/web; the
+  // orchestrator, apps/player and apps/dm are not deployed yet (see
+  // docs/hosting.md).
   "$schema": "node_modules/wrangler/config-schema.json",
   // Must match the Worker service name in Cloudflare, or Workers Builds warns
   // and overrides it with the CI-provided name.

@@ -1,70 +1,82 @@
 # Bardcast hosting
 
-Where Bardcast runs and why. Decision recorded 2026-06-24; updated 2026-09-28 (PostgreSQL store decision). This is a starting
-posture, not a lock-in — revisit as load and team preferences evolve.
+Where Bardcast runs. Updated 2026-10-03.
 
-## Decision: a hybrid
+## Rule: Cloudflare only
 
-| Piece | Host | Why |
+Everything Bardcast hosts runs on Cloudflare. Nothing should be deployed to GCP, AWS, Vercel,
+Fly or any other compute or database host, and new deploy config should target
+Cloudflare (Workers, Workers Assets, R2, Hyperdrive, D1, Queues).
+
+Third-party *APIs* we call are not hosting and are allowed: ElevenLabs (voice cloning
+and TTS) and the AT-Proto network (users' PDSes, `bsky.social`).
+
+## What is deployed today
+
+Audited against the repo and the Cloudflare account on 2026-10-03.
+
+| Piece | Where it runs | Source of truth |
 |---|---|---|
-| Player PWA + DM console | **Cloudflare Pages** | Static Vite builds; cheap, fast, no caveats |
-| Chapter / voice audio | **Cloudflare R2** | The product *is* audio streaming; R2 has **zero egress fees** |
-| Orchestrator API (`services/orchestrator`) | **GCP Cloud Run** (Node) | Keeps the Node AT-Proto OAuth client as-is; colocates with the engine |
-| Database / Persistence (`Store` + AT-Proto Sessions) | **PostgreSQL** (Neon / Cloud SQL) | Matches Antiphony's portable SQL choice via narrow `SqlClient` port; PGlite for tests |
-| Generation pipeline (write → render) | **Async job + queue → R2** | Long audio renders exceed any edge CPU budget; async regardless |
-| Engine (Antiphony) | **Cloudflare Workers / Postgres** | Headless audio store, Postgres-backed |
+| `apps/web` front door | **Cloudflare Worker `bardcast`** (static assets, SPA fallback) | `wrangler.jsonc` |
+| Engine (Antiphony) | **Cloudflare Worker `antiphony-core-api`**, R2 `antiphony-r2-bucket` | Antiphony's own repo |
+| Orchestrator API (`services/orchestrator`) | **Not deployed.** Local dev only (`npm run dev:orchestrator`) | no deploy config in repo |
+| `apps/player`, `apps/dm` | **Not deployed.** Local dev only | no deploy config in repo |
+| Database | **None provisioned.** Orchestrator uses its in-memory store unless `DATABASE_URL` is set | `services/orchestrator/src/index.ts` |
+| Chapter / voice audio | **No Bardcast bucket yet** | — |
 
-## Database decision: PostgreSQL via SqlClient
+There is no Dockerfile, no CI workflow and no non-Cloudflare deploy config in this repo.
+The `apps/web` build reads `VITE_ORCHESTRATOR_URL`; until the orchestrator is deployed,
+the front door has no live API behind it.
 
-Decided 2026-09-28. The orchestrator's `Store` port and AT-Proto session/state stores are backed by **PostgreSQL**:
-- Portability: identical to Antiphony's design, standard parameterised queries against a narrow `SqlClient` interface (`query(text, params)`).
-- Multiple drivers behind one port:
-  - `@neondatabase/serverless` over HTTP for Neon serverless deployments.
-  - `pg` Pool for Cloud Run, Cloud SQL, Docker, or self-hosted PostgreSQL.
-  - `@electric-sql/pglite` in-process for instantaneous, zero-network unit/integration test execution.
-- Auto-migrations run on boot if `DATABASE_URL` is set, with seed data for *Sir Gawain and the Green Knight*.
-- Fallback: `InMemoryStore` remains available for zero-config local dev when `DATABASE_URL` is unset.
+## Target for the pieces not yet deployed
 
-## Why not all-in on Cloudflare Workers
+| Piece | Cloudflare target |
+|---|---|
+| `apps/player`, `apps/dm` | Workers static assets, same pattern as `apps/web` |
+| Chapter / voice audio | R2 (zero egress, which matters for an audio product) |
+| Generation pipeline (write → render) | Queues + a consumer Worker writing to R2; long renders stay async |
+| Orchestrator API | A Worker with `nodejs_compat` (see the open question below) |
+| Database | Open: D1, or Postgres reached through Hyperdrive (see below) |
 
-Workers/Pages/R2 are attractive, and R2 in particular is a real win for audio. The
-blocker is **identity**: there is no Workers-compatible AT-Proto OAuth client in
-TypeScript. Cloudflare's own write-up (`blog.cloudflare.com/serverless-atproto`,
-repo `inanna-malick/statusphere-serverless`) works around this by **rewriting the
-OAuth client in Rust → WASM**, because "existing ATProto libraries assume a backend
-or browser context" and the edge runtime's redirect handling is incompatible.
+## Open questions before the orchestrator can deploy
 
-We just built `AtprotoIdentityProvider` on `@atproto/oauth-client-node` (Node-only:
-node:crypto, DNS handle resolver, lock primitives). Running it on Workers would mean
-Rust/WASM or porting the TS libs ourselves. So the orchestrator stays on a **Node
-runtime (Cloud Run)** until a Workers-native TS path exists. Everything else can be
-Cloudflare today.
+**AT-Proto OAuth on Workers.** `AtprotoIdentityProvider` is built on
+`@atproto/oauth-client-node`. A probe on 2026-10-03 bundled the whole orchestrator as a
+Worker with `nodejs_compat` (wrangler 4.147), and it served `/healthz` and
+`/atproto/client-metadata.json` in local workerd. Workers now provides `node:crypto` and
+`node:dns` (`resolveTxt` over DoH; `lookup` is not implemented). What is left:
 
-A future "all-Cloudflare" migration is possible but costs an AT-Proto identity
-rewrite — a deliberate later choice, not a starting requirement.
+- Pass a web `handleResolver` to `NodeOAuthClient`; the default one uses undici's SSRF-safe
+  fetch, which does not run on Workers.
+- Replace the single-instance `requestLock` with a Durable Object.
+- Move the session/state stores to D1 or the Neon HTTP driver (see Database below).
 
-## Egress note
+A real Bluesky login from a preview Worker has not been tested yet. So the Rust → WASM
+rewrite that Cloudflare's own write-up used (`blog.cloudflare.com/serverless-atproto`)
+looks unnecessary, but that isn't proven.
 
-GCS charges egress; R2 does not. Even with compute on GCP, audio delivery stays on
-R2 (or GCS fronted by Cloudflare CDN) so streaming bandwidth isn't a cost sink.
+**Database.** The `Store` port and AT-Proto session/state stores sit behind a narrow
+`SqlClient` interface (`query(text, params)`), with drivers for Neon over HTTP
+(`@neondatabase/serverless`), `pg`, and in-process PGlite for tests. Auto-migrations
+run on boot when `DATABASE_URL` is set. A Postgres server itself would live off
+Cloudflare (Hyperdrive only pools connections to it), so a strictly Cloudflare-only
+store means D1, which would need a SQLite dialect of `schema.sql` and a D1
+`SqlClient`.
 
 ## Audio provider: ElevenLabs
 
-Both stubbed audio ports target **ElevenLabs**, one provider covering two roles:
+Both audio ports target **ElevenLabs**, one provider covering two roles:
 - `VoiceCloner` → voice cloning: player samples → a `voice_id` stored as
   `VoiceProfile.modelRef`.
 - `AudioRenderer` → TTS with those `voice_id`s; multi-character chapters render
   per-speaker and stitch (or via the dialogue API).
 
 ElevenLabs requires consent/verification for voice clones, which makes the existing
-`VoiceProfile.consent` field a real gate. The ports were designed for this drop-in;
-the adapters are the only new code.
+`VoiceProfile.consent` field a real gate.
 
 ## What deploy setup is automatable
 
-When we're ready, the following can be authored in-repo and driven via `gcloud`
-from a session **once authenticated** (`gcloud auth login` + project set):
-Dockerfile for the orchestrator, Cloud Run service config, GCS/R2 buckets, Secret
-Manager slots (ElevenLabs key, engine service token), and a GitHub Actions deploy
-workflow. Account-level steps stay manual: billing, org policy, DNS/domain
-verification, OAuth consent screen, and supplying secret *values*.
+Can be authored in-repo: `wrangler` configs for each Worker, R2 buckets, Queues,
+secrets slots (`wrangler secret put` for the ElevenLabs key and the Antiphony service
+token), and Workers Builds settings. Account-level steps stay manual: billing,
+DNS/domain setup, and supplying secret *values*.
