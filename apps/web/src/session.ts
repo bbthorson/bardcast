@@ -21,7 +21,11 @@ import { useCallback, useEffect, useState } from "react";
  * TODO(bardcast): remove the fallback once the orchestrator is a hard dependency.
  */
 
-const ORCHESTRATOR = (import.meta.env["VITE_ORCHESTRATOR_URL"] as string | undefined) ?? "http://localhost:8787";
+// In production the orchestrator shares this Worker's origin (root wrangler.jsonc),
+// so the default is a relative URL; `vite dev` talks to the local Node service.
+const ORCHESTRATOR =
+  (import.meta.env["VITE_ORCHESTRATOR_URL"] as string | undefined) ??
+  (import.meta.env.DEV ? "http://localhost:8787" : "");
 const SIM_KEY = "bardcast.web.simulated-session";
 
 export interface SessionState {

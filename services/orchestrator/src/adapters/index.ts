@@ -18,6 +18,11 @@ import {
   PostgresStateStore,
 } from "./postgres/postgres-atproto-stores.js";
 import { neonSqlClient, pgSqlClient } from "./postgres/client.js";
+import { D1Store } from "./d1/d1-store.js";
+import { D1AppSessionStore, D1SessionStore, D1StateStore } from "./d1/d1-atproto-stores.js";
+import type { D1Database } from "./d1/d1.js";
+import { SealedJson } from "./atproto/sealed-json.js";
+import type { AtprotoConfig } from "./atproto/identity-provider.js";
 import { ElevenLabsVoiceCloner } from "./elevenlabs/voice-cloner.js";
 import { ElevenLabsAudioRenderer } from "./elevenlabs/audio-renderer.js";
 
@@ -25,6 +30,9 @@ export * from "./postgres/client.js";
 export * from "./postgres/postgres-store.js";
 export * from "./postgres/postgres-atproto-stores.js";
 export * from "./postgres/migrate.js";
+export * from "./d1/d1.js";
+export * from "./d1/d1-store.js";
+export * from "./d1/d1-atproto-stores.js";
 export * from "./elevenlabs/voice-cloner.js";
 export * from "./elevenlabs/audio-renderer.js";
 export * from "./workers-ai-decision-model.js";
@@ -57,6 +65,15 @@ export interface BuildServicesConfig {
   decisionModel?: string;
   /** PostgreSQL connection string. If provided, activates PostgresStore and persistent OAuth stores. */
   databaseUrl?: string;
+  /**
+   * Cloudflare D1 binding. When set (the Worker), D1 holds the Store and the
+   * AT-Proto stores, and takes precedence over `databaseUrl`.
+   */
+  d1?: D1Database;
+  /** Seals OAuth sessions and state at rest. Required with `d1` + atproto auth. */
+  sessionSecret?: string;
+  /** AT-Proto handle resolver; required on Workers (see AtprotoConfig). */
+  handleResolver?: AtprotoConfig["handleResolver"];
   /** Optional pre-configured SqlClient (e.g. for testing). */
   sqlClient?: SqlClient;
   /** Optional custom store override. */
@@ -78,7 +95,27 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
       : pgSqlClient(config.databaseUrl);
   }
 
-  const store = config.store ?? (sql ? new PostgresStore(sql) : new InMemoryStore());
+  const store =
+    config.store ?? (config.d1 ? new D1Store(config.d1) : sql ? new PostgresStore(sql) : new InMemoryStore());
+
+  let atprotoStores: Pick<AtprotoConfig, "appSessionStore" | "sessionStore" | "stateStore"> = {};
+  if (config.auth === "atproto" && config.d1) {
+    if (!config.sessionSecret) {
+      throw new Error("SESSION_SECRET is required to store AT-Proto sessions in D1");
+    }
+    const sealer = new SealedJson(config.sessionSecret);
+    atprotoStores = {
+      appSessionStore: new D1AppSessionStore(config.d1),
+      sessionStore: new D1SessionStore(config.d1, sealer),
+      stateStore: new D1StateStore(config.d1, sealer),
+    };
+  } else if (sql) {
+    atprotoStores = {
+      appSessionStore: new PostgresAppSessionStore(sql),
+      sessionStore: new PostgresSessionStore(sql),
+      stateStore: new PostgresStateStore(sql),
+    };
+  }
 
   const identity: IdentityProvider =
     config.auth === "atproto"
@@ -87,13 +124,8 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
           appName: config.appName ?? "Bardcast",
           postLoginRedirect: config.appBaseUrl,
           ...(serviceToken !== undefined ? { antiphonyServiceToken: serviceToken } : {}),
-          ...(sql
-            ? {
-                appSessionStore: new PostgresAppSessionStore(sql),
-                sessionStore: new PostgresSessionStore(sql),
-                stateStore: new PostgresStateStore(sql),
-              }
-            : {}),
+          ...atprotoStores,
+          ...(config.handleResolver !== undefined ? { handleResolver: config.handleResolver } : {}),
         })
       : new StubIdentityProvider();
 
