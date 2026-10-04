@@ -30,3 +30,4 @@ dev-dist/
 
 # cloudflare / wrangler
 .wrangler/
+.dev.vars

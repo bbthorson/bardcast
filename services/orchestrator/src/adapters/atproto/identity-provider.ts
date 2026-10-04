@@ -2,6 +2,7 @@ import type { Player } from "@bardcast/domain";
 import {
   NodeOAuthClient,
   requestLocalLock,
+  type NodeOAuthClientOptions,
   type NodeSavedSessionStore,
   type NodeSavedStateStore,
 } from "@atproto/oauth-client-node";
@@ -16,6 +17,15 @@ import {
 } from "./stores.js";
 
 const SESSION_COOKIE = "bardcast_sid";
+
+/**
+ * Ties an OAuth callback to the browser that started the sign-in. Without it,
+ * anyone holding a callback URL from their own sign-in could get a victim's
+ * browser to open it and sign the victim in as the attacker (login CSRF,
+ * RFC 6749 §10.12). Same mechanism as vox-pop's `oauth-nonce.ts`.
+ */
+const NONCE_COOKIE = "bardcast_oauth_nonce";
+const NONCE_MAX_AGE_S = 60 * 15;
 
 export interface AtprotoConfig {
   /** Public base URL of the orchestrator (roots client_id + redirect_uri). */
@@ -35,6 +45,11 @@ export interface AtprotoConfig {
   sessionStore?: NodeSavedSessionStore;
   /** Optional custom/persistent store for oauth state */
   stateStore?: NodeSavedStateStore;
+  /**
+   * How handles become DIDs. Leave unset on Node. On Workers it must be set:
+   * the Node default wraps fetch in undici's SSRF guard, which workerd lacks.
+   */
+  handleResolver?: NodeOAuthClientOptions["handleResolver"];
 }
 
 /**
@@ -63,6 +78,7 @@ export class AtprotoIdentityProvider implements IdentityProvider {
       // Single-instance dev lock. TODO(bardcast): a real cross-instance lock when
       // the orchestrator runs more than one replica.
       requestLock: requestLocalLock,
+      ...(config.handleResolver !== undefined ? { handleResolver: config.handleResolver } : {}),
     });
   }
 
@@ -104,9 +120,19 @@ export class AtprotoIdentityProvider implements IdentityProvider {
     app.post("/login", async (c) => {
       const { handle } = await c.req.json<{ handle?: string }>();
       if (!handle) return c.json({ error: "handle is required" }, 400);
-      const state = crypto.randomUUID();
+      // The library keeps `state` server-side (it comes back from callback()),
+      // so it can carry the nonce without the nonce ever reaching the PDS.
+      const nonce = crypto.randomUUID();
       try {
-        const url = await this.client.authorize(handle, { state });
+        const url = await this.client.authorize(handle, { state: nonce });
+        setCookie(c, NONCE_COOKIE, nonce, {
+          httpOnly: true,
+          // Lax still sends the cookie on the PDS's top-level redirect back to /callback.
+          sameSite: "Lax",
+          secure: !this.isLocalDev,
+          path: "/atproto",
+          maxAge: NONCE_MAX_AGE_S,
+        });
         return c.json({ url: url.toString() });
       } catch (err) {
         // Most commonly an unresolvable handle. Return a clean client error
@@ -118,13 +144,22 @@ export class AtprotoIdentityProvider implements IdentityProvider {
     // OAuth callback: exchange code → session, mint a Bardcast app session.
     app.get("/callback", async (c) => {
       const params = new URLSearchParams(new URL(c.req.url).search);
+      const nonce = getCookie(c, NONCE_COOKIE);
+      deleteCookie(c, NONCE_COOKIE, { path: "/atproto" });
       try {
-        const { session } = await this.client.callback(params);
+        const { session, state } = await this.client.callback(params);
+        if (!nonce || state !== nonce) {
+          // A valid code, but not for this browser. Drop the OAuth session it minted.
+          await session.signOut().catch(() => undefined);
+          return c.json({ error: "atproto_callback_failed", detail: "sign-in was started in a different browser" }, 400);
+        }
         const sid = crypto.randomUUID();
         await this.appSessions.set(sid, { did: session.did, createdAt: new Date().toISOString() });
         setCookie(c, SESSION_COOKIE, sid, {
           httpOnly: true,
-          sameSite: this.isLocalDev ? "Lax" : "None",
+          // The web app and this API share an origin in production (one Worker),
+          // and localhost ports are same-site in dev, so Lax is enough everywhere.
+          sameSite: "Lax",
           secure: !this.isLocalDev,
           path: "/",
           maxAge: 60 * 60 * 24 * 30,

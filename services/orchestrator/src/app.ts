@@ -47,6 +47,10 @@ async function resolvePlayer(c: Context, svc: CoreServices): Promise<Player | nu
   const session = await svc.identity.resolveSession(c.req.raw.headers);
   if (session) return session;
 
+  // Dev and test only: with real sign-in on, a header anyone can send must not
+  // name the caller.
+  if (svc.identity instanceof AtprotoIdentityProvider) return null;
+
   const actingDid = c.req.header("X-Acting-Did") || c.req.header("x-acting-did");
   if (actingDid && actingDid.startsWith("did:")) {
     return { did: actingDid as any, createdAt: new Date().toISOString() };

@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@atproto-labs/handle-resolver": "0.4.2",
     "@atproto/oauth-client-node": "0.4.2",
     "@bardcast/antiphony-client": "*",
     "@bardcast/domain": "*",

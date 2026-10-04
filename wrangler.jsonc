@@ -7,14 +7,18 @@
   // logic has been run in the root of a workspace". This config makes the root
   // deploy an assets-only Worker that serves the built apps/web SPA.
   //
-  // Bardcast hosts on Cloudflare only. This Worker serves apps/web; the
-  // orchestrator, apps/player and apps/dm are not deployed yet (see
-  // docs/hosting.md).
+  // Bardcast hosts on Cloudflare only. This Worker serves apps/web and, for
+  // the API paths listed under `run_worker_first`, the orchestrator
+  // (services/orchestrator/src/worker.ts). apps/player and apps/dm are not
+  // deployed yet (see docs/hosting.md).
   "$schema": "node_modules/wrangler/config-schema.json",
   // Must match the Worker service name in Cloudflare, or Workers Builds warns
   // and overrides it with the CI-provided name.
   "name": "bardcast",
+  "main": "./services/orchestrator/src/worker.ts",
   "compatibility_date": "2026-07-11",
+  // @atproto/oauth-client-node needs node:crypto; Workers provides it here.
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     // `npm run build` (the Cloudflare build command) builds every workspace;
     // this points at the front door's output specifically.
@@ -23,6 +27,28 @@
     // path serves index.html and React renders the right view. This is the
     // correct SPA fallback for Workers Assets — note a Pages-style
     // `/* -> /index.html 200` _redirects rule is rejected here as a self-loop.
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS",
+    // Only these paths run the orchestrator; everything else is served
+    // straight from assets without invoking the Worker.
+    "run_worker_first": ["/api/*", "/atproto/*", "/healthz"]
+  },
+  // Campaigns, characters and sign-in sessions. Tables are created on first
+  // request (services/orchestrator/src/adapters/d1/d1.ts).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bardcast",
+      "database_id": "16f4543f-0780-4518-a2aa-5d510828a05e"
+    }
+  ],
+  "vars": {
+    "APP_NAME": "Bardcast"
   }
+  // Secrets (dashboard → Worker → Settings → Variables and Secrets, or
+  // `npx wrangler secret put <NAME>`):
+  //   SESSION_SECRET           required for sign-in; any random string of 32+ chars
+  //   ANTIPHONY_SERVICE_TOKEN  optional; Antiphony calls fail without it
+  //   ELEVENLABS_API_KEY       optional; stubs voice and audio without it
+  //   CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_AI_TOKEN  optional; stubs trait inference without them
 }
