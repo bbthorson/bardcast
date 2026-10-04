@@ -75,7 +75,7 @@ These were being conflated. They are separate:
 1. **Auth identity — Bardcast's own.** Players authenticate via AT-Protocol OAuth
    (their DID). Bardcast does **not** use any VoxPop identity: no VoxPop login, no
    VoxPop profile, no VoxPop inbox, no VoxPop public page. This is the
-   `AtprotoIdentityProvider`.
+   `AtprotoIdentityProvider`, built on the shared `@bbthorson/atproto-cf-auth` package.
 
 2. **Core data principal — a headless backing user.** The engine still needs a
    *user record* to own prompt/reply data (prompts and replies belong to someone

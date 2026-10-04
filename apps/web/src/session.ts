@@ -1,17 +1,17 @@
 import type { Player } from "@bardcast/domain";
+import { AuthError, createAuthClient, takeAuthError, type User } from "@bbthorson/atproto-cf-auth/client";
 import { useCallback, useEffect, useState } from "react";
 
 /**
  * The web front door's view of AT-Proto sign-in.
  *
- * Bardcast's OWN AT-Proto OAuth is live and lives on the orchestrator
- * (`AtprotoIdentityProvider`, mounted at `/atproto`). This module is the
- * browser half of that seam:
+ * Sign-in runs on the orchestrator (`AtprotoIdentityProvider`, mounted at
+ * `/atproto`) using `@bbthorson/atproto-cf-auth`; this hook is the browser half,
+ * on the same package's headless client:
  *
- *  - `signIn(handle)` POSTs to the real `/atproto/login`, which resolves the
- *    handle and returns the PDS authorization URL; we redirect the browser to
- *    it. After consent the orchestrator's `/callback` sets an httpOnly session
- *    cookie and bounces back here.
+ *  - `signIn(handle)` cleans up the handle, POSTs to `/atproto/login` and sends
+ *    the browser to the player's PDS. After consent `/atproto/callback` sets an
+ *    httpOnly session cookie and redirects back here.
  *  - On load we ask `/atproto/session` who we are (the cookie is httpOnly, so
  *    JS can't read the DID directly).
  *
@@ -25,7 +25,8 @@ import { useCallback, useEffect, useState } from "react";
 // so the default is a relative URL; `vite dev` talks to the local Node service.
 const ORCHESTRATOR =
   (import.meta.env["VITE_ORCHESTRATOR_URL"] as string | undefined) ??
-  (import.meta.env.DEV ? "http://localhost:8787" : "");
+  // 127.0.0.1, not localhost: Bluesky's development client redirects to the loopback IP.
+  (import.meta.env.DEV ? "http://127.0.0.1:8787" : "");
 const SIM_KEY = "bardcast.web.simulated-session";
 
 export interface SessionState {
@@ -59,17 +60,15 @@ function simulatedPlayer(handle: string): Player {
   };
 }
 
-/** Turn an orchestrator login error into a line a player can act on. */
-function humanizeLoginError(error: string | undefined, status: number): string {
-  // The orchestrator returns this when it can't resolve the handle to a PDS —
-  // by far the most common failure (a typo or a handle that doesn't exist).
-  if (error === "atproto_authorize_failed") {
-    return "We couldn't find that handle. Double-check it and try again.";
-  }
-  if (error === "handle is required") {
-    return "Enter your handle to sign in.";
-  }
-  return error ?? `Sign-in failed (${status}). Try again in a moment.`;
+/** Bardcast's sign-in routes, via the shared package's browser client. */
+const auth = createAuthClient({
+  basePath: `${ORCHESTRATOR}/atproto`,
+  // Cross-origin in `vite dev` (web and orchestrator on different ports).
+  fetch: (input, init) => fetch(input, { ...init, credentials: "include" }),
+});
+
+function toPlayer(user: User): Player {
+  return { did: user.did, createdAt: user.signedInAt, ...(user.handle ? { handle: user.handle } : {}) };
 }
 
 export function useSession() {
@@ -82,24 +81,25 @@ export function useSession() {
   });
 
   // On load: prefer a real orchestrator session; fall back to a simulated one
-  // left in localStorage from a previous offline sign-in.
+  // left in localStorage from a previous offline sign-in. A sign-in that failed
+  // at the PDS comes back as ?auth_error=, which takeAuthError reads once.
   useEffect(() => {
     let cancelled = false;
+    const redirectError = takeAuthError()?.message ?? null;
     (async () => {
       const sim = loadSimulated();
       try {
-        const res = await fetch(`${ORCHESTRATOR}/atproto/session`, { credentials: "include" });
-        const data = (await res.json()) as { authenticated: boolean; player?: Player };
+        const user = await auth.getUser();
         if (cancelled) return;
-        if (data.authenticated && data.player) {
-          setState({ player: data.player, initializing: false, loading: false, simulated: false, error: null });
+        if (user) {
+          setState({ player: toPlayer(user), initializing: false, loading: false, simulated: false, error: null });
           return;
         }
       } catch {
         // Orchestrator unreachable — stay on whatever simulated session we have.
       }
       if (cancelled) return;
-      setState({ player: sim, initializing: false, loading: false, simulated: sim !== null, error: null });
+      setState({ player: sim, initializing: false, loading: false, simulated: sim !== null, error: redirectError });
     })();
     return () => {
       cancelled = true;
@@ -108,47 +108,31 @@ export function useSession() {
 
   const signIn = useCallback(async (handle: string) => {
     setState((s) => ({ ...s, loading: true, error: null }));
-
-    // Only a genuinely unreachable orchestrator (network error) should drop us
-    // into the simulated dev session. A reachable orchestrator that rejects the
-    // handle (e.g. 400 atproto_authorize_failed) is a real error the player must
-    // see — silently faking a login would hide it.
-    let res: Response;
     try {
-      res = await fetch(`${ORCHESTRATOR}/atproto/login`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ handle }),
-      });
-    } catch {
-      const player = simulatedPlayer(handle);
-      try {
-        localStorage.setItem(SIM_KEY, JSON.stringify(player));
-      } catch {
-        /* private mode — session lives only in memory this tab */
-      }
-      setState({ player, initializing: false, loading: false, simulated: true, error: null });
-      return;
-    }
-
-    if (res.ok) {
-      const { url } = (await res.json().catch(() => ({}))) as { url?: string };
-      if (url) {
-        // Hand the browser to the player's PDS to authorize. We return here
-        // after the orchestrator's callback redirects back.
-        window.location.href = url;
+      // Navigates to the player's PDS on success; we come back via /atproto/callback.
+      await auth.signIn(handle);
+    } catch (err) {
+      // Only a genuinely unreachable orchestrator drops us into the simulated
+      // dev session. Anything else (a typo'd handle, a PDS that won't answer)
+      // is a real error the player must see.
+      if (err instanceof AuthError && err.code === "network_error") {
+        const player = simulatedPlayer(handle);
+        try {
+          localStorage.setItem(SIM_KEY, JSON.stringify(player));
+        } catch {
+          /* private mode — session lives only in memory this tab */
+        }
+        setState({ player, initializing: false, loading: false, simulated: true, error: null });
         return;
       }
+      setState({
+        player: null,
+        initializing: false,
+        loading: false,
+        simulated: false,
+        error: err instanceof AuthError ? err.message : "Sign-in failed. Try again in a moment.",
+      });
     }
-    const { error } = (await res.json().catch(() => ({}))) as { error?: string };
-    setState({
-      player: null,
-      initializing: false,
-      loading: false,
-      simulated: false,
-      error: humanizeLoginError(error, res.status),
-    });
   }, []);
 
   const signOut = useCallback(async () => {
@@ -158,11 +142,7 @@ export function useSession() {
       /* ignore */
     }
     // Best-effort: clear the real cookie too if an orchestrator is there.
-    try {
-      await fetch(`${ORCHESTRATOR}/atproto/logout`, { method: "POST", credentials: "include" });
-    } catch {
-      /* ignore */
-    }
+    await auth.signOut().catch(() => undefined);
     setState({ player: null, initializing: false, loading: false, simulated: false, error: null });
   }, []);
 

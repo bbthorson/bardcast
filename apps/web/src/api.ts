@@ -13,7 +13,7 @@ import type {
 // so the default is a relative URL; `vite dev` talks to the local Node service.
 const ORCHESTRATOR =
   (import.meta.env["VITE_ORCHESTRATOR_URL"] as string | undefined) ??
-  (import.meta.env.DEV ? "http://localhost:8787" : "");
+  (import.meta.env.DEV ? "http://127.0.0.1:8787" : "");
 
 export interface CreateCampaignParams {
   title: string;
