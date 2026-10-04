@@ -8,6 +8,8 @@ import { StubAudioRenderer } from "./stub-audio-renderer.js";
 import { StubIdentityProvider } from "./stub-identity-provider.js";
 import { StubNarrativeWriter } from "./stub-narrative-writer.js";
 import { StubVoiceCloner } from "./stub-voice-cloner.js";
+import { StubDecisionModel } from "./stub-decision-model.js";
+import { WorkersAiDecisionModel } from "./workers-ai-decision-model.js";
 import { ClientAntiphonyGateway } from "./antiphony-gateway.js";
 import { PostgresStore } from "./postgres/postgres-store.js";
 import {
@@ -25,6 +27,8 @@ export * from "./postgres/postgres-atproto-stores.js";
 export * from "./postgres/migrate.js";
 export * from "./elevenlabs/voice-cloner.js";
 export * from "./elevenlabs/audio-renderer.js";
+export * from "./workers-ai-decision-model.js";
+export * from "./stub-decision-model.js";
 
 export interface BuildServicesConfig {
   /** Base URL of the (Bardcast-controlled) Antiphony deployment. */
@@ -46,6 +50,11 @@ export interface BuildServicesConfig {
   elevenLabsApiKey?: string;
   /** Default ElevenLabs voice ID for DM narration. */
   defaultNarratorVoiceId?: string;
+  /** Cloudflare account + Workers AI token for the DecisionModel (Clef). Both or neither. */
+  cloudflareAccountId?: string;
+  cloudflareAiToken?: string;
+  /** Workers AI model id for decisions; defaults to Clef-flash. */
+  decisionModel?: string;
   /** PostgreSQL connection string. If provided, activates PostgresStore and persistent OAuth stores. */
   databaseUrl?: string;
   /** Optional pre-configured SqlClient (e.g. for testing). */
@@ -113,6 +122,15 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
       })
     : new StubAudioRenderer();
 
+  const decisions =
+    config.cloudflareAccountId && config.cloudflareAiToken
+      ? new WorkersAiDecisionModel({
+          accountId: config.cloudflareAccountId,
+          apiToken: config.cloudflareAiToken,
+          ...(config.decisionModel ? { model: config.decisionModel } : {}),
+        })
+      : new StubDecisionModel();
+
   return {
     store,
     antiphony: new ClientAntiphonyGateway(antiphony),
@@ -120,6 +138,7 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
     voice,
     audio,
     identity,
+    decisions,
     engagement,
     clock: () => new Date(),
   };
