@@ -1,4 +1,3 @@
-import { AtprotoDohHandleResolver } from "@atproto-labs/handle-resolver";
 import type { Hono } from "hono";
 import { buildServices, migrateD1, type D1Database } from "./adapters/index.js";
 import { createApp } from "./app.js";
@@ -14,7 +13,7 @@ import { createApp } from "./app.js";
 export interface Env {
   DB: D1Database;
   ASSETS: { fetch(request: Request): Promise<Response> };
-  /** Seals OAuth sessions in D1. Set with `wrangler secret put SESSION_SECRET`. */
+  /** Seals sign-in sessions in D1. Set with `wrangler secret put SESSION_SECRET`. */
   SESSION_SECRET?: string;
   APP_NAME?: string;
   ANTIPHONY_BASE_URL?: string;
@@ -26,19 +25,12 @@ export interface Env {
   DECISION_MODEL?: string;
 }
 
-/**
- * Handles resolve over DNS-over-HTTPS (Cloudflare's resolver) plus the
- * `/.well-known/atproto-did` HTTP check, which is what the Node resolver does
- * with real DNS. vox-pop runs the same resolver in its Workers deploy.
- */
-const handleResolver = new AtprotoDohHandleResolver({ dohEndpoint: "https://cloudflare-dns.com/dns-query" });
-
 let migrated: Promise<void> | undefined;
 
 /**
- * One app per origin. The OAuth client_id and redirect_uri are built from the
- * public URL, and the Worker answers on workers.dev and any custom domain alike,
- * so each origin gets a client that names itself correctly. All state is in D1.
+ * One app per origin, so links the orchestrator builds (engagement deep links)
+ * point at the origin the request came in on. Sign-in handles origins itself.
+ * All state is in D1.
  */
 const apps = new Map<string, Hono>();
 
@@ -48,7 +40,6 @@ function appFor(origin: string, env: Env): Hono {
     const svc = buildServices({
       d1: env.DB,
       auth: "atproto",
-      handleResolver,
       appBaseUrl: `${origin}/`,
       orchestratorBaseUrl: origin,
       antiphonyBaseUrl: env.ANTIPHONY_BASE_URL ?? "https://api.antiphony.dev",

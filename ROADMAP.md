@@ -53,8 +53,8 @@ Everything downstream is fake until state survives a restart.
       the Cloudflare-only rule (D1 vs. Postgres via Hyperdrive); see `docs/hosting.md`.
 - [x] Real `Store` adapter (`PostgresStore`) replacing `in-memory-store.ts`, with auto-migration (`schema.sql`)
       and bootstrap for the *Sir Gawain and the Green Knight* seed.
-- [x] Persistent AT-Proto app session and OAuth session/state stores (`PostgresAppSessionStore`,
-      `PostgresSessionStore`, `PostgresStateStore`).
+- [x] Persistent AT-Proto sessions: now the shared `@bbthorson/atproto-cf-auth` package with a D1
+      store (see `docs/hosting.md`).
 
 ## M3 — Campaign lifecycle API + wiring the front door
 

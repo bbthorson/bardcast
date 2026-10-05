@@ -86,23 +86,6 @@ export const D1_SCHEMA: readonly string[] = [
     created_by TEXT NOT NULL,
     created_at TEXT NOT NULL
   )`,
-  `CREATE TABLE IF NOT EXISTS app_sessions (
-    sid TEXT PRIMARY KEY,
-    did TEXT NOT NULL,
-    handle TEXT,
-    created_at TEXT NOT NULL
-  )`,
-  `CREATE INDEX IF NOT EXISTS idx_app_sessions_did ON app_sessions (did)`,
-  `CREATE TABLE IF NOT EXISTS atproto_sessions (
-    key TEXT PRIMARY KEY,
-    session_data TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  )`,
-  `CREATE TABLE IF NOT EXISTS atproto_states (
-    key TEXT PRIMARY KEY,
-    state_data TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  )`,
 ];
 
 export async function migrateD1(db: D1Database): Promise<void> {

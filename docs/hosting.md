@@ -30,27 +30,26 @@ with its in-memory store (or Postgres when `DATABASE_URL` is set).
 
 ## Sign-in (AT-Proto OAuth) on Workers
 
-The web app and the orchestrator share one origin, so the `bardcast_sid` session cookie
-is first-party (`SameSite=Lax`) and the web build calls the API with relative URLs.
-`VITE_ORCHESTRATOR_URL` overrides that, and `vite dev` defaults to `http://localhost:8787`.
+Sign-in uses [`@bbthorson/atproto-cf-auth`](https://github.com/bbthorson/atproto-cf-auth),
+the package Brad's Bluesky apps share. Its README covers how it works. In Bardcast:
 
-- **Handle resolution** uses `AtprotoDohHandleResolver` against Cloudflare's DNS-over-HTTPS
-  resolver. The Node default wraps fetch in undici's SSRF guard, which workerd lacks.
-- **Client metadata** is built per request origin, so the Worker names itself correctly on
-  `workers.dev` and on a custom domain alike.
-- **Stores** are D1. OAuth sessions and state hold DPoP keys and tokens, so they are sealed
-  with AES-GCM under the `SESSION_SECRET` Worker secret. Without that secret, the API
-  answers `503 server_not_configured`.
-- **Browser binding.** `/atproto/login` sets a short-lived nonce cookie, and `/callback`
-  refuses a sign-in that the same browser did not start.
+- **Server.** `AtprotoIdentityProvider` creates the package's auth with `basePath: "/atproto"`
+  and a `d1Store` on the `DB` binding (one `bsky_auth` table, created on first use).
+  Everything stored is sealed under the `SESSION_SECRET` Worker secret. Without that
+  secret, the API answers `503 server_not_configured`. Changing it signs everyone out.
+- **Browser.** `apps/web/src/session.ts` uses the package's headless client, and reads a
+  failed sign-in back from `?auth_error=`.
+- **One origin.** The web app and the orchestrator share an origin, so the `bsky_sid`
+  session cookie is first-party (`SameSite=Lax`), and the web build calls the API with
+  relative URLs. `VITE_ORCHESTRATOR_URL` overrides that.
+- **Local dev.** Sign in through `npx wrangler dev` and open the app at `http://127.0.0.1:8787`,
+  not `localhost`: Bluesky's development client redirects to the loopback IP. `vite dev`
+  points at `http://127.0.0.1:8787`.
 - **`X-Acting-Did`** is honoured only with the stub identity provider (local dev and
   tests). With real sign-in on, only the session cookie names the caller.
-- **Lock.** `requestLock` is still per-isolate. Bardcast does not yet call a player's PDS
-  with their OAuth session, so tokens are never refreshed and nothing contends for the
-  lock. TODO(bardcast): a Durable Object lock before the first PDS write.
-
-A real Bluesky login has to be tried on the deployed Worker; the build sandbox cannot
-reach Bluesky.
+- **Lock.** The package's default refresh lock is per-isolate. Bardcast does not yet call
+  a player's PDS with their OAuth session, so nothing contends for it.
+  TODO(bardcast): pass a Durable Object `requestLock` before the first PDS write.
 
 ## Target for the pieces not yet deployed
 

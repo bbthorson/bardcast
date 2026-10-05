@@ -12,27 +12,18 @@ import { StubDecisionModel } from "./stub-decision-model.js";
 import { WorkersAiDecisionModel } from "./workers-ai-decision-model.js";
 import { ClientAntiphonyGateway } from "./antiphony-gateway.js";
 import { PostgresStore } from "./postgres/postgres-store.js";
-import {
-  PostgresAppSessionStore,
-  PostgresSessionStore,
-  PostgresStateStore,
-} from "./postgres/postgres-atproto-stores.js";
 import { neonSqlClient, pgSqlClient } from "./postgres/client.js";
 import { D1Store } from "./d1/d1-store.js";
-import { D1AppSessionStore, D1SessionStore, D1StateStore } from "./d1/d1-atproto-stores.js";
 import type { D1Database } from "./d1/d1.js";
-import { SealedJson } from "./atproto/sealed-json.js";
-import type { AtprotoConfig } from "./atproto/identity-provider.js";
+import { d1Store, memoryStore } from "@bbthorson/atproto-cf-auth/server";
 import { ElevenLabsVoiceCloner } from "./elevenlabs/voice-cloner.js";
 import { ElevenLabsAudioRenderer } from "./elevenlabs/audio-renderer.js";
 
 export * from "./postgres/client.js";
 export * from "./postgres/postgres-store.js";
-export * from "./postgres/postgres-atproto-stores.js";
 export * from "./postgres/migrate.js";
 export * from "./d1/d1.js";
 export * from "./d1/d1-store.js";
-export * from "./d1/d1-atproto-stores.js";
 export * from "./elevenlabs/voice-cloner.js";
 export * from "./elevenlabs/audio-renderer.js";
 export * from "./workers-ai-decision-model.js";
@@ -45,7 +36,7 @@ export interface BuildServicesConfig {
   voxPopBaseUrl?: string;
   /** Player PWA base URL — engagement deep links + post-login redirect. */
   appBaseUrl: string;
-  /** This service's own public URL — roots the AT-Proto client_id/redirect_uri. */
+  /** This service's own public URL. (Sign-in derives its OAuth URLs from each request's origin.) */
   orchestratorBaseUrl: string;
   /** "atproto" = real AT-Proto OAuth identity; "stub" = dev header-based. */
   auth: "stub" | "atproto";
@@ -70,10 +61,8 @@ export interface BuildServicesConfig {
    * AT-Proto stores, and takes precedence over `databaseUrl`.
    */
   d1?: D1Database;
-  /** Seals OAuth sessions and state at rest. Required with `d1` + atproto auth. */
+  /** Seals sign-in sessions at rest. Required with `d1` + atproto auth. */
   sessionSecret?: string;
-  /** AT-Proto handle resolver; required on Workers (see AtprotoConfig). */
-  handleResolver?: AtprotoConfig["handleResolver"];
   /** Optional pre-configured SqlClient (e.g. for testing). */
   sqlClient?: SqlClient;
   /** Optional custom store override. */
@@ -98,36 +87,20 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
   const store =
     config.store ?? (config.d1 ? new D1Store(config.d1) : sql ? new PostgresStore(sql) : new InMemoryStore());
 
-  let atprotoStores: Pick<AtprotoConfig, "appSessionStore" | "sessionStore" | "stateStore"> = {};
-  if (config.auth === "atproto" && config.d1) {
-    if (!config.sessionSecret) {
+  let identity: IdentityProvider = new StubIdentityProvider();
+  if (config.auth === "atproto") {
+    if (config.d1 && !config.sessionSecret) {
       throw new Error("SESSION_SECRET is required to store AT-Proto sessions in D1");
     }
-    const sealer = new SealedJson(config.sessionSecret);
-    atprotoStores = {
-      appSessionStore: new D1AppSessionStore(config.d1),
-      sessionStore: new D1SessionStore(config.d1, sealer),
-      stateStore: new D1StateStore(config.d1, sealer),
-    };
-  } else if (sql) {
-    atprotoStores = {
-      appSessionStore: new PostgresAppSessionStore(sql),
-      sessionStore: new PostgresSessionStore(sql),
-      stateStore: new PostgresStateStore(sql),
-    };
+    identity = new AtprotoIdentityProvider({
+      appName: config.appName ?? "Bardcast",
+      // D1 on Workers. The Node dev server is one process, so memory is enough
+      // there, and a per-process secret only costs a re-login on restart.
+      store: config.d1 ? d1Store(config.d1) : memoryStore(),
+      secret: config.sessionSecret ?? randomSecret(),
+      ...(serviceToken !== undefined ? { antiphonyServiceToken: serviceToken } : {}),
+    });
   }
-
-  const identity: IdentityProvider =
-    config.auth === "atproto"
-      ? new AtprotoIdentityProvider({
-          baseUrl: config.orchestratorBaseUrl,
-          appName: config.appName ?? "Bardcast",
-          postLoginRedirect: config.appBaseUrl,
-          ...(serviceToken !== undefined ? { antiphonyServiceToken: serviceToken } : {}),
-          ...atprotoStores,
-          ...(config.handleResolver !== undefined ? { handleResolver: config.handleResolver } : {}),
-        })
-      : new StubIdentityProvider();
 
   // Antiphony is headless: the only credential is Bardcast's app service token
   const antiphony = new AntiphonyClient({
@@ -174,4 +147,8 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
     engagement,
     clock: () => new Date(),
   };
+}
+
+function randomSecret(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join("");
 }

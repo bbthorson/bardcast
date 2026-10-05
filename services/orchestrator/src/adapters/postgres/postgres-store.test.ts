@@ -2,11 +2,6 @@ import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { pgliteSqlClient } from "./client.js";
 import { runMigrations, seedGawainCampaign } from "./migrate.js";
-import {
-  PostgresAppSessionStore,
-  PostgresSessionStore,
-  PostgresStateStore,
-} from "./postgres-atproto-stores.js";
 import { PostgresStore } from "./postgres-store.js";
 import type { SqlClient } from "../../ports/sql-client.js";
 
@@ -14,9 +9,6 @@ describe("PostgresStore & AT-Proto Stores (PGlite in-process)", () => {
   let pglite: PGlite;
   let sql: SqlClient;
   let store: PostgresStore;
-  let appSessions: PostgresAppSessionStore;
-  let oauthSessions: PostgresSessionStore;
-  let oauthStates: PostgresStateStore;
 
   beforeAll(async () => {
     pglite = new PGlite();
@@ -24,9 +16,6 @@ describe("PostgresStore & AT-Proto Stores (PGlite in-process)", () => {
     await runMigrations(sql);
 
     store = new PostgresStore(sql);
-    appSessions = new PostgresAppSessionStore(sql);
-    oauthSessions = new PostgresSessionStore(sql);
-    oauthStates = new PostgresStateStore(sql);
   });
 
   afterAll(async () => {
@@ -187,43 +176,5 @@ describe("PostgresStore & AT-Proto Stores (PGlite in-process)", () => {
     const prompts = await store.listPrompts(campaignId);
     expect(prompts).toHaveLength(1);
     expect(prompts[0]?.title).toBe("Where did your scar come from?");
-  });
-
-  it("persists AT-Proto app sessions and OAuth state/sessions", async () => {
-    const sid = "sid_abc123";
-    const now = new Date().toISOString();
-
-    // App sessions
-    await appSessions.set(sid, { did: "did:plc:alice", handle: "alice.bsky.social", createdAt: now });
-    const session = await appSessions.get(sid);
-    expect(session?.did).toBe("did:plc:alice");
-    expect(session?.handle).toBe("alice.bsky.social");
-
-    await appSessions.del(sid);
-    expect(await appSessions.get(sid)).toBeUndefined();
-
-    // OAuth saved sessions
-    const dummyOAuthSession = {
-      did: "did:plc:alice",
-      tokenSet: { access_token: "tok123", token_type: "DPoP" },
-    } as any;
-    await oauthSessions.set("did:plc:alice", dummyOAuthSession);
-    const saved = await oauthSessions.get("did:plc:alice");
-    expect(saved).toMatchObject({ did: "did:plc:alice" });
-
-    await oauthSessions.del("did:plc:alice");
-    expect(await oauthSessions.get("did:plc:alice")).toBeUndefined();
-
-    // OAuth saved states
-    const dummyOAuthState = {
-      dpopKey: { kty: "EC", crv: "P-256" },
-      iss: "https://bsky.social",
-    } as any;
-    await oauthStates.set("state-key-1", dummyOAuthState);
-    const savedState = await oauthStates.get("state-key-1");
-    expect(savedState).toMatchObject({ iss: "https://bsky.social" });
-
-    await oauthStates.del("state-key-1");
-    expect(await oauthStates.get("state-key-1")).toBeUndefined();
   });
 });

@@ -1,5 +1,5 @@
 -- Bardcast PostgreSQL Schema
--- Manages campaign state, derived character records, voice profiles, and AT-Proto sessions.
+-- Manages campaign state, derived character records and voice profiles.
 
 CREATE TABLE IF NOT EXISTS campaigns (
     id VARCHAR(128) PRIMARY KEY,
@@ -65,27 +65,5 @@ CREATE TABLE IF NOT EXISTS campaign_invites (
     code VARCHAR(64) PRIMARY KEY,
     campaign_id VARCHAR(128) NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     created_by VARCHAR(256) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- AT-Proto App and OAuth Session Stores
-CREATE TABLE IF NOT EXISTS app_sessions (
-    sid VARCHAR(128) PRIMARY KEY,
-    did VARCHAR(256) NOT NULL,
-    handle VARCHAR(256),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_app_sessions_did ON app_sessions (did);
-
-CREATE TABLE IF NOT EXISTS atproto_sessions (
-    key VARCHAR(256) PRIMARY KEY,
-    session_data JSONB NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS atproto_states (
-    key VARCHAR(256) PRIMARY KEY,
-    state_data JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

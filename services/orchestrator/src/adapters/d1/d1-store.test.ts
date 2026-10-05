@@ -1,29 +1,20 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { seedGawainCampaign } from "../postgres/migrate.js";
-import { SealedJson } from "../atproto/sealed-json.js";
 import { migrateD1, type D1Database } from "./d1.js";
-import { D1AppSessionStore, D1SessionStore, D1StateStore } from "./d1-atproto-stores.js";
 import { D1Store } from "./d1-store.js";
 import { sqliteD1 } from "./sqlite-d1.js";
 
 // The same cases as postgres-store.test.ts, against the SQLite dialect.
-describe("D1Store & AT-Proto Stores (node:sqlite stand-in)", () => {
+describe("D1Store (node:sqlite stand-in)", () => {
   let db: D1Database;
   let store: D1Store;
-  let appSessions: D1AppSessionStore;
-  let oauthSessions: D1SessionStore;
-  let oauthStates: D1StateStore;
 
   beforeAll(async () => {
     db = sqliteD1();
     await migrateD1(db);
     await migrateD1(db); // idempotent: every isolate runs it on its first request
 
-    const sealer = new SealedJson("test-secret-that-is-at-least-32-characters");
     store = new D1Store(db);
-    appSessions = new D1AppSessionStore(db);
-    oauthSessions = new D1SessionStore(db, sealer);
-    oauthStates = new D1StateStore(db, sealer);
   });
 
   afterAll(() => undefined);
@@ -182,62 +173,5 @@ describe("D1Store & AT-Proto Stores (node:sqlite stand-in)", () => {
     const prompts = await store.listPrompts(campaignId);
     expect(prompts).toHaveLength(1);
     expect(prompts[0]?.title).toBe("Where did your scar come from?");
-  });
-
-  it("persists AT-Proto app sessions and OAuth state/sessions", async () => {
-    const sid = "sid_abc123";
-    const now = new Date().toISOString();
-
-    // App sessions
-    await appSessions.set(sid, { did: "did:plc:alice", handle: "alice.bsky.social", createdAt: now });
-    const session = await appSessions.get(sid);
-    expect(session?.did).toBe("did:plc:alice");
-    expect(session?.handle).toBe("alice.bsky.social");
-
-    await appSessions.del(sid);
-    expect(await appSessions.get(sid)).toBeUndefined();
-
-    // OAuth saved sessions
-    const dummyOAuthSession = {
-      did: "did:plc:alice",
-      tokenSet: { access_token: "tok123", token_type: "DPoP" },
-    } as any;
-    await oauthSessions.set("did:plc:alice", dummyOAuthSession);
-    const saved = await oauthSessions.get("did:plc:alice");
-    expect(saved).toMatchObject({ did: "did:plc:alice" });
-
-    await oauthSessions.del("did:plc:alice");
-    expect(await oauthSessions.get("did:plc:alice")).toBeUndefined();
-
-    // OAuth saved states
-    const dummyOAuthState = {
-      dpopKey: { kty: "EC", crv: "P-256" },
-      iss: "https://bsky.social",
-    } as any;
-    await oauthStates.set("state-key-1", dummyOAuthState);
-    const savedState = await oauthStates.get("state-key-1");
-    expect(savedState).toMatchObject({ iss: "https://bsky.social" });
-
-    await oauthStates.del("state-key-1");
-    expect(await oauthStates.get("state-key-1")).toBeUndefined();
-  });
-
-  it("seals OAuth sessions at rest", async () => {
-    await oauthSessions.set("did:plc:bob", { tokenSet: { refresh_token: "secret-refresh" } } as any);
-    const row = await db
-      .prepare("SELECT session_data FROM atproto_sessions WHERE key = ?1")
-      .bind("did:plc:bob")
-      .first<{ session_data: string }>();
-    expect(row?.session_data).not.toContain("secret-refresh");
-
-    const otherKey = new D1SessionStore(db, new SealedJson("a-different-secret-of-32-characters!!"));
-    expect(await otherKey.get("did:plc:bob")).toBeUndefined();
-  });
-
-  it("expires app sessions after 30 days", async () => {
-    const later = new D1AppSessionStore(db, () => Date.now() + 31 * 24 * 60 * 60 * 1000);
-    await appSessions.set("sid_old", { did: "did:plc:carol", createdAt: new Date().toISOString() });
-    expect(await later.get("sid_old")).toBeUndefined();
-    expect(await appSessions.get("sid_old")).toBeUndefined(); // and the row is gone
   });
 });
