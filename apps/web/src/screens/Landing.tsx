@@ -352,7 +352,7 @@ function clockOf(hour: number): string {
   return `${hour < 24 ? "Thu" : "Fri"} · ${h % 12 || 12}:${String(m).padStart(2, "0")} ${h % 24 >= 12 ? "pm" : "am"}`;
 }
 
-export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
+export function Landing({ onOpenLogin, onOpenData }: { onOpenLogin: () => void; onOpenData: () => void }) {
   const reduce = useReducedMotion();
   const { refs, geo, frame } = useNight(reduce);
   const paths = useMemo(() => (geo ? buildStrands(geo) : null), [geo]);
@@ -500,7 +500,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
           <div ref={refs.heroText} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, maxWidth: 560, position: "relative", zIndex: 2 }}>
             <h1 style={{ ...styles.h1, fontSize: "clamp(36px,6vw,60px)", lineHeight: 1.06, margin: 0 }}>{voice.tagline}</h1>
             <p style={styles.lede}>
-              Once a week your DM leaves the party a question. You answer out loud, in character, whenever you have thirty seconds. By morning it's an episode, starring all of you in your own voices. Nobody has to find a free Saturday.
+              Your character, in your words, told back as a podcast for the whole party. Answer out loud whenever you have thirty seconds. Nobody has to find a free Saturday.
             </p>
             <button ref={refs.heroBtn} style={{ ...styles.candle, marginTop: 6, padding: "0 40px" }} onClick={onOpenLogin}>
               {voice.cta}
@@ -542,7 +542,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
           aria-label="How a week at the table works"
           style={{ position: "relative", zIndex: 2, maxWidth: 860, margin: "0 auto", padding: "0 20px 22vh", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column-reverse", gap: "34vh", listStyle: "none" }}
         >
-          <Step i={0} n="01" when="Thu · 10:00 pm" title="The DM sets the scene" body="Your phone buzzes. The message isn't for you. It's for your character." motion={card(0)} liRef={cardRef(0)}>
+          <Step i={0} n="01" when="Thu · 10:00 pm" title="The DM sets the scene" body="Some questions go to the whole party. Some are just for you. Either way, your answers become the spine of the story." motion={card(0)} liRef={cardRef(0)}>
             <div style={{ border: `1px solid ${color.vellumLine}`, borderRadius: shape.radius.well, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <SealMark seal={seals.dmSmall} size={30} shadow="0 2px 2px rgba(0,0,0,0.3)" />
@@ -575,7 +575,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
             </HandNote>
           </Step>
 
-          <Step i={3} n="04" when="Fri · 6:30 am" title="The chapter is told" body="It's waiting with your coffee: last night, twenty-two minutes long, voiced by the people who lived it." motion={card(3)} liRef={cardRef(3)} stain>
+          <Step i={3} n="04" when="Fri · 6:30 am" title="The chapter is told" body="Bardcast builds the session around your answers: the road between, the stranger's reply, the roll that went wrong. It's waiting with your coffee, voiced by the people who lived it." motion={card(3)} liRef={cardRef(3)} stain>
             <EpisodeSample />
           </Step>
 
@@ -584,7 +584,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
             n="05"
             when="Fri · 1:00 pm"
             title="Your character keeps the scars"
-            body="Every answer leaves a mark. And they're yours: when this campaign ends, they follow you to the next table."
+            body="Every answer leaves a mark on who they are, and who they are is yours. When this campaign ends, they follow you to the next table."
             motion={card(4)}
             liRef={cardRef(4)}
             mark={<SealMark seal={seals.gawainSmall} size={56} shadow="0 2px 3px rgba(0,0,0,0.3)" />}
@@ -614,6 +614,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
             {voice.cta}
           </button>
           <SignInHint />
+          <OwnershipNote onOpen={onOpenData} />
         </section>
       </div>
 
@@ -669,6 +670,20 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
         </div>
       </nav>
     </>
+  );
+}
+
+/** The short version of /your-data, under the open seat. */
+function OwnershipNote({ onOpen }: { onOpen: () => void }) {
+  return (
+    <div style={{ marginTop: 36, maxWidth: 420, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      <p style={{ fontSize: 14, lineHeight: 1.5, color: color.chalkDim, margin: 0, textWrap: "pretty" }}>
+        Your character lives in your own AT Protocol account, not ours. Your voice is only cloned if you say yes. The episodes stay with your party.
+      </p>
+      <button style={{ ...styles.quiet, color: color.chalk, textDecoration: "underline", textUnderlineOffset: 3 }} onClick={onOpen}>
+        What's yours, and what belongs to the table
+      </button>
+    </div>
   );
 }
 

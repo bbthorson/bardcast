@@ -4,7 +4,7 @@
     "defs": {
         "main": {
             "type": "record",
-            "description": "A generated chapter: narrative prose plus its rendered cloned-voice audio. Derived from campaign premise + character state at generation time.",
+            "description": "A generated chapter: narrative prose plus its rendered cloned-voice audio. Derived from campaign premise + character state at generation time. Published into the campaign's space (authority: Bardcast's DID, skey: the campaign), so only the party can read or play it; never into a player's own repo.",
             "key": "tid",
             "record": {
                 "type": "object",

@@ -20,6 +20,15 @@ character, everywhere. A character in two concurrent campaigns could not carry
 | Behavior model (app state, no lexicon yet) | Keyed on the character | — | How the character acts. Durable. |
 | `character.sheet` (traits, provenance) | Campaign's space | player DID | Mechanics for **this** campaign. |
 | `character.stateEvent` | Campaign's space | `tid` | A beat in this campaign's story, tied by `chapterRef`. |
+| `campaign.chapter` (the episode) | Campaign's space | `tid` | Published to the party, not the public. |
+| Reply recordings (Antiphony posts) | Campaign's space, held by Antiphony | — | The raw audio behind every sheet, behavior model and voice clone. The campaign keeps them. |
+
+**A new campaign starts a fresh sheet.** Sheets are keyed by (campaign, character),
+so the first ingest into a new campaign finds no sheet and creates an empty one.
+Nothing is copied from another campaign's sheet; what carries over is the profile,
+the behavior model and the voice. `loop.test.ts` pins this. A sheet stays
+readable on its own after the campaign ends (it names its `campaign` and its
+`character`), but it is the campaign's record, not the player's.
 
 `drives` moved from the sheet to the profile: motivation is identity, not
 mechanics. The sheet gained `campaign` and `character` (the profile's AT-URI) so

@@ -139,4 +139,31 @@ describe("the Bardcast loop", () => {
     expect((await svc.store.getSheet(CAMPAIGN, CHAR))?.traits[0]?.value).toBe("25");
     expect((await svc.store.getSheet(OTHER, CHAR))?.traits[0]?.value).toBe("14");
   });
+
+  it("starts a fresh sheet when a character joins a new campaign, and keeps who they are", async () => {
+    const svc = services(fakeGateway(["I'll take the left passage.", "Steady now."]));
+    await seedCharacter(svc);
+    await svc.store.putSheet(CAMPAIGN, CHAR, {
+      campaign: `at://${CAMPAIGN}`,
+      character: `at://${CHAR}`,
+      traits: [{ name: "armor class", value: "25", confidence: 90 }],
+      sourceReplies: ["at://reply/thornwood-1"],
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+    await ingestReplies(svc, { campaignId: CAMPAIGN, characterId: CHAR, antiphonyPromptUri: "at://prompt/1", intent: "behavior" });
+    const behaviorBefore = await svc.store.getBehavior(CHAR);
+
+    const OTHER = "campaign.saltmarsh";
+    await ingestReplies(svc, { campaignId: OTHER, characterId: CHAR, antiphonyPromptUri: "at://prompt/2", intent: "sheet" });
+
+    const fresh = await svc.store.getSheet(OTHER, CHAR);
+    expect(fresh?.campaign).toBe(`at://${OTHER}`);
+    expect(fresh?.character).toBe(`at://${CHAR}`);
+    expect(fresh?.traits.find((t) => t.name === "armor class")).toBeUndefined();
+    expect(fresh?.sourceReplies).not.toContain("at://reply/thornwood-1");
+    // The old campaign's sheet is untouched, and the durable behavior model carries over.
+    expect((await svc.store.getSheet(CAMPAIGN, CHAR))?.traits[0]?.value).toBe("25");
+    expect(behaviorBefore?.exemplars.length).toBeGreaterThan(0);
+    expect(await svc.store.getBehavior(CHAR)).toEqual(behaviorBefore);
+  });
 });

@@ -29,7 +29,7 @@ export function VoiceClone({ profile, startClone, linkPvc, setIvc, revoke, onBac
 
       <h1 style={{ ...styles.h1, marginTop: "0.75rem" }}>Your voice clone</h1>
       <p style={styles.muted}>
-        Bardcast brings your RPG characters to life using cloned voices. You are always in control of your voice model.
+        Your character speaks in your voice. Whether that happens is up to you, and you can change your mind.
       </p>
 
       <div style={{ marginTop: "1.5rem" }}>
@@ -49,15 +49,41 @@ export function VoiceClone({ profile, startClone, linkPvc, setIvc, revoke, onBac
   );
 }
 
+/** What cloning takes, in plain words. Consent copy stays literal (docs/brand.md, "Don't show the machine"). */
+const CONSENT_TERMS: { title: string; body: string }[] = [
+  {
+    title: "Your recordings",
+    body: "Every answer you record is stored by Antiphony, the audio service Bardcast is built on, in your campaign's private space. Your DM and your party can hear them; nobody else can. They stay with the campaign whether or not you clone your voice.",
+  },
+  {
+    title: "Your clone",
+    body: "If you say yes, we send your recordings to ElevenLabs, which builds a voice clone from them. Bardcast keeps a reference to that clone, never a copy of it.",
+  },
+  {
+    title: "Your episodes",
+    body: "Chapters told in your voice are published to the campaign's space, for the party only.",
+  },
+  {
+    title: "Taking it back",
+    body: "Revoke whenever you like. We delete the clone at ElevenLabs and stop using your voice in new chapters. Chapters already told stay as they are, and your recordings stay with the campaign.",
+  },
+];
+
 function ConsentGate({ onConsent }: { onConsent: () => void }) {
   return (
     <article style={styles.card}>
-      <h2 style={styles.h2}>Consent to voice cloning</h2>
-      <p style={styles.muted}>
-        Bardcast uses voice clones so chapters are read back to your group in your own voices. We only store an opaque ElevenLabs reference, never raw biometrics. You can revoke this permission at any time.
-      </p>
-      <button style={{ ...styles.candle, marginTop: "0.5rem" }} onClick={onConsent}>
-        I consent — set up my voice clone
+      <h2 style={styles.h2}>Before we clone your voice</h2>
+      <p style={{ ...styles.muted, marginTop: 0 }}>Here is exactly what it takes.</p>
+      <dl style={{ margin: "1rem 0 0", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+        {CONSENT_TERMS.map((t) => (
+          <div key={t.title}>
+            <dt style={{ fontWeight: 600, fontSize: 15 }}>{t.title}</dt>
+            <dd style={{ ...styles.muted, margin: "0.2rem 0 0" }}>{t.body}</dd>
+          </div>
+        ))}
+      </dl>
+      <button style={{ ...styles.candle, marginTop: "1.25rem" }} onClick={onConsent}>
+        I consent — clone my voice
       </button>
     </article>
   );
@@ -150,6 +176,9 @@ function Ready({ status, modelRef, onRevoke, onDone }: { status: "ivc" | "pvc"; 
       </p>
       <p style={{ ...styles.muted, fontSize: "0.78rem" }}>
         Reference: <span style={{ fontFamily: font.mono, color: color.chalk }}>{modelRef}</span>
+      </p>
+      <p style={{ ...styles.muted, fontSize: 14 }}>
+        Revoking deletes the clone at ElevenLabs. Chapters already told keep your voice, and your recordings stay with the campaign in Antiphony.
       </p>
       <div style={{ ...styles.row, marginTop: "1rem", gap: "0.5rem" }}>
         <button style={styles.danger} onClick={onRevoke}>Revoke consent &amp; unlink</button>

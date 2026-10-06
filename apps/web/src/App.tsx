@@ -13,6 +13,7 @@ import { You } from "./screens/You.js";
 import { CreateCampaign } from "./screens/CreateCampaign.js";
 import { JoinInvite } from "./screens/JoinInvite.js";
 import { VoiceClone } from "./screens/VoiceClone.js";
+import { YourData } from "./screens/YourData.js";
 import { CampaignProgress } from "./screens/CampaignProgress.js";
 import { CharacterSheet } from "./screens/CharacterSheet.js";
 import { campaign, characters, party } from "./fixtures/gawain.js";
@@ -25,6 +26,8 @@ const path = {
   create: "/campaigns/new",
   join: "/join",
   voice: "/voice",
+  /** Public: what lives in your account vs the campaign's space. Reachable signed in or out. */
+  data: "/your-data",
   campaign: (id: string = campaign.id) => `/campaigns/${encodeURIComponent(id)}`,
   character: (campaignId: string, id: string) =>
     `/campaigns/${encodeURIComponent(campaignId)}/characters/${encodeURIComponent(id)}`,
@@ -36,7 +39,7 @@ const CHARACTER_ROUTE = /^\/campaigns\/([^/]+)\/characters\/([^/]+)$/;
 
 /** Which bottom-nav tab a path belongs to. */
 function tabFor(p: string): NavTab {
-  if (p === path.you || p === path.voice || CHARACTER_ROUTE.test(p)) return "you";
+  if (p === path.you || p === path.voice || p === path.data || CHARACTER_ROUTE.test(p)) return "you";
   if (p.startsWith("/campaigns") || p === path.join) return "campaigns";
   return "next";
 }
@@ -76,8 +79,12 @@ export function App() {
   if (!session.player) {
     return (
       <main style={styles.main}>
-        {/* The landing page brings its own bar: logo, the travelling candle, and Sign in. */}
-        <Landing onOpenLogin={() => setShowLogin(true)} />
+        {router.path === path.data ? (
+          <YourData signedIn={false} onBack={router.back} onOpenLogin={() => setShowLogin(true)} />
+        ) : (
+          // The landing page brings its own bar: logo, the travelling candle, and Sign in.
+          <Landing onOpenLogin={() => setShowLogin(true)} onOpenData={() => router.navigate(path.data)} />
+        )}
         {showLogin && (
           <LoginDialog
             onSignIn={session.signIn}
@@ -163,6 +170,8 @@ function SignedIn({
         <CreateCampaign player={player} onBack={back} />
       ) : router.path === path.join ? (
         <JoinInvite player={player} onBack={back} />
+      ) : router.path === path.data ? (
+        <YourData signedIn onBack={back} onOpenLogin={() => undefined} />
       ) : router.path === path.voice ? (
         <VoiceClone {...voice} onBack={back} />
       ) : router.path === path.campaigns ? (
@@ -181,6 +190,7 @@ function SignedIn({
           simulated={session.simulated}
           onOpenCharacter={(campId) => navigate(path.character(campId, player.did))}
           onManageVoice={() => navigate(path.voice)}
+          onOpenData={() => navigate(path.data)}
           onSignOut={signOut}
         />
       ) : (
