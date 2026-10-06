@@ -500,7 +500,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
           <div ref={refs.heroText} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, maxWidth: 560, position: "relative", zIndex: 2 }}>
             <h1 style={{ ...styles.h1, fontSize: "clamp(36px,6vw,60px)", lineHeight: 1.06, margin: 0 }}>{voice.tagline}</h1>
             <p style={styles.lede}>
-              Each week your DM asks the party a few questions. You answer out loud, thirty seconds at a time. Bardcast plays the whole session back as a podcast, voiced by all of you.
+              Once a week your DM leaves the party a question. You answer out loud, in character, whenever you have thirty seconds. By morning it's an episode, starring all of you in your own voices. Nobody has to find a free Saturday.
             </p>
             <button ref={refs.heroBtn} style={{ ...styles.candle, marginTop: 6, padding: "0 40px" }} onClick={onOpenLogin}>
               {voice.cta}
@@ -542,7 +542,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
           aria-label="How a week at the table works"
           style={{ position: "relative", zIndex: 2, maxWidth: 860, margin: "0 auto", padding: "0 20px 22vh", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column-reverse", gap: "34vh", listStyle: "none" }}
         >
-          <Step i={0} n="01" when="Thu · 10:00 pm" title="The DM sets the scene" body="A question lands on your phone, addressed to your character." motion={card(0)} liRef={cardRef(0)}>
+          <Step i={0} n="01" when="Thu · 10:00 pm" title="The DM sets the scene" body="Your phone buzzes. The message isn't for you. It's for your character." motion={card(0)} liRef={cardRef(0)}>
             <div style={{ border: `1px solid ${color.vellumLine}`, borderRadius: shape.radius.well, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <SealMark seal={seals.dmSmall} size={30} shadow="0 2px 2px rgba(0,0,0,0.3)" />
@@ -554,7 +554,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
             </div>
           </Step>
 
-          <Step i={1} n="02" when="Fri · 12:30 am" title="You answer, in character" body="Every reply fills in your sheet and teaches Bardcast your voice." motion={card(1)} liRef={cardRef(1)}>
+          <Step i={1} n="02" when="Fri · 12:30 am" title="You answer, in character" body="Thirty seconds, from bed, at half past midnight. What you say becomes who they are. How you say it becomes how they sound." motion={card(1)} liRef={cardRef(1)}>
             <div aria-hidden style={{ display: "flex", alignItems: "center", gap: 12, background: color.vellumLine, borderRadius: shape.radius.well, padding: "8px 14px 8px 8px", alignSelf: "flex-start" }}>
               <span style={{ width: 32, height: 32, background: color.hearth, clipPath: shape.hex, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ width: 10, height: 10, borderRadius: 999, background: color.vellum }} />
@@ -564,7 +564,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
             </div>
           </Step>
 
-          <Step i={2} n="03" when="Fri · 3:00 am" title="The dice fall where they fall" body="Every risky choice gets a roll, and the story keeps the result." motion={card(2)} liRef={cardRef(2)}>
+          <Step i={2} n="03" when="Fri · 3:00 am" title="The dice fall where they fall" body="Bold choices get rolled. The story keeps every result, even the ones you'd rather it forgot." motion={card(2)} liRef={cardRef(2)}>
             <div style={{ display: "flex", gap: 18, padding: "6px 0 2px" }}>
               <ThrownDie value={3} tone="fail" label="Cadoc · sneak" rotate={-6} />
               <ThrownDie value={14} tone="success" label="Ysolde · charm" rotate={4} />
@@ -575,7 +575,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
             </HandNote>
           </Step>
 
-          <Step i={3} n="04" when="Fri · 6:30 am" title="The chapter is told" body="By morning the episode is in your feed, voiced by the whole party." motion={card(3)} liRef={cardRef(3)} stain>
+          <Step i={3} n="04" when="Fri · 6:30 am" title="The chapter is told" body="It's waiting with your coffee: last night, twenty-two minutes long, voiced by the people who lived it." motion={card(3)} liRef={cardRef(3)} stain>
             <EpisodeSample />
           </Step>
 
@@ -583,8 +583,8 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
             i={4}
             n="05"
             when="Fri · 1:00 pm"
-            title="Your character grows"
-            body="Your character is yours, and comes with you to every campaign."
+            title="Your character keeps the scars"
+            body="Every answer leaves a mark. And they're yours: when this campaign ends, they follow you to the next table."
             motion={card(4)}
             liRef={cardRef(4)}
             mark={<SealMark seal={seals.gawainSmall} size={56} shadow="0 2px 3px rgba(0,0,0,0.3)" />}
@@ -592,7 +592,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
             <TraitBars />
           </Step>
 
-          <Step i={5} n="06" when="Fri · 6:30 pm" title="The DM writes what's next" body="Your answers and rolls decide the next scene." motion={card(5)} liRef={cardRef(5)}>
+          <Step i={5} n="06" when="Fri · 6:30 pm" title="The DM starts plotting" body="Your answers and rolls decide the next scene. The DM decides how much you'll regret them." motion={card(5)} liRef={cardRef(5)}>
             <div style={{ display: "grid", gridTemplateColumns: "14px 1fr", columnGap: 12, rowGap: 14, alignItems: "center" }}>
               {campaign.chapters.slice(0, 2).map((ch, i) => (
                 <ChapterRow key={ch.numeral} n={i + 1} title={ch.title} state={i === 0 ? "told" : "next Thu"} told={i === 0} />
@@ -609,7 +609,7 @@ export function Landing({ onOpenLogin }: { onOpenLogin: () => void }) {
             <span style={{ fontFamily: font.mono, fontSize: 11, color: color.chalkDim, background: scene.seatLabel, padding: "3px 6px", borderRadius: shape.radius.chip }}>your seal</span>
           </div>
           <h2 style={{ fontFamily: font.display, fontWeight: 400, fontSize: "clamp(32px,5vw,48px)", lineHeight: 1.08, margin: "8px 0 0", maxWidth: 520, textWrap: "pretty" }}>There's an open seat at the table.</h2>
-          <p style={{ ...styles.lede, maxWidth: 440 }}>Bring a character. The party gathers again Thursday night.</p>
+          <p style={{ ...styles.lede, maxWidth: 440 }}>Bring a character, or just a name and a bad idea. The party gathers again Thursday night.</p>
           <button ref={refs.ctaBtn} style={{ ...styles.candle, marginTop: 6, padding: "0 40px" }} onClick={onOpenLogin}>
             {voice.cta}
           </button>
