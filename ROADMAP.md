@@ -93,6 +93,9 @@ The player makes and owns their characters; a campaign seats them. Design and de
       are the player's; D6 records the character model.
 - [x] Decide where character-creation recordings live: a private space per player under Bardcast's
       DID, created when they start their first character (Antiphony D6).
+- [ ] **Blocker for real players:** keep no real recordings until Antiphony ships spaces Phases 1
+      and 2 (`antiphony/specs/spaces.md`, built on `@atproto/space`). Until then playback URLs are
+      anonymous, and the privacy promises on the consent screen and `/your-data` aren't true yet.
 - [ ] Decide campaigns with fixed characters (the Green Knight casting Gawain): a `characterPolicy`.
 
 ## M4 — Voice pipeline (ElevenLabs)
