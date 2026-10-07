@@ -95,8 +95,8 @@ export function CharacterSheet({
       drives: liveData.profile.drives?.length ? liveData.profile.drives : fallback?.drives ?? [],
       dmNote: fallback?.dmNote ?? "",
       traits:
-        liveData.sheet?.traits?.length
-          ? liveData.sheet.traits.map((t) => [t.name, t.confidence ?? 0] as [string, number])
+        liveData.seat?.traits?.length
+          ? liveData.seat.traits.map((t) => [t.name, t.confidence ?? 0] as [string, number])
           : fallback?.traits ?? [],
       exemplars:
         liveData.behavior?.exemplars?.length

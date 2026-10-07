@@ -1,0 +1,177 @@
+import { z } from "zod";
+import { AtUri, IsoDateTime } from "./ids.js";
+import { ABILITY_SCORES, type AbilityScore } from "./traits.js";
+
+/**
+ * The player-owned 5e sheet and the arithmetic over it (D&D 5.1 SRD,
+ * CC-BY-4.0). A sheet is level-1 choices plus an advancement log, one entry per
+ * level gained, so it can be replayed to any lower level: a level-8 character
+ * joining a table that starts at 3 sits down as their level-3 self
+ * (docs/character-creation.md, "Resetting to a level").
+ *
+ * Everything here is pure and deterministic, like resolution.ts.
+ */
+
+export const MAX_LEVEL = 20;
+
+/** SRD 5.1 standard array, placed by the player (Clef may only suggest). */
+export const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8] as const;
+
+/** SRD 5.1 classes and their hit dice. */
+export const SRD_CLASSES = {
+  barbarian: { hitDie: 12 },
+  bard: { hitDie: 8 },
+  cleric: { hitDie: 8 },
+  druid: { hitDie: 8 },
+  fighter: { hitDie: 10 },
+  monk: { hitDie: 8 },
+  paladin: { hitDie: 10 },
+  ranger: { hitDie: 10 },
+  rogue: { hitDie: 8 },
+  sorcerer: { hitDie: 6 },
+  warlock: { hitDie: 8 },
+  wizard: { hitDie: 6 },
+} as const;
+export type SrdClass = keyof typeof SRD_CLASSES;
+export const SrdClass = z.enum(Object.keys(SRD_CLASSES) as [SrdClass, ...SrdClass[]]);
+
+const Score = z.number().int().min(1).max(30);
+
+export const AbilityScores = z.object({
+  strength: Score,
+  dexterity: Score,
+  constitution: Score,
+  intelligence: Score,
+  wisdom: Score,
+  charisma: Score,
+});
+export type AbilityScores = z.infer<typeof AbilityScores>;
+
+/** One level gained. Hit points are the roll (or fixed value) before the Constitution modifier. */
+export const Advancement = z.object({
+  level: z.number().int().min(2).max(MAX_LEVEL),
+  hitPoints: z.number().int().min(1).max(12),
+  /** An ability-score increase taken at this level, e.g. { dexterity: 2 }. */
+  abilityIncreases: z.partialRecord(z.enum(ABILITY_SCORES), z.number().int().min(1).max(2)).optional(),
+  feat: z.string().max(80).optional(),
+  features: z.array(z.string().max(120)).max(16).default([]),
+  createdAt: IsoDateTime,
+});
+export type Advancement = z.infer<typeof Advancement>;
+
+/** A personality trait or quirk on the narrative face of the sheet. */
+const SheetTrait = z.object({
+  name: z.string().max(80),
+  value: z.string().max(200).optional(),
+});
+
+/**
+ * Zod mirror of game.bardcast.character.sheet. PLAYER-OWNED: lives in the
+ * player's repo, one per character, and travels with them. The narrative face
+ * (traits, quirks) is what a player sees first; the 5e backbone is underneath.
+ * A campaign never edits it directly; it branches a CampaignSeat from it.
+ */
+export const CharacterSheet = z
+  .object({
+    /** AT-URI of the character.profile this sheet belongs to. */
+    character: AtUri,
+    class: SrdClass,
+    species: z.string().max(60).optional(),
+    background: z.string().max(60).optional(),
+    /** Level-1 scores, after species bonuses. Increases live in `advancements`. */
+    abilities: AbilityScores,
+    /** Level-1 features. */
+    features: z.array(z.string().max(120)).max(32).default([]),
+    /** Levels 2..n in order. The sheet's level is 1 + its length. */
+    advancements: z.array(Advancement).max(MAX_LEVEL - 1).default([]),
+    /** Personality, from the closed vocabulary in traits.ts. */
+    traits: z.array(SheetTrait).max(32).default([]),
+    /** Free-text quirks, the lines a player reads first. */
+    quirks: z.array(z.string().max(200)).max(8).default([]),
+    createdAt: IsoDateTime,
+    updatedAt: IsoDateTime.optional(),
+  })
+  .refine((s) => s.advancements.every((a, i) => a.level === i + 2), {
+    message: "advancements must run 2, 3, 4… with no gaps",
+    path: ["advancements"],
+  });
+export type CharacterSheet = z.infer<typeof CharacterSheet>;
+
+/** The sheet's own level. */
+export function levelOf(sheet: Pick<CharacterSheet, "advancements">): number {
+  return 1 + sheet.advancements.length;
+}
+
+/** SRD proficiency bonus by level. */
+export function proficiencyBonus(level: number): number {
+  return 2 + Math.floor((Math.max(1, level) - 1) / 4);
+}
+
+/**
+ * The sheet replayed to `level`: advancements above it are dropped. Throws if
+ * the sheet hasn't reached that level; a table that starts higher asks the
+ * player for the missing advancements instead (see CampaignSeat).
+ */
+export function sheetAtLevel(sheet: CharacterSheet, level: number): CharacterSheet {
+  if (!Number.isInteger(level) || level < 1 || level > MAX_LEVEL) {
+    throw new RangeError(`level must be 1–${MAX_LEVEL}, got ${level}`);
+  }
+  if (level > levelOf(sheet)) {
+    throw new RangeError(`sheet is level ${levelOf(sheet)}, can't replay to ${level}`);
+  }
+  return { ...sheet, advancements: sheet.advancements.slice(0, level - 1) };
+}
+
+/** What the arithmetic says about a sheet: the numbers a table plays with. */
+export interface PlayedSheet {
+  level: number;
+  class: SrdClass;
+  abilities: AbilityScores;
+  maxHitPoints: number;
+  proficiencyBonus: number;
+  features: string[];
+}
+
+const modifier = (score: number) => Math.floor((score - 10) / 2);
+
+/** Derive the played numbers. Ability scores cap at 20; Constitution counts for every level. */
+export function playSheet(sheet: Pick<CharacterSheet, "class" | "abilities" | "features" | "advancements">): PlayedSheet {
+  const abilities = { ...sheet.abilities };
+  for (const adv of sheet.advancements) {
+    for (const ability of ABILITY_SCORES) {
+      const inc = adv.abilityIncreases?.[ability];
+      if (inc) abilities[ability] = Math.min(20, abilities[ability] + inc);
+    }
+  }
+  const level = levelOf(sheet);
+  const con = modifier(abilities.constitution);
+  const perLevel = [SRD_CLASSES[sheet.class].hitDie, ...sheet.advancements.map((a) => a.hitPoints)];
+  // Each level gives at least 1 hit point, whatever the Constitution.
+  const maxHitPoints = perLevel.reduce((sum, hp) => sum + Math.max(1, hp + con), 0);
+  return {
+    level,
+    class: sheet.class,
+    abilities,
+    maxHitPoints,
+    proficiencyBonus: proficiencyBonus(level),
+    features: [...sheet.features, ...sheet.advancements.flatMap((a) => [...a.features, ...(a.feat ? [a.feat] : [])])],
+  };
+}
+
+/** Two advancements are the same level-up if everything but the timestamp matches. */
+export function sameAdvancement(a: Advancement, b: Advancement): boolean {
+  const inc = (x: Advancement) =>
+    ABILITY_SCORES.map((k) => x.abilityIncreases?.[k] ?? 0).join(",");
+  return (
+    a.level === b.level &&
+    a.hitPoints === b.hitPoints &&
+    inc(a) === inc(b) &&
+    (a.feat ?? "") === (b.feat ?? "") &&
+    a.features.join("\u0000") === b.features.join("\u0000")
+  );
+}
+
+/** Two sheets share a level-1 self if class and starting scores match. */
+export function sameBase(a: Pick<CharacterSheet, "class" | "abilities">, b: Pick<CharacterSheet, "class" | "abilities">): boolean {
+  return a.class === b.class && ABILITY_SCORES.every((k: AbilityScore) => a.abilities[k] === b.abilities[k]);
+}

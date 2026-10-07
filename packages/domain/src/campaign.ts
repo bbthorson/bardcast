@@ -9,6 +9,10 @@ export const Campaign = z.object({
   premise: z.string().max(5000).optional(),
   party: z.array(AtUri).max(32).default([]),
   calendar: z.string().max(80).optional(),
+  /** The level characters sit down at. Absent means 1. */
+  startingLevel: z.number().int().min(1).max(20).optional(),
+  /** The DM's note to players building a character for this table. */
+  characterGuidance: z.string().max(2000).optional(),
   createdAt: IsoDateTime,
 });
 export type Campaign = z.infer<typeof Campaign>;

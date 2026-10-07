@@ -33,7 +33,7 @@ describe("PostgresStore & AT-Proto Stores (PGlite in-process)", () => {
     expect(gawain).not.toBeNull();
     expect(gawain?.displayName).toBe("Sir Gawain");
 
-    const sheet = await store.getSheet("gawain-green-knight", "gawain");
+    const sheet = await store.getSeat("gawain-green-knight", "gawain");
     expect(sheet).not.toBeNull();
     expect(sheet?.traits.length).toBeGreaterThan(0);
   });
@@ -72,7 +72,7 @@ describe("PostgresStore & AT-Proto Stores (PGlite in-process)", () => {
     expect(await store.getInvite("INVITE123")).toBeNull();
   });
 
-  it("isolates character sheets per campaign", async () => {
+  it("isolates seats per campaign", async () => {
     const charId = "char.alice";
     const now = new Date().toISOString();
 
@@ -82,26 +82,49 @@ describe("PostgresStore & AT-Proto Stores (PGlite in-process)", () => {
       createdAt: now,
     });
 
-    await store.putSheet("camp.1", charId, {
+    await store.putSeat("camp.1", charId, {
       campaign: "at://camp.1" as any,
       character: `at://${charId}` as any,
       traits: [{ name: "AC", value: "25", confidence: 100 }],
       sourceReplies: [],
+      startingLevel: 1,
+      advancements: [],
       createdAt: now,
     });
 
-    await store.putSheet("camp.2", charId, {
+    await store.putSeat("camp.2", charId, {
       campaign: "at://camp.2" as any,
       character: `at://${charId}` as any,
       traits: [{ name: "AC", value: "14", confidence: 100 }],
       sourceReplies: [],
+      startingLevel: 1,
+      advancements: [],
       createdAt: now,
     });
 
-    const sheet1 = await store.getSheet("camp.1", charId);
-    const sheet2 = await store.getSheet("camp.2", charId);
-    expect(sheet1?.traits[0]?.value).toBe("25");
-    expect(sheet2?.traits[0]?.value).toBe("14");
+    const seat1 = await store.getSeat("camp.1", charId);
+    const seat2 = await store.getSeat("camp.2", charId);
+    expect(seat1?.traits[0]?.value).toBe("25");
+    expect(seat2?.traits[0]?.value).toBe("14");
+  });
+
+  it("keeps a player's own sheet apart from their seats", async () => {
+    const charId = "char.carys";
+    const now = new Date().toISOString();
+    const sheet = {
+      character: `at://${charId}` as const,
+      class: "rogue" as const,
+      abilities: { strength: 8, dexterity: 15, constitution: 13, intelligence: 12, wisdom: 10, charisma: 14 },
+      features: ["Sneak Attack"],
+      advancements: [{ level: 2, hitPoints: 5, features: ["Cunning Action"], createdAt: now }],
+      traits: [{ name: "temperament", value: "cautious" }],
+      quirks: ["Counts the exits"],
+      createdAt: now,
+    };
+    await store.putCharacterSheet(charId, sheet);
+    expect(await store.getCharacterSheet(charId)).toEqual(sheet);
+    expect(await store.getSeat("camp.1", charId)).toBeNull();
+    expect(await store.getCharacterSheet("char.nobody")).toBeNull();
   });
 
   it("persists behavior models and voice profiles", async () => {

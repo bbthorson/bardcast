@@ -21,6 +21,7 @@ export const Collections = {
   characterSheet: nsid("character.sheet"),
   characterStateEvent: nsid("character.stateEvent"),
   campaign: nsid("campaign.campaign"),
+  campaignSeat: nsid("campaign.seat"),
   chapter: nsid("campaign.chapter"),
   voiceProfile: nsid("voice.profile"),
 } as const;

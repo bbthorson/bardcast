@@ -8,7 +8,7 @@ import type { CoreServices } from "../ports/index.js";
 
 /**
  * Step 3 of the loop: the readiness gate. Loads every party character's signal
- * (the sheet from THIS campaign; behavior and voice are durable) and asks @bardcast/domain whether the campaign can generate its next chapter.
+ * (the seat at THIS campaign; behavior and voice are durable) and asks @bardcast/domain whether the campaign can generate its next chapter.
  * The DM console polls this to show per-character progress and the "what to
  * prompt next" hint; the answer also gates `generateChapter`.
  */
@@ -19,13 +19,13 @@ export async function checkReadiness(
   const party: Record<string, CharacterSignal> = {};
 
   for (const id of input.characterIds) {
-    const [sheet, behavior, voice] = await Promise.all([
-      svc.store.getSheet(input.campaignId, id),
+    const [seat, behavior, voice] = await Promise.all([
+      svc.store.getSeat(input.campaignId, id),
       svc.store.getBehavior(id),
       svc.store.getVoice(id),
     ]);
     party[id] = {
-      sheet: sheet ?? undefined,
+      seat: seat ?? undefined,
       behavior: behavior ?? undefined,
       voice: voice ?? undefined,
     };

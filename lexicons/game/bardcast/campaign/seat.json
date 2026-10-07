@@ -1,0 +1,129 @@
+{
+    "lexicon": 1,
+    "id": "game.bardcast.campaign.seat",
+    "defs": {
+        "main": {
+            "type": "record",
+            "description": "A character at one table: a branch of the player's game.bardcast.character.sheet. Written into the campaign's space (authority: Bardcast's DID, skey: the campaign), never into the player's repo. Holds a snapshot of the sheet as it sat down, reset to the table's starting level (AT Protocol doesn't serve old record versions, so the StrongRef proves provenance and the snapshot is what the table plays from), the levels earned at this table, the table's running state, and what replies to this campaign's prompts taught Bardcast. The rkey is the player's DID: one seat per player per campaign.",
+            "key": "any",
+            "record": {
+                "type": "object",
+                "required": [
+                    "campaign",
+                    "character",
+                    "createdAt"
+                ],
+                "properties": {
+                    "campaign": {
+                        "type": "string",
+                        "format": "at-uri",
+                        "description": "The campaign this seat is at. Redundant with the space; kept so the record stands on its own."
+                    },
+                    "character": {
+                        "type": "string",
+                        "format": "at-uri",
+                        "description": "AT-URI of the character.profile in the player's repo."
+                    },
+                    "sheet": {
+                        "type": "ref",
+                        "ref": "com.atproto.repo.strongRef",
+                        "description": "The exact sheet version brought to the table. Absent until the player brings one."
+                    },
+                    "startingLevel": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 20
+                    },
+                    "brought": {
+                        "type": "ref",
+                        "ref": "game.bardcast.character.sheet#snapshot",
+                        "description": "The sheet as it sat down, reset to startingLevel (or its own level, if lower)."
+                    },
+                    "advancements": {
+                        "type": "array",
+                        "maxLength": 19,
+                        "items": {
+                            "type": "ref",
+                            "ref": "game.bardcast.character.sheet#advancement"
+                        },
+                        "description": "Levels gained at this table, continuing from `brought`."
+                    },
+                    "state": {
+                        "type": "ref",
+                        "ref": "#state"
+                    },
+                    "traits": {
+                        "type": "array",
+                        "maxLength": 64,
+                        "items": {
+                            "type": "ref",
+                            "ref": "#trait"
+                        },
+                        "description": "Traits inferred from replies to this campaign's prompts. Feeds the readiness gate."
+                    },
+                    "sourceReplies": {
+                        "type": "array",
+                        "maxLength": 512,
+                        "items": {
+                            "type": "string",
+                            "format": "at-uri"
+                        },
+                        "description": "AT-URIs of the Antiphony replies to this campaign's prompts (provenance)."
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "datetime"
+                    }
+                }
+            }
+        },
+        "state": {
+            "type": "object",
+            "description": "The character's running state at this table.",
+            "properties": {
+                "hitPoints": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "conditions": {
+                    "type": "array",
+                    "maxLength": 16,
+                    "items": {
+                        "type": "string",
+                        "maxLength": 80
+                    }
+                },
+                "gear": {
+                    "type": "array",
+                    "maxLength": 64,
+                    "items": {
+                        "type": "string",
+                        "maxLength": 120
+                    }
+                }
+            }
+        },
+        "trait": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "confidence": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "How strongly the replies support this trait."
+                }
+            }
+        }
+    }
+}

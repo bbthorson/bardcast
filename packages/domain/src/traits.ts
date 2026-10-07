@@ -6,8 +6,8 @@
  * personality axes and their values live here, in one place, and inference
  * writes `Trait { name: axis, value: option, confidence }`.
  *
- * Ability scores are a second, separate list. `modifierFor` reads a trait whose
- * `value` is numeric as a 5e ability score, so those names are reserved:
+ * Ability scores are a second, separate list. They live on the sheet's 5e
+ * backbone (sheet.ts), never as traits, so those names are reserved:
  * inference never writes them, and they are set by the DM or the sheet's
  * mechanics, not guessed from how a player talks. Character creation may
  * suggest a placement, but the player confirms every score

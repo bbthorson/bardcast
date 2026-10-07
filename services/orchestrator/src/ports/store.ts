@@ -3,6 +3,7 @@ import type {
   Campaign,
   Chapter,
   CharacterProfile,
+  CampaignSeat,
   CharacterSheet,
   Prompt,
   VoiceProfile,
@@ -35,9 +36,12 @@ export interface Store {
   // characters and their derived signal
   getCharacter(id: string): Promise<CharacterProfile | null>;
   putCharacter(id: string, profile: CharacterProfile): Promise<void>;
-  /** Sheets are campaign-scoped: the same character has one per campaign. */
-  getSheet(campaignId: string, characterId: string): Promise<CharacterSheet | null>;
-  putSheet(campaignId: string, characterId: string, sheet: CharacterSheet): Promise<void>;
+  /** The player-owned sheet: one per character, the same everywhere. */
+  getCharacterSheet(characterId: string): Promise<CharacterSheet | null>;
+  putCharacterSheet(characterId: string, sheet: CharacterSheet): Promise<void>;
+  /** A character's seat at one campaign, branched from their sheet. */
+  getSeat(campaignId: string, characterId: string): Promise<CampaignSeat | null>;
+  putSeat(campaignId: string, characterId: string, seat: CampaignSeat): Promise<void>;
   getBehavior(characterId: string): Promise<BehaviorModel | null>;
   putBehavior(characterId: string, behavior: BehaviorModel): Promise<void>;
   getVoice(characterId: string): Promise<VoiceProfile | null>;

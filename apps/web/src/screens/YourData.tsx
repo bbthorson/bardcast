@@ -38,8 +38,13 @@ export function YourData({ signedIn, onBack, onOpenLogin }: { signedIn: boolean;
       </Section>
 
       <Section title="Yours, wherever you go">
-        <Item name="Your character">
-          Name, concept, pronouns, and what drives them. Written to your own AT Protocol account, not ours. If you leave Bardcast, it leaves with you.
+        <Item name="Your characters">
+          Every one you make: name, concept, pronouns, and what drives them. Written to your own AT Protocol account, not ours. If you leave Bardcast, they
+          leave with you.
+        </Item>
+        <Item name="Their character sheets">
+          Quirks and personality up front, the 5e numbers underneath, and every level they've earned. Also in your own account. A campaign never edits
+          them; it plays from its own copy.
         </Item>
         <Item name="Your voice profile">
           Whether you've agreed to a voice clone, and a reference to it. Also in your own account.
@@ -55,9 +60,9 @@ export function YourData({ signedIn, onBack, onOpenLogin }: { signedIn: boolean;
         <Item name="Your recordings">
           Every answer you record is stored by Antiphony, the audio service Bardcast is built on, in the campaign's space. They stay with the campaign.
         </Item>
-        <Item name="Your character sheet">
-          One per campaign. A new campaign starts a fresh sheet, so the same character can be a veteran at one table and green at another. The old sheet stays
-          with the old campaign.
+        <Item name="Your seat">
+          When you join, your sheet sits down at the table's starting level, so a veteran can join a table of beginners. Levels, hit points and gear earned
+          here stay with the campaign. Bring the progress home to your own sheet whenever you like.
         </Item>
         <Item name="The episodes">Every chapter is published to the campaign's space, for the party only.</Item>
       </Section>

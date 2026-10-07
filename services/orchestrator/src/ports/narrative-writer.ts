@@ -1,9 +1,10 @@
-import type { BehaviorModel, Campaign, CharacterProfile, CharacterSheet, ScriptLine } from "@bardcast/domain";
+import type { BehaviorModel, Campaign, CampaignSeat, CharacterProfile, ScriptLine } from "@bardcast/domain";
 
 export interface NarrativeCharacter {
   id: string;
   profile: CharacterProfile;
-  sheet: CharacterSheet | null;
+  /** The character at this table: reply-inferred traits and the sheet as played here. */
+  seat: CampaignSeat | null;
   behavior: BehaviorModel | null;
 }
 

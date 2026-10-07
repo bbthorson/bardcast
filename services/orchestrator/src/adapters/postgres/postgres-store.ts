@@ -3,6 +3,7 @@ import type {
   Campaign,
   Chapter,
   CharacterProfile,
+  CampaignSeat,
   CharacterSheet,
   Prompt,
   VoiceProfile,
@@ -85,20 +86,37 @@ export class PostgresStore implements Store {
     );
   }
 
-  async getSheet(campaignId: string, characterId: string): Promise<CharacterSheet | null> {
+  async getCharacterSheet(characterId: string): Promise<CharacterSheet | null> {
     const rows = await this.sql.query<{ data: CharacterSheet }>(
-      "SELECT data FROM character_sheets WHERE campaign_id = $1 AND character_id = $2",
+      "SELECT data FROM player_sheets WHERE character_id = $1",
+      [characterId],
+    );
+    return rows[0]?.data ?? null;
+  }
+
+  async putCharacterSheet(characterId: string, sheet: CharacterSheet): Promise<void> {
+    await this.sql.query(
+      `INSERT INTO player_sheets (character_id, data, created_at)
+       VALUES ($1, $2::jsonb, $3)
+       ON CONFLICT (character_id) DO UPDATE SET data = $2::jsonb`,
+      [characterId, JSON.stringify(sheet), sheet.createdAt],
+    );
+  }
+
+  async getSeat(campaignId: string, characterId: string): Promise<CampaignSeat | null> {
+    const rows = await this.sql.query<{ data: CampaignSeat }>(
+      "SELECT data FROM campaign_seats WHERE campaign_id = $1 AND character_id = $2",
       [campaignId, characterId],
     );
     return rows[0]?.data ?? null;
   }
 
-  async putSheet(campaignId: string, characterId: string, sheet: CharacterSheet): Promise<void> {
+  async putSeat(campaignId: string, characterId: string, seat: CampaignSeat): Promise<void> {
     await this.sql.query(
-      `INSERT INTO character_sheets (campaign_id, character_id, data, created_at)
+      `INSERT INTO campaign_seats (campaign_id, character_id, data, created_at)
        VALUES ($1, $2, $3::jsonb, $4)
        ON CONFLICT (campaign_id, character_id) DO UPDATE SET data = $3::jsonb`,
-      [campaignId, characterId, JSON.stringify(sheet), sheet.createdAt],
+      [campaignId, characterId, JSON.stringify(seat), seat.createdAt],
     );
   }
 

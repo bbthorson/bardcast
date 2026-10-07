@@ -196,14 +196,15 @@ export function createApp(svc: CoreServices): Hono {
     return c.json({ campaignId: invite.campaignId, campaign });
   });
 
-  // Character detail within a campaign (profile + campaign-scoped sheet + behavior + voice)
+  // Character detail within a campaign (profile + owned sheet + this campaign's seat + behavior + voice)
   app.get("/api/campaigns/:campaignId/characters/:characterId", async (c) => {
     const campaignId = c.req.param("campaignId");
     const characterId = c.req.param("characterId");
 
-    const [profile, sheet, behavior, voice] = await Promise.all([
+    const [profile, sheet, seat, behavior, voice] = await Promise.all([
       svc.store.getCharacter(characterId),
-      svc.store.getSheet(campaignId, characterId),
+      svc.store.getCharacterSheet(characterId),
+      svc.store.getSeat(campaignId, characterId),
       svc.store.getBehavior(characterId),
       svc.store.getVoice(characterId),
     ]);
@@ -212,7 +213,7 @@ export function createApp(svc: CoreServices): Hono {
       return c.json({ error: "not_found", message: `Character ${characterId} not found` }, 404);
     }
 
-    return c.json({ characterId, profile, sheet, behavior, voice });
+    return c.json({ characterId, profile, sheet, seat, behavior, voice });
   });
 
   // --- Step 1: List and publish prompts -------------------------------------

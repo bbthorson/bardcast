@@ -4,11 +4,14 @@
     "defs": {
         "main": {
             "type": "record",
-            "description": "A Bardcast character's durable identity: who they are, independent of any campaign. Lives in the player's own repo, keyed on their DID, so it stays portable off Bardcast. Campaign-specific mechanics live in game.bardcast.character.sheet inside the campaign's space, never here. One record per character at the well-known `self` rkey.",
-            "key": "literal:self",
+            "description": "A Bardcast character's durable identity: who they are, independent of any campaign. Lives in the player's own repo, so it stays portable off Bardcast. A player can have several characters, one record each (rkey: tid). Mechanics live in game.bardcast.character.sheet (same repo, same rkey); what a character is at one table lives in game.bardcast.campaign.seat inside that campaign's space.",
+            "key": "tid",
             "record": {
                 "type": "object",
-                "required": ["displayName", "createdAt"],
+                "required": [
+                    "displayName",
+                    "createdAt"
+                ],
                 "properties": {
                     "player": {
                         "type": "string",
@@ -33,7 +36,10 @@
                     "drives": {
                         "type": "array",
                         "maxLength": 32,
-                        "items": { "type": "string", "maxLength": 200 },
+                        "items": {
+                            "type": "string",
+                            "maxLength": 200
+                        },
                         "description": "What motivates the character, across every campaign they appear in. Used by the narrative engine."
                     },
                     "createdAt": {

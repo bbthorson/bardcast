@@ -4,48 +4,327 @@
     "defs": {
         "main": {
             "type": "record",
-            "description": "A character's mechanical state in ONE campaign: structured traits assembled from the player's prompt replies in that campaign. Campaign-scoped on purpose, so the same character can hold different mechanics in two concurrent campaigns. Written into the campaign's space (authority: Bardcast's DID, skey: the campaign), never into the player's own repo. Derived state, regenerated as more replies arrive. The rkey is the player's DID, so a campaign holds one current sheet per player.",
+            "description": "A character's sheet, owned by the player: a D&D 5.1 SRD (CC-BY-4.0) backbone under a narrative face. Lives in the player's own repo at the same rkey as the character.profile it belongs to, and travels with them. Stored as level-1 choices plus an advancement log, so it can be replayed to any lower level when it joins a campaign. Campaigns never edit it; they branch a game.bardcast.campaign.seat from it.",
             "key": "any",
             "record": {
                 "type": "object",
-                "required": ["campaign", "character", "createdAt"],
+                "required": [
+                    "character",
+                    "class",
+                    "abilities",
+                    "createdAt"
+                ],
                 "properties": {
-                    "campaign": {
-                        "type": "string",
-                        "format": "at-uri",
-                        "description": "The campaign this sheet belongs to. Redundant with the space the record lives in; kept so the record stands on its own when read out of context."
-                    },
                     "character": {
                         "type": "string",
                         "format": "at-uri",
-                        "description": "AT-URI of the character.profile in the player's repo. The durable identity this sheet is one campaign's view of."
+                        "description": "AT-URI of the character.profile this sheet belongs to."
+                    },
+                    "class": {
+                        "type": "string",
+                        "knownValues": [
+                            "barbarian",
+                            "bard",
+                            "cleric",
+                            "druid",
+                            "fighter",
+                            "monk",
+                            "paladin",
+                            "ranger",
+                            "rogue",
+                            "sorcerer",
+                            "warlock",
+                            "wizard"
+                        ],
+                        "description": "SRD 5.1 class."
+                    },
+                    "species": {
+                        "type": "string",
+                        "maxLength": 60
+                    },
+                    "background": {
+                        "type": "string",
+                        "maxLength": 60
+                    },
+                    "abilities": {
+                        "type": "ref",
+                        "ref": "#abilityScores",
+                        "description": "Level-1 ability scores, after species bonuses. Later increases live in `advancements`."
+                    },
+                    "features": {
+                        "type": "array",
+                        "maxLength": 32,
+                        "items": {
+                            "type": "string",
+                            "maxLength": 120
+                        },
+                        "description": "Level-1 features."
+                    },
+                    "advancements": {
+                        "type": "array",
+                        "maxLength": 19,
+                        "items": {
+                            "type": "ref",
+                            "ref": "#advancement"
+                        },
+                        "description": "Levels 2..n in order, no gaps. The sheet's level is 1 + this length."
                     },
                     "traits": {
                         "type": "array",
-                        "maxLength": 64,
-                        "items": { "type": "ref", "ref": "#trait" },
-                        "description": "Named traits (ability scores, virtues, flaws, skills) inferred from replies."
+                        "maxLength": 32,
+                        "items": {
+                            "type": "ref",
+                            "ref": "#trait"
+                        },
+                        "description": "Personality, from Bardcast's closed trait vocabulary."
                     },
-                    "sourceReplies": {
+                    "quirks": {
                         "type": "array",
-                        "maxLength": 512,
-                        "items": { "type": "string", "format": "at-uri" },
-                        "description": "AT-URIs of the Antiphony reply records this sheet was derived from (provenance). Replies to this campaign's prompts only."
+                        "maxLength": 8,
+                        "items": {
+                            "type": "string",
+                            "maxLength": 200
+                        },
+                        "description": "Free-text quirks: the narrative face a player reads first."
                     },
                     "createdAt": {
+                        "type": "string",
+                        "format": "datetime"
+                    },
+                    "updatedAt": {
                         "type": "string",
                         "format": "datetime"
                     }
                 }
             }
         },
+        "snapshot": {
+            "type": "object",
+            "description": "The same fields as a sheet record, for embedding: a seat keeps the sheet it was branched from as one of these. Keep in step with main.",
+            "required": [
+                "character",
+                "class",
+                "abilities",
+                "createdAt"
+            ],
+            "properties": {
+                "character": {
+                    "type": "string",
+                    "format": "at-uri",
+                    "description": "AT-URI of the character.profile this sheet belongs to."
+                },
+                "class": {
+                    "type": "string",
+                    "knownValues": [
+                        "barbarian",
+                        "bard",
+                        "cleric",
+                        "druid",
+                        "fighter",
+                        "monk",
+                        "paladin",
+                        "ranger",
+                        "rogue",
+                        "sorcerer",
+                        "warlock",
+                        "wizard"
+                    ],
+                    "description": "SRD 5.1 class."
+                },
+                "species": {
+                    "type": "string",
+                    "maxLength": 60
+                },
+                "background": {
+                    "type": "string",
+                    "maxLength": 60
+                },
+                "abilities": {
+                    "type": "ref",
+                    "ref": "#abilityScores",
+                    "description": "Level-1 ability scores, after species bonuses. Later increases live in `advancements`."
+                },
+                "features": {
+                    "type": "array",
+                    "maxLength": 32,
+                    "items": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "description": "Level-1 features."
+                },
+                "advancements": {
+                    "type": "array",
+                    "maxLength": 19,
+                    "items": {
+                        "type": "ref",
+                        "ref": "#advancement"
+                    },
+                    "description": "Levels 2..n in order, no gaps. The sheet's level is 1 + this length."
+                },
+                "traits": {
+                    "type": "array",
+                    "maxLength": 32,
+                    "items": {
+                        "type": "ref",
+                        "ref": "#trait"
+                    },
+                    "description": "Personality, from Bardcast's closed trait vocabulary."
+                },
+                "quirks": {
+                    "type": "array",
+                    "maxLength": 8,
+                    "items": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "description": "Free-text quirks: the narrative face a player reads first."
+                },
+                "createdAt": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "updatedAt": {
+                    "type": "string",
+                    "format": "datetime"
+                }
+            }
+        },
+        "abilityScores": {
+            "type": "object",
+            "required": [
+                "strength",
+                "dexterity",
+                "constitution",
+                "intelligence",
+                "wisdom",
+                "charisma"
+            ],
+            "properties": {
+                "strength": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30
+                },
+                "dexterity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30
+                },
+                "constitution": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30
+                },
+                "intelligence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30
+                },
+                "wisdom": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30
+                },
+                "charisma": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30
+                }
+            }
+        },
+        "advancement": {
+            "type": "object",
+            "description": "One level gained.",
+            "required": [
+                "level",
+                "hitPoints",
+                "createdAt"
+            ],
+            "properties": {
+                "level": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 20
+                },
+                "hitPoints": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12,
+                    "description": "Hit points gained, before the Constitution modifier."
+                },
+                "abilityIncreases": {
+                    "type": "ref",
+                    "ref": "#abilityIncreases",
+                    "description": "An ability-score increase taken at this level."
+                },
+                "feat": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "features": {
+                    "type": "array",
+                    "maxLength": 16,
+                    "items": {
+                        "type": "string",
+                        "maxLength": 120
+                    }
+                },
+                "createdAt": {
+                    "type": "string",
+                    "format": "datetime"
+                }
+            }
+        },
+        "abilityIncreases": {
+            "type": "object",
+            "properties": {
+                "strength": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2
+                },
+                "dexterity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2
+                },
+                "constitution": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2
+                },
+                "intelligence": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2
+                },
+                "wisdom": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2
+                },
+                "charisma": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2
+                }
+            }
+        },
         "trait": {
             "type": "object",
-            "required": ["name"],
+            "required": [
+                "name"
+            ],
             "properties": {
-                "name": { "type": "string", "maxLength": 80 },
-                "value": { "type": "string", "maxLength": 200, "description": "Free-form value (a number, a tag, or a phrase) so the same shape works for D&D stats and freeform systems." },
-                "confidence": { "type": "integer", "minimum": 0, "maximum": 100, "description": "How strongly the replies support this trait. Feeds the readiness gate." }
+                "name": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 200
+                }
             }
         }
     }

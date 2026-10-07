@@ -30,9 +30,10 @@ kit, not the private repo.
   regenerate. Never edit a record to "fix" state.
 - **DID is the durable identity key.** Local stable IDs (`char.*`, `campaign.*`) map to DIDs. A
   character's profile, behavior model, and voice reference hang off the player's DID, not a
-  campaign-local row. The **character sheet is the exception**: it is campaign-scoped, one per
-  (campaign, character), so mechanics can differ between concurrent campaigns. See
-  `docs/character-model.md`.
+  campaign-local row. So does the **character sheet**: the player owns it. A campaign holds a
+  **seat** branched from it (reset to the table's starting level), so mechanics can differ between
+  concurrent campaigns without anyone's own sheet changing. See `docs/character-model.md` and
+  `docs/character-creation.md`.
 - **Fantasy time vs. real time.** In-world dates (fantasy calendars) are a plain **string** field. Each
   record's `createdAt` carries a real ISO timestamp for ordering, so a timeline can be scrubbed. Never
   put a 5-digit fantasy year in `createdAt`.

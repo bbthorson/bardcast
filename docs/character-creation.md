@@ -38,7 +38,7 @@ record that joins a player-owned sheet to a campaign. Call it a **seat**.
 | `character.sheet` | Player's repo (was the campaign's space) | same rkey as its profile | The player's sheet: the 5e backbone, the narrative layer, and an advancement log. |
 | `voice.profile` | Player's repo | `self` | Unchanged. One voice per player, used by all their characters. |
 | `campaign.campaign` | Campaign's space | `tid` | Gains `startingLevel` and `characterGuidance`. |
-| **`campaign.seat`** (new) | Campaign's space | player DID | A character at this table: StrongRefs to the profile and to the sheet version brought in, the level the table set, and the mechanics as they stand at this table. Replaces today's campaign-scoped sheet. |
+| **`campaign.seat`** (new) | Campaign's space | player DID | A character at this table: a StrongRef to the sheet version brought in, a snapshot of it reset to the table's level, the levels and state earned here, and reply-inferred traits. Replaces the old campaign-scoped sheet. |
 | `character.stateEvent`, `campaign.chapter` | Campaign's space | `tid` | Unchanged. |
 
 The seat is the campaign-scoped part that `character-model.md` needed (25 AC at one table, 14 at
@@ -152,6 +152,11 @@ post: authority the user's DID", which is marked *to confirm before it's built*
 
 ## Build order
 
+Step 1 is built except the profile-key change in the app (the lexicon says `tid`, but the web app
+still keys a joined character by the player's DID) and the NSID swap, which waits on a domain.
+`sheet.ts` and `seat.ts` in `@bardcast/domain` hold the sheet, the seat, `sheetAtLevel`,
+`joinCampaign` and `bringHome`; the `Store` has owned sheets and seats.
+
 1. **Model.** Lexicons (profile keyed by `tid`, a player-owned sheet with an advancement log, a new
    `campaign.seat`, and campaign `startingLevel`/`characterGuidance`). Zod mirrors in
    `@bardcast/domain`. `Store` gets `getSeat`/`putSeat` and owned-sheet methods. Rewrite
@@ -174,5 +179,11 @@ at, with "Make a character" at the end. Voice and account settings stay on You, 
 
 ## Still open
 
-1. **The narrator's voice.** Pick a stock ElevenLabs voice and give it a short style note in
+1. **Campaigns with fixed characters.** A campaign like the Green Knight may cast its own
+   characters (Gawain, not a player's invention) and not accept generated ones. Such a campaign
+   would offer pre-made sheets to claim instead of "Bring a character". That needs a campaign-level
+   setting (`characterPolicy`: bring your own, pre-made only, or either) and a way for a pre-made
+   sheet to become, or not become, the player's own. To decide later.
+
+2. **The narrator's voice.** Pick a stock ElevenLabs voice and give it a short style note in
    `docs/brand.md`, so it sounds like the friend who runs the game, not a movie trailer.

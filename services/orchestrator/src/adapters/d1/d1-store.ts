@@ -3,6 +3,7 @@ import type {
   Campaign,
   Chapter,
   CharacterProfile,
+  CampaignSeat,
   CharacterSheet,
   Prompt,
   VoiceProfile,
@@ -111,22 +112,36 @@ export class D1Store implements Store {
     );
   }
 
-  async getSheet(campaignId: string, characterId: string): Promise<CharacterSheet | null> {
-    return this.one<CharacterSheet>(
-      "SELECT data FROM character_sheets WHERE campaign_id = ?1 AND character_id = ?2",
+  async getCharacterSheet(characterId: string): Promise<CharacterSheet | null> {
+    return this.one<CharacterSheet>("SELECT data FROM player_sheets WHERE character_id = ?1", characterId);
+  }
+
+  async putCharacterSheet(characterId: string, sheet: CharacterSheet): Promise<void> {
+    await this.exec(
+      `INSERT INTO player_sheets (character_id, data, created_at) VALUES (?1, ?2, ?3)
+       ON CONFLICT (character_id) DO UPDATE SET data = ?2`,
+      characterId,
+      JSON.stringify(sheet),
+      sheet.createdAt,
+    );
+  }
+
+  async getSeat(campaignId: string, characterId: string): Promise<CampaignSeat | null> {
+    return this.one<CampaignSeat>(
+      "SELECT data FROM campaign_seats WHERE campaign_id = ?1 AND character_id = ?2",
       campaignId,
       characterId,
     );
   }
 
-  async putSheet(campaignId: string, characterId: string, sheet: CharacterSheet): Promise<void> {
+  async putSeat(campaignId: string, characterId: string, seat: CampaignSeat): Promise<void> {
     await this.exec(
-      `INSERT INTO character_sheets (campaign_id, character_id, data, created_at) VALUES (?1, ?2, ?3, ?4)
+      `INSERT INTO campaign_seats (campaign_id, character_id, data, created_at) VALUES (?1, ?2, ?3, ?4)
        ON CONFLICT (campaign_id, character_id) DO UPDATE SET data = ?3`,
       campaignId,
       characterId,
-      JSON.stringify(sheet),
-      sheet.createdAt,
+      JSON.stringify(seat),
+      seat.createdAt,
     );
   }
 

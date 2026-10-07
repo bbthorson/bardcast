@@ -8,9 +8,17 @@
             "key": "tid",
             "record": {
                 "type": "object",
-                "required": ["title", "dm", "createdAt"],
+                "required": [
+                    "title",
+                    "dm",
+                    "createdAt"
+                ],
                 "properties": {
-                    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+                    "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                    },
                     "dm": {
                         "type": "string",
                         "format": "did",
@@ -24,7 +32,10 @@
                     "party": {
                         "type": "array",
                         "maxLength": 32,
-                        "items": { "type": "string", "format": "at-uri" },
+                        "items": {
+                            "type": "string",
+                            "format": "at-uri"
+                        },
                         "description": "AT-URIs of the character.profile records in the party."
                     },
                     "calendar": {
@@ -32,7 +43,21 @@
                         "maxLength": 80,
                         "description": "Name of the in-world calendar (e.g. 'Calendar of Harptos'). Informs how storyDate strings are written."
                     },
-                    "createdAt": { "type": "string", "format": "datetime" }
+                    "startingLevel": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 20,
+                        "description": "The level characters sit down at. A higher-level sheet is replayed down to it when its seat is created. Absent means 1."
+                    },
+                    "characterGuidance": {
+                        "type": "string",
+                        "maxLength": 2000,
+                        "description": "The DM's note to players building or choosing a character for this table."
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "datetime"
+                    }
                 }
             }
         }

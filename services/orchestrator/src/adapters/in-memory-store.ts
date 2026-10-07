@@ -3,6 +3,7 @@ import type {
   Campaign,
   Chapter,
   CharacterProfile,
+  CampaignSeat,
   CharacterSheet,
   Prompt,
   VoiceProfile,
@@ -18,6 +19,7 @@ export class InMemoryStore implements Store {
   private characters = new Map<string, CharacterProfile>();
   /** Keyed by `${campaignId}/${characterId}`: a sheet is per campaign. */
   private sheets = new Map<string, CharacterSheet>();
+  private seats = new Map<string, CampaignSeat>();
   private behaviors = new Map<string, BehaviorModel>();
   private voices = new Map<string, VoiceProfile>();
   private chapters = new Map<string, Chapter>();
@@ -62,11 +64,17 @@ export class InMemoryStore implements Store {
   async putCharacter(id: string, profile: CharacterProfile) {
     this.characters.set(id, profile);
   }
-  async getSheet(campaignId: string, characterId: string) {
-    return this.sheets.get(`${campaignId}/${characterId}`) ?? null;
+  async getCharacterSheet(characterId: string) {
+    return this.sheets.get(characterId) ?? null;
   }
-  async putSheet(campaignId: string, characterId: string, sheet: CharacterSheet) {
-    this.sheets.set(`${campaignId}/${characterId}`, sheet);
+  async putCharacterSheet(characterId: string, sheet: CharacterSheet) {
+    this.sheets.set(characterId, sheet);
+  }
+  async getSeat(campaignId: string, characterId: string) {
+    return this.seats.get(`${campaignId}/${characterId}`) ?? null;
+  }
+  async putSeat(campaignId: string, characterId: string, seat: CampaignSeat) {
+    this.seats.set(`${campaignId}/${characterId}`, seat);
   }
   async getBehavior(characterId: string) {
     return this.behaviors.get(characterId) ?? null;

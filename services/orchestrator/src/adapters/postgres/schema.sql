@@ -21,7 +21,16 @@ CREATE TABLE IF NOT EXISTS characters (
 
 CREATE INDEX IF NOT EXISTS idx_characters_player_did ON characters (player_did);
 
-CREATE TABLE IF NOT EXISTS character_sheets (
+-- Player-owned sheets (one per character) and campaign seats branched from
+-- them. These replace the old campaign-scoped character_sheets table, which
+-- existing databases keep but nothing reads (docs/character-creation.md).
+CREATE TABLE IF NOT EXISTS player_sheets (
+    character_id VARCHAR(128) PRIMARY KEY,
+    data JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS campaign_seats (
     campaign_id VARCHAR(128) NOT NULL,
     character_id VARCHAR(128) NOT NULL,
     data JSONB NOT NULL,

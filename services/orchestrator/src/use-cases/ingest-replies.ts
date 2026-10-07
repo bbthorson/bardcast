@@ -1,3 +1,4 @@
+import type { CampaignSeat } from "@bardcast/domain";
 import type { CoreServices } from "../ports/index.js";
 import { inferTraits, mergeTraits } from "./infer-traits.js";
 
@@ -24,23 +25,26 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
   const replyUris = replies.map((r) => r.uri as `at://${string}`);
   const now = svc.clock().toISOString();
 
-  // --- Sheet: record provenance; infer traits from transcripts. ---
+  // --- Seat: record provenance; infer traits from transcripts. ---
   // Campaign-scoped: replies to this campaign's prompts only shape this
-  // campaign's sheet. Behavior and voice below are durable, per character.
+  // campaign's seat. A character arriving with no seat gets an empty one; their
+  // own sheet is never written here. Behavior and voice below are durable.
   if (input.intent === "sheet" || input.intent === "story") {
-    const sheet = (await svc.store.getSheet(input.campaignId, input.characterId)) ?? {
+    const seat: CampaignSeat = (await svc.store.getSeat(input.campaignId, input.characterId)) ?? {
       campaign: `at://${input.campaignId}`,
       character: `at://${input.characterId}`,
+      startingLevel: 1,
+      advancements: [],
       traits: [],
       sourceReplies: [],
       createdAt: now,
     };
-    sheet.sourceReplies = dedupe([...sheet.sourceReplies, ...replyUris]);
+    seat.sourceReplies = dedupe([...seat.sourceReplies, ...replyUris]);
     const transcripts = replies.map((r) => r.transcript).filter((t): t is string => Boolean(t));
     const profile = await svc.store.getCharacter(input.characterId);
     try {
       const inferred = await inferTraits(svc.decisions, { profile, transcripts });
-      sheet.traits = mergeTraits(sheet.traits, inferred);
+      seat.traits = mergeTraits(seat.traits, inferred);
     } catch (err) {
       // Inference is best effort: a decision-model outage must not stop the
       // replies from feeding provenance, behavior, and voice. The next ingest
@@ -49,8 +53,8 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
       console.warn(`trait inference failed for ${input.characterId}:`, err);
     }
     // TODO(bardcast): infer drives too. They belong on the durable
-    // CharacterProfile, not the sheet.
-    await svc.store.putSheet(input.campaignId, input.characterId, sheet);
+    // CharacterProfile, not the seat.
+    await svc.store.putSeat(input.campaignId, input.characterId, seat);
   }
 
   // --- Behavior: accumulate exemplar lines from transcripts. ---
