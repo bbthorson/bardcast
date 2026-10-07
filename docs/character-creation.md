@@ -1,8 +1,8 @@
 # Building a character
 
-**Status: proposed** (2026-10-07). Revises the split in [`character-model.md`](character-model.md):
-the character sheet moves from the campaign's space into the player's own repo. Nothing here is
-built yet.
+**Status: decided, not built** (2026-10-07). Revises the split in
+[`character-model.md`](character-model.md): the character sheet moves from the campaign's space into
+the player's own repo, and a campaign holds a **seat** that branches from it.
 
 ## What we decided
 
@@ -16,6 +16,15 @@ built yet.
    drives them, and a line in their voice.
 4. **Players own every sheet.** A player keeps all their characters' sheets and brings one into a
    campaign. The campaign resets it to the level the campaign starts at.
+5. **A player can have several characters.** The You tab (far right) lists them, the way the
+   Campaigns tab (far left) lists campaigns.
+6. **Progress comes home.** What a character earns at a table can be carried back to the player's
+   own sheet. The table's state is kept either way.
+7. **The Bardcast narrator asks the session-zero questions.** It's one stock narrator voice, not the
+   DM's and not the player's.
+8. **Clef may suggest ability scores during creation; the player places them.** This replaces "ability
+   scores are never inferred" with "never set without the player": nothing guesses a player's numbers
+   silently.
 
 ## The record model
 
@@ -35,6 +44,42 @@ record that joins a player-owned sheet to a campaign. Call it a **seat**.
 The seat is the campaign-scoped part that `character-model.md` needed (25 AC at one table, 14 at
 another). The sheet becomes the part that travels.
 
+### A seat is a branch, not a copy
+
+A seat doesn't clone the sheet. It holds:
+
+- **where it branched from:** a StrongRef (URI + CID) to the exact sheet version the player brought,
+  and the table's `startingLevel`;
+- **what the table added:** its own advancement entries (the levels earned here);
+- **the table's running state:** hit points, conditions, gear, anything that only makes sense at this
+  table.
+
+The sheet in play is computed:
+`sheetAtLevel(source, startingLevel) + table advancements + table state`. So two concurrent
+campaigns are two branches off the same character, each with its own history, and the source sheet
+never changes underneath them, because the CID pins it.
+
+### Bringing progress home
+
+When a player carries a character's progress back (at the campaign's end, or whenever they choose),
+the table's advancements are appended to the owned sheet's log:
+
+- **The owned sheet hasn't moved since the branch:** append the table's levels. It's a fast-forward.
+- **It has moved** (they levelled at another table too): the two histories disagree about the same
+  levels. The player picks which one the character keeps ("the Saltmarsh Gawain or the Thornwood
+  Gawain"). The other stays in its campaign's seat, untouched.
+
+The seat is never deleted or rewritten by bringing progress home. Campaign state is kept.
+
+### Who writes where
+
+- **The player's repo** (profile, sheet) is written only while the player is present: creating a
+  character, editing it, bringing progress home. Bardcast writes with the player's OAuth session and
+  needs no long-lived access to their account.
+- **The campaign's space** (seats, state events, chapters) is written by Bardcast under its own
+  authority as play happens, including in the background during chapter generation. No player token
+  is involved.
+
 ### Resetting to a level
 
 A sheet can't be "set to level 3" by editing numbers. A level-8 sheet has ability-score increases and
@@ -48,11 +93,11 @@ The join flow asks for them, and the DM can suggest picks.
 
 ## The experience
 
-**Entry points.** "Make a character" on the You tab. And from an invite: "Bring a character" lists
+**Entry points.** The You tab lists the player's characters, with "Make a character" at the end. And from an invite: "Bring a character" lists
 the player's characters and offers "Make a new one". If the campaign has guidance, it shows in the
 DM's hand (Kalam).
 
-**Session zero, out loud.** Five to seven questions, one at a time, answered by voice (with a text
+**Session zero, out loud.** The Bardcast narrator asks five to seven questions, one at a time, answered by voice (with a text
 fallback). Example questions:
 
 - "Who are you when nobody's watching?"
@@ -69,9 +114,8 @@ quote pulled from their answers. Every line has "not quite", which re-asks for t
 Turning the card over shows the 5e backbone: class, level 1, ability scores, proficiencies.
 
 **Ability scores.** These come from the standard array. Clef *suggests* where each score goes, based
-on the answers, and the player confirms or swaps them. This bends the rule in `traits.ts` that
-ability scores are never inferred. The rule's intent (no silent guessing at a player's numbers) holds
-because the player places every score. The rule's wording needs updating if we go this way.
+on the answers, and the player confirms or swaps them. Nothing is set without the player
+(decision 8).
 
 **Pressing the seal.** The answers are the first voice samples. The consent card comes next (the one
 on `VoiceClone.tsx`). If the player says yes, the creation recordings train the clone, and their seal
@@ -92,9 +136,14 @@ post: authority the user's DID", which is marked *to confirm before it's built*
 ## Prerequisites (true today)
 
 - **Nothing writes to a player's repo.** Sign-in requests only the default `atproto` scope
-  (`@bbthorson/atproto-cf-auth`), which proves identity but can't write records. We need granular
-  repo scopes for `game.bardcast.character.*` and `game.bardcast.voice.profile`. The data-ownership
-  page already promises the profile lives in the player's account, so this is overdue.
+  (`@bbthorson/atproto-cf-auth`), which proves identity but can't write records. Pass `scope` to
+  `createBlueskyAuth` to ask for repo permission on `game.bardcast.character.profile`,
+  `game.bardcast.character.sheet` and `game.bardcast.voice.profile`, then write with
+  `new Agent(await auth.getOAuthSession(request))`. **No app password**: this is ordinary AT
+  Protocol OAuth, and the player sees the collections on their provider's consent screen. Two
+  catches. Existing sessions must sign in again to grant the new scope. And scopes name the NSID,
+  so swap the placeholder `game.bardcast.*` (`packages/domain/src/nsid.ts`) *before* players grant
+  it, or they'll have to grant again.
 - **There is no projection layer.** No code writes any AT Protocol record yet. Per the
   state-drives-records rule, build creation against the `Store` first, and project to records
   second.
@@ -117,12 +166,13 @@ post: authority the user's DID", which is marked *to confirm before it's built*
    press, and the invite flow's character picker.
 5. **Projection.** Write profile, sheet and seat records once repo scopes land.
 
-## Open questions
+## Navigation
 
-1. **Does progress come home?** If a character reaches level 6 at one table, does the player's own
-   sheet gain those levels? Proposal: yes, the advancements made at the table are offered back to the
-   owned sheet when the campaign ends, and the player chooses.
-2. **Who asks the session-zero questions?** A Bardcast narrator voice, the DM's recorded voice when
-   they've joined through an invite, or plain text to begin with.
-3. **Several characters per player.** Moving the profile key to `tid` allows it. Confirm that's
-   wanted, because it also changes how the voice profile (one per player) is presented.
+The bottom nav keeps its three tabs. **Campaigns** (left) lists campaigns. **You** (right) lists
+characters, each a small vellum card with the character's seal, name, concept and the tables they sit
+at, with "Make a character" at the end. Voice and account settings stay on You, below the list.
+
+## Still open
+
+1. **The narrator's voice.** Pick a stock ElevenLabs voice and give it a short style note in
+   `docs/brand.md`, so it sounds like the friend who runs the game, not a movie trailer.

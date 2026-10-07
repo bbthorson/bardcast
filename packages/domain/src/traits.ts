@@ -9,7 +9,9 @@
  * Ability scores are a second, separate list. `modifierFor` reads a trait whose
  * `value` is numeric as a 5e ability score, so those names are reserved:
  * inference never writes them, and they are set by the DM or the sheet's
- * mechanics, not guessed from how a player talks.
+ * mechanics, not guessed from how a player talks. Character creation may
+ * suggest a placement, but the player confirms every score
+ * (docs/character-creation.md).
  */
 
 /** 5e ability scores. Traits with these names carry a numeric score (1–20). */

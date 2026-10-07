@@ -51,7 +51,9 @@ Ports: `AntiphonyGateway`, `NarrativeWriter`, `VoiceCloner`, `AudioRenderer`, `I
 `DecisionModel` is a "System One" classifier (Cloudflare's Clef, or TypeSafe's Jev, both via the
 Workers AI REST API): it picks among options we list and returns calibrated probabilities. It never
 writes text. Trait inference uses it against the closed vocabulary in `packages/domain/src/traits.ts`;
-ability-score traits are reserved and never inferred.
+ability-score traits are reserved and never set without the player: reply inference never
+writes them, and during character creation Clef may only *suggest* a placement the player confirms
+(`docs/character-creation.md`).
 
 ## The engagement seam (why it's a port)
 
