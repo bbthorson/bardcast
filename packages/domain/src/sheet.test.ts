@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { bringHome, chooseHistory, joinCampaign, playSeat, seatSheet, type CampaignSeat } from "./seat.js";
-import { CharacterSheet, levelOf, levelUp, nextVersion, playSheet, proficiencyBonus, sheetAtLevel, type Advancement } from "./sheet.js";
+import { classes } from "@bardcast/srd";
+import { CharacterSheet, hitDieOf, SRD_CLASS_INDEXES, levelOf, levelUp, nextVersion, playSheet, proficiencyBonus, sheetAtLevel, type Advancement } from "./sheet.js";
 
 const T = "2026-10-01T00:00:00Z";
 const NOW = "2026-10-07T00:00:00Z";
@@ -30,6 +31,11 @@ function gawain(level: number, tweak: (a: Advancement) => Advancement = (a) => a
 }
 
 describe("the player-owned sheet", () => {
+  it("takes its class list and hit dice from the SRD data", () => {
+    expect([...SRD_CLASS_INDEXES]).toEqual(classes.map((c) => c.index));
+    expect(hitDieOf("fighter")).toBe(10);
+  });
+
   it("rejects a log with a gap in it", () => {
     const bad = { ...gawain(1), advancements: [adv(2), adv(4)] };
     expect(CharacterSheet.safeParse(bad).success).toBe(false);

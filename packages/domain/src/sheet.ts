@@ -1,3 +1,4 @@
+import { getClass } from "@bardcast/srd";
 import { z } from "zod";
 import { AtUri, IsoDateTime, StrongRef } from "./ids.js";
 import { Item } from "./items.js";
@@ -18,23 +19,35 @@ export const MAX_LEVEL = 20;
 /** SRD 5.2 standard array, placed by the player (Clef may only suggest). */
 export const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8] as const;
 
-/** SRD 5.2 classes and their hit dice. */
-export const SRD_CLASSES = {
-  barbarian: { hitDie: 12 },
-  bard: { hitDie: 8 },
-  cleric: { hitDie: 8 },
-  druid: { hitDie: 8 },
-  fighter: { hitDie: 10 },
-  monk: { hitDie: 8 },
-  paladin: { hitDie: 10 },
-  ranger: { hitDie: 10 },
-  rogue: { hitDie: 8 },
-  sorcerer: { hitDie: 6 },
-  warlock: { hitDie: 8 },
-  wizard: { hitDie: 6 },
-} as const;
-export type SrdClass = keyof typeof SRD_CLASSES;
-export const SrdClass = z.enum(Object.keys(SRD_CLASSES) as [SrdClass, ...SrdClass[]]);
+/** The SRD 5.2 class indexes, the sheet's `class` vocabulary. */
+export const SRD_CLASS_INDEXES = [
+  "barbarian",
+  "bard",
+  "cleric",
+  "druid",
+  "fighter",
+  "monk",
+  "paladin",
+  "ranger",
+  "rogue",
+  "sorcerer",
+  "warlock",
+  "wizard",
+] as const;
+
+/**
+ * A class's hit die, read from @bardcast/srd so there's one source for SRD
+ * numbers. A function, not a table built at load, so apps that never compute a
+ * sheet don't bundle the SRD data.
+ */
+export function hitDieOf(index: SrdClass): number {
+  const data = getClass(index);
+  if (!data) throw new Error(`@bardcast/srd has no class ${index}`);
+  return data.hitDie;
+}
+
+export type SrdClass = (typeof SRD_CLASS_INDEXES)[number];
+export const SrdClass = z.enum(SRD_CLASS_INDEXES);
 
 const Score = z.number().int().min(1).max(30);
 
@@ -176,7 +189,7 @@ export function playSheet(sheet: Pick<CharacterSheet, "class" | "abilities" | "f
   }
   const level = levelOf(sheet);
   const con = modifier(abilities.constitution);
-  const perLevel = [SRD_CLASSES[sheet.class].hitDie, ...sheet.advancements.map((a) => a.hitPoints)];
+  const perLevel = [hitDieOf(sheet.class), ...sheet.advancements.map((a) => a.hitPoints)];
   // Each level gives at least 1 hit point, whatever the Constitution.
   const maxHitPoints = perLevel.reduce((sum, hp) => sum + Math.max(1, hp + con), 0);
   return {

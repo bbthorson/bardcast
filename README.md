@@ -45,6 +45,7 @@ reverse. In-world (fantasy-calendar) dates are stored as plain string fields, wh
 | --- | --- |
 | `lexicons/game/bardcast/*` | AT-Protocol record schemas (NSID root behind a single constant — see below). |
 | `packages/domain` | The domain model + Zod schemas, the **readiness gate**, and the **dice/resolution engine**. The load-bearing seam everything shares. |
+| `packages/srd` | A typed subset of the **D&D SRD 5.2** (CC-BY-4.0): classes, species, backgrounds, feats, equipment, skills, conditions. Generated from a pinned commit by its importer; never hand-edited. |
 | `packages/antiphony-client` | Typed client for the engine's `/api/v1/*` API. |
 | `packages/engagement` | The engagement **port** + a PWA adapter (live) + a Bluesky-communities adapter (stub). |
 | `services/orchestrator` | Hono service: the readiness gate, chapter pipeline, prompt suggestion, and Bardcast's own AT-Proto OAuth routes. |

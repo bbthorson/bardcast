@@ -238,7 +238,7 @@ still keys a joined character by the player's DID) and the NSID swap, which wait
    `@bardcast/domain`. `Store` gets `getSeat`/`putSeat` and owned-sheet methods. Rewrite
    `character-model.md`, the `/your-data` page and the consent copy so they say the sheet is yours.
    Update the D2 row in Antiphony's spec to include sheets.
-2. **5e core.** An SRD 5.2 subset in a new `packages/srd`: classes, species, backgrounds, feats,
+2. **5e core.** *Built 2026-10-07* (`packages/srd`; see its README). An SRD 5.2 subset in a new `packages/srd`: classes, species, backgrounds, feats,
    equipment (weapons with damage, properties and mastery; armor with AC, Dex cap, Strength minimum
    and stealth), starting kits, skills and conditions. Spells, monsters and magic items wait.
    - **Source:** `5e-bits/5e-srd-api`, `packages/5e-database/src/2024/en` (checked 2026-10-07 at
@@ -252,6 +252,9 @@ still keys a joined character by the player's DID) and the NSID swap, which wait
      still cites OGL 1.0a, which is out of date for 5.2, so our attribution cites SRD 5.2 under
      CC-BY-4.0 directly, plus the MIT notice for their compilation. It goes in `NOTICE` and on a
      credits line in the app.
+   - **Source errors found and corrected** (`CORRECTIONS` in the importer, pinned by tests): Hide
+     Armor is tagged light armor (SRD: medium), and Human is Medium only (SRD: Medium or Small). The
+     source also has some UTF-8 damage ("artisanâ€™s"), repaired on import.
    - Spot-check against the SRD itself in tests (longsword 1d8 slashing, versatile 1d10, mastery
      Sap; chain mail AC 16, Strength 13, stealth disadvantage).
 3. **Creation use-cases.** `startCreation`, `answerCreation`, `proposeCharacter` (`DecisionModel`

@@ -1,5 +1,6 @@
 import { color, font, shape, voice } from "@bardcast/brand";
 import { useEffect, type ReactNode } from "react";
+import { SRD_ATTRIBUTION } from "@bardcast/srd/source";
 import { styles } from "../ui.js";
 
 /**
@@ -88,6 +89,8 @@ export function YourData({ signedIn, onBack, onOpenLogin }: { signedIn: boolean;
         <Item name="ElevenLabs">Builds your voice clone, with your consent, and speaks your lines in it.</Item>
         <Item name="Cloudflare">Hosts Bardcast, and reads the transcripts of your answers to work out your character's traits.</Item>
       </Section>
+
+      <p style={{ ...styles.muted, fontSize: 13, marginTop: 56 }}>{SRD_ATTRIBUTION}</p>
 
       {!signedIn && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12, marginTop: 48 }}>

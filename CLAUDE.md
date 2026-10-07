@@ -73,6 +73,10 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 ## Conventions
 
 - Shared types live in `@bardcast/domain` and are imported everywhere. Don't redefine them per app.
+- Game-rules data (classes, species, equipment, …) comes from `@bardcast/srd`, the SRD 5.2. Its
+  `src/generated` is produced by its importer from a pinned commit: never hand-edit it, and fix
+  source errors in the importer's `CORRECTIONS`. Anything that shows SRD material to people also
+  shows `SRD_ATTRIBUTION` (CC-BY-4.0); see `NOTICE`.
 - Each lexicon JSON has a matching Zod schema in `@bardcast/domain`. Keep them in sync; the Zod schema
   is what runtime code validates against.
 - Mark every unimplemented seam with `TODO(bardcast): ...` so they're greppable.
