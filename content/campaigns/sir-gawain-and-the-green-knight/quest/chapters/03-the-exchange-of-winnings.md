@@ -30,7 +30,7 @@ campaign, and the richest beat for **behavior** signal (how the character resolv
 values conflict).
 
 ## Resolution notes
-Social **checks** (persuasion/resolve) keyed to sheet traits, run as three parallel
+Social **checks** (Charisma (Persuasion) checks, Wisdom saves for resolve), run as three parallel
 threads (the intercut hunts and temptations). The concealment is a **player choice**
 that becomes a decision-node checkpoint — it directly determines the nick at the
 chapel. Failure here is moral/social, not lethal.

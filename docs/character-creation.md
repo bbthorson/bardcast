@@ -1,6 +1,7 @@
 # Building a character
 
-**Status: decided, not built** (2026-10-07). Revises the split in
+**Status: decided 2026-10-07.** The record model and the SRD data are built; character creation
+isn't yet (see [Build order](#build-order)). Revises the split in
 [`character-model.md`](character-model.md): the character sheet moves from the campaign's space into
 the player's own repo, and a campaign holds a **seat** that branches from it.
 
@@ -19,7 +20,7 @@ the player's own repo, and a campaign holds a **seat** that branches from it.
 5. **A player can have several characters.** The You tab (far right) lists them, the way the
    Campaigns tab (far left) lists campaigns.
 6. **Progress comes home.** What a character earns at a table can be carried back to the player's
-   own sheet. The table's state is kept either way.
+   own sheet once their seat closes (decision 9). The table's state is kept either way.
 7. **The Bardcast narrator asks the session-zero questions.** It's one stock narrator voice, not the
    DM's and not the player's.
 8. **Clef may suggest ability scores during creation; the player places them.** This replaces "ability
@@ -37,9 +38,9 @@ the player's own repo, and a campaign holds a **seat** that branches from it.
 
 ## The record model
 
-The current model puts `character.sheet` in the campaign's space, so the sheet can't exist apart
-from a campaign. We already have a campaign lexicon (`campaign.campaign`). What's missing is a
-record that joins a player-owned sheet to a campaign. Call it a **seat**.
+Before this, `character.sheet` lived in the campaign's space, so a sheet couldn't exist apart
+from a campaign. We already had a campaign lexicon (`campaign.campaign`). What was missing was a
+record that joins a player-owned sheet to a campaign: the **seat**.
 
 | Record | Where it lives | Key | Change |
 |---|---|---|---|
@@ -169,12 +170,12 @@ The join flow asks for them, and the DM can suggest picks.
 
 ## The experience
 
-**Entry points.** The You tab lists the player's characters, with "Make a character" at the end. And from an invite: "Bring a character" lists
-the player's characters and offers "Make a new one". If the campaign has guidance, it shows in the
-DM's hand (Kalam).
+**Entry points.** The You tab lists the player's characters, with "Make a character" at the end.
+And from an invite: "Bring a character" lists the player's characters and offers "Make a new one".
+If the campaign has guidance, it shows in the DM's hand (Kalam).
 
-**Session zero, out loud.** The Bardcast narrator asks five to seven questions, one at a time, answered by voice (with a text
-fallback). Example questions:
+**Session zero, out loud.** The Bardcast narrator asks five to seven questions, one at a time,
+answered by voice (with a text fallback). Example questions:
 
 - "Who are you when nobody's watching?"
 - "What did you leave behind?"
@@ -228,18 +229,21 @@ post: authority the user's DID", which is marked *to confirm before it's built*
 
 ## Build order
 
-Step 1 is built except the profile-key change in the app (the lexicon says `tid`, but the web app
-still keys a joined character by the player's DID) and the NSID swap, which waits on a domain.
-`sheet.ts` and `seat.ts` in `@bardcast/domain` hold the sheet, the seat, `sheetAtLevel`,
-`joinCampaign` and `bringHome`; the `Store` has owned sheets and seats.
+Steps 1 and 2 are built. Step 1 still lacks three things: the profile-key change in the web app
+(the lexicon says `tid`, but the app still keys a joined character by the player's DID), the D2
+row in Antiphony's spec, and the NSID swap, which waits on a domain. `ROADMAP.md` (M3b) tracks
+what's left.
 
-1. **Model.** Lexicons (profile keyed by `tid`, a player-owned sheet with an advancement log, a new
-   `campaign.seat`, and campaign `startingLevel`/`characterGuidance`). Zod mirrors in
-   `@bardcast/domain`. `Store` gets `getSeat`/`putSeat` and owned-sheet methods. Rewrite
-   `character-model.md`, the `/your-data` page and the consent copy so they say the sheet is yours.
-   Update the D2 row in Antiphony's spec to include sheets.
-2. **5e core.** *Built 2026-10-07* (`packages/srd`; see its README). An SRD 5.2 subset in a new `packages/srd`: classes, species, backgrounds, feats,
-   equipment (weapons with damage, properties and mastery; armor with AC, Dex cap, Strength minimum
+1. **Model.** *Built.* Lexicons: profile keyed by `tid` with a `sheet` ref to the current version;
+   the sheet as immutable versions with an advancement log, equipment and `prev`; a new
+   `campaign.seat` and `campaign.action`; campaign `startingLevel`, `characterGuidance` and
+   `gearPolicy`. Zod mirrors and the pure logic in `@bardcast/domain` (`sheet.ts`, `seat.ts`,
+   `items.ts`, `action.ts`); the orchestrator's `use-cases/sheets.ts` and `use-cases/actions.ts`;
+   insert-only sheet versions and actions, and seats, in all three `Store` adapters.
+   `character-model.md`, `/your-data` and the consent copy say the sheet is yours. Still to do:
+   update the D2 row in Antiphony's spec to include sheets.
+2. **5e core.** *Built 2026-10-07* (`packages/srd`; see its README). An SRD 5.2 subset: classes,
+   species, backgrounds, feats, equipment (weapons with damage, properties and mastery; armor with AC, Dex cap, Strength minimum
    and stealth), starting kits, skills and conditions. Spells, monsters and magic items wait.
    - **Source:** `5e-bits/5e-srd-api`, `packages/5e-database/src/2024/en` (checked 2026-10-07 at
      `05c109ea1f6b`). Its 2024 data is structured, not just prose: 12 classes with level tables and
@@ -257,12 +261,15 @@ still keys a joined character by the player's DID) and the NSID swap, which wait
      source also has some UTF-8 damage ("artisanâ€™s"), repaired on import.
    - Spot-check against the SRD itself in tests (longsword 1d8 slashing, versatile 1d10, mastery
      Sap; chain mail AC 16, Strength 13, stealth disadvantage).
-3. **Creation use-cases.** `startCreation`, `answerCreation`, `proposeCharacter` (`DecisionModel`
+3. **AC and attacks.** Armor class and attack and damage bonuses from equipped items, read from
+   `@bardcast/srd` (armor category, Dex cap, shield, weapon damage and properties), with the
+   +1 to +3 bonus on top.
+4. **Creation use-cases.** `startCreation`, `answerCreation`, `proposeCharacter` (`DecisionModel`
    choices), `reviseLine`, and `confirmCharacter` (writes the profile and sheet). Prose for the card
    goes through `NarrativeWriter`.
-4. **Screens.** Session zero (reuse the recorder), the reveal card with front and back, the seal
+5. **Screens.** Session zero (reuse the recorder), the reveal card with front and back, the seal
    press, and the invite flow's character picker.
-5. **Projection.** Write profile, sheet and seat records once repo scopes land.
+6. **Projection.** Write profile, sheet and seat records once repo scopes land.
 
 ## Navigation
 

@@ -1,8 +1,9 @@
 # Bardcast MVP roadmap
 
 Tracking doc for the path to a first real episode. Check items off as they land; keep this file
-honest — it should always match what's actually in the tree. Last full audit: **2026-09-28**
-(typecheck green across all workspaces, 17/17 tests passing across domain + orchestrator with in-process PGlite).
+honest — it should always match what's actually in the tree. Last full audit: **2026-10-07**
+(typecheck green across all workspaces; 93/93 tests passing across srd (11), domain (29) and
+orchestrator (53), the store tests against in-process PGlite and SQLite).
 
 ## MVP definition (exit criteria)
 
@@ -49,8 +50,9 @@ No external dependencies; can start immediately.
 Everything downstream is fake until state survives a restart.
 
 - [x] Decide the `Store` backing: **PostgreSQL** matching Antiphony's narrow `SqlClient` port design
-      (drivers for Neon HTTP, `pg`, and in-process PGlite for tests). Production backing is still open under
-      the Cloudflare-only rule (D1 vs. Postgres via Hyperdrive); see `docs/hosting.md`.
+      (drivers for Neon HTTP, `pg`, and in-process PGlite for tests).
+- [x] Production backing under the Cloudflare-only rule: **D1** (`D1Store`, binding `DB`), deployed;
+      see `docs/hosting.md`.
 - [x] Real `Store` adapter (`PostgresStore`) replacing `in-memory-store.ts`, with auto-migration (`schema.sql`)
       and bootstrap for the *Sir Gawain and the Green Knight* seed.
 - [x] Persistent AT-Proto sessions: now the shared `@bbthorson/atproto-cf-auth` package with a D1
@@ -66,6 +68,30 @@ The `apps/web` screens exist but manage state client-side; give them real endpoi
       validates code and adds the player's DID to the roster.
 - [x] Wire `CreateCampaign`, `JoinInvite`, and `Dashboard` to those endpoints; support dynamic campaign
       and character URLs with live orchestrator state.
+
+## M3b — Characters
+
+The player makes and owns their characters; a campaign seats them. Design and decisions:
+[`docs/character-creation.md`](./docs/character-creation.md).
+
+- [x] Player-owned **character sheet** as immutable versions (`prev` chain, real TID + CID refs,
+      stale writes refused), written only through `use-cases/sheets.ts`.
+- [x] **Campaign seat** branched from a sheet: reset to the table's starting level, starting items per
+      the campaign's gear policy, levels earned at the table, reply-inferred traits.
+- [x] Append-only **action log** (`campaign.action`) committed per finished chapter; seat hit points,
+      conditions and items derived by replaying it.
+- [x] Seats close; **bringing progress home** carries levels and gear (never hit points) back as a new
+      sheet version, or asks the player when histories diverged.
+- [x] **SRD 5.2 data** (`packages/srd`): generated from a pinned 5e-bits commit, validated,
+      spot-checked, attributed (CC-BY-4.0).
+- [ ] AC and attack math from equipped gear (SRD armor and weapons).
+- [ ] Character creation: session-zero use-cases (Bardcast narrator asks, Clef suggests, the player
+      confirms), then the screens (reveal card, seal press, invite flow's character picker).
+- [ ] The You tab lists a player's characters; the web app stops keying a joined character by the
+      player's DID (profiles are keyed by `tid` now).
+- [ ] Update the authority table (D2) in Antiphony's `specs/atproto-authority-model.md`: sheets are
+      the player's, and creation recordings need the "solo user's own post" row confirmed.
+- [ ] Decide campaigns with fixed characters (the Green Knight casting Gawain): a `characterPolicy`.
 
 ## M4 — Voice pipeline (ElevenLabs)
 
@@ -84,6 +110,9 @@ The `apps/web` screens exist but manage state client-side; give them real endpoi
 
 - [ ] Real `NarrativeWriter` adapter (canon + character state → chapter script with dice
       checkpoints).
+- [ ] Wire the Resolve stage: run beats through `abilityCheck` (today it's only called in tests;
+      chapters are written with an empty `rollLog`) and commit the chapter's actions with
+      `commitChapterActions` once it's ready.
 - [x] Trait inference from reply transcripts in `ingest-replies`, through the `DecisionModel` port
       (Clef-flash on Workers AI) over a closed trait vocabulary. Independent of the `NarrativeWriter`.
 - [ ] Drive inference from reply transcripts (onto the durable `CharacterProfile`).
@@ -109,4 +138,7 @@ The `apps/web` screens exist but manage state client-side; give them real endpoi
 
 - Bluesky-communities engagement adapter (held open behind the port; API unreleased).
 - Swapping the placeholder `game.bardcast.*` NSID root — required before *publishing* records, not
-  before the loop works.
+  before the loop works. It blocks the next item, since OAuth repo scopes name the NSID.
+- Writing records to players' repos (profile, sheet versions) and the campaign space: needs OAuth
+  repo scopes and a Durable Object refresh lock (`docs/hosting.md`). State lives in the `Store`
+  until then, per the state-drives-records rule.

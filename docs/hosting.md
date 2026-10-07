@@ -1,6 +1,6 @@
 # Bardcast hosting
 
-Where Bardcast runs. Updated 2026-10-04.
+Where Bardcast runs. Updated 2026-10-07.
 
 ## Rule: Cloudflare only
 
@@ -21,7 +21,7 @@ Audited against the repo and the Cloudflare account on 2026-10-03.
 | Orchestrator API (`services/orchestrator`) | **The same Worker**, for `/api/*`, `/atproto/*` and `/healthz` (`run_worker_first`) | `services/orchestrator/src/worker.ts` |
 | Engine (Antiphony) | **Cloudflare Worker `antiphony-core-api`**, R2 `antiphony-r2-bucket` | Antiphony's own repo |
 | `apps/player`, `apps/dm` | **Not deployed.** Local dev only | no deploy config in repo |
-| Database | **D1 `bardcast`**, binding `DB`. Tables are created on the first API request | `services/orchestrator/src/adapters/d1/d1.ts` |
+| Database | **D1 `bardcast`**, binding `DB`. Tables are created on the first API request, including `sheet_versions`, `campaign_seats` and `campaign_actions` (the old `character_sheets` table stays in existing databases, unread) | `services/orchestrator/src/adapters/d1/d1.ts` |
 | Chapter / voice audio | **No Bardcast bucket yet** | — |
 
 There is no Dockerfile, no CI workflow and no non-Cloudflare deploy config in this repo.
@@ -49,7 +49,10 @@ the package Brad's Bluesky apps share. Its README covers how it works. In Bardca
   tests). With real sign-in on, only the session cookie names the caller.
 - **Lock.** The package's default refresh lock is per-isolate. Bardcast does not yet call
   a player's PDS with their OAuth session, so nothing contends for it.
-  TODO(bardcast): pass a Durable Object `requestLock` before the first PDS write.
+  TODO(bardcast): pass a Durable Object `requestLock` before the first PDS write. That
+  first write will be a character's profile and sheet versions, which also needs repo
+  scopes in place of the default `atproto` scope (`docs/character-creation.md`,
+  "Prerequisites").
 
 ## Target for the pieces not yet deployed
 

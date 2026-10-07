@@ -3,7 +3,7 @@
 The arc Bardcast staff have laid out and the DM steers the party through. Four
 beats, roughly one per chapter. Each beat names its location, the NPCs in play, the
 central choice, and the kind of check that resolves it (the dice engine keys off
-character-sheet traits — see `docs/story-engine.md §3`).
+the sheet's ability scores and skills — see `docs/story-engine.md §3`).
 
 1. [The Beheading Game](./chapters/01-the-beheading-game.md)
 2. [The Journey North](./chapters/02-the-journey-north.md)

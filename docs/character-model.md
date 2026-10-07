@@ -1,6 +1,7 @@
 # Character model: what is durable, what is per campaign
 
-**Status:** decided 2026-09-24. Each Bardcast campaign becomes an atproto
+**Status:** decided 2026-09-24, revised 2026-10-07 (the sheet became the
+player's; see [`character-creation.md`](character-creation.md)). Each Bardcast campaign becomes an atproto
 **space** under Bardcast's own DID, keyed by `skey` (see Antiphony's
 `specs/atproto-authority-model.md`, Decision 2). This doc says which character
 records live in the player's repo and which live in the campaign's space.
@@ -9,7 +10,9 @@ records live in the player's repo and which live in the campaign's space.
 
 `character.sheet` was keyed `literal:self` in the player's repo: one sheet per
 character, everywhere. A character in two concurrent campaigns could not carry
-25 AC in one and 14 AC in the other.
+25 AC in one and 14 AC in the other. The first fix (2026-09-24) moved the sheet into
+each campaign's space; the second (2026-10-07) gave it back to the player and put a
+**seat** in each campaign instead.
 
 ## The split
 
