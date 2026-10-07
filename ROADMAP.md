@@ -91,8 +91,8 @@ The player makes and owns their characters; a campaign seats them. Design and de
       player's DID (profiles are keyed by `tid` now).
 - [x] Update the authority table in Antiphony's `specs/atproto-authority-model.md`: D2 says sheets
       are the player's; D6 records the character model.
-- [ ] Decide where character-creation recordings live (Antiphony D6; leaning: a private space per
-      player under Bardcast's DID).
+- [x] Decide where character-creation recordings live: a private space per player under Bardcast's
+      DID, created when they start their first character (Antiphony D6).
 - [ ] Decide campaigns with fixed characters (the Green Knight casting Gawain): a `characterPolicy`.
 
 ## M4 — Voice pipeline (ElevenLabs)

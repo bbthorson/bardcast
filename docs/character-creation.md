@@ -205,19 +205,25 @@ them arrive.
 
 ## Where creation recordings live
 
-**Open; decide before the first kept creation recording.** Campaign recordings belong to the
-campaign's space. Creation happens outside any campaign, so its recordings need a home of their own,
-and Antiphony's authority table has none that fits (`antiphony/specs/atproto-authority-model.md`,
+**Decided 2026-10-07: a private space per player.** Campaign recordings belong to the campaign's
+space. Creation happens outside any campaign, so its recordings need a home of their own, and none
+of the existing rows in Antiphony's authority table fit (`antiphony/specs/atproto-authority-model.md`,
 D6):
 
 - **"A solo user's own post"** (authority: the user's DID) fails Antiphony's custody check, because
   a player's DID is their own Bluesky DID, pointing at their own PDS.
 - **The player's repo** is public, and these are raw voice recordings used for cloning.
 
-The leaning option is a **private space per player** under Bardcast's DID (space type e.g.
-`game.bardcast.space.player`, `skey` the player's DID), visible to the player and Bardcast only.
-Bardcast keeps the raw audio; what travels with the player is the profile, the sheet and the voice
-profile.
+So each player gets a **private space** under Bardcast's DID:
+
+- **One per player, not per character** (`SpaceTypes.player` in `packages/domain/src/nsid.ts`,
+  `skey` the player's DID). Every character they make records into it.
+- **Created when they start their first character**, not at sign-up, so a player who only listens
+  never gets one. Later characters reuse it.
+- **Only that player can read it** (`managing-app` policy; Bardcast answers yes for them alone). The
+  narrator's questions are prompts in the space and the answers are replies, so they inherit it.
+- **Bardcast keeps the raw audio.** What travels with the player is what's in their own repo: the
+  profile, the sheet versions and the voice profile.
 
 ## Prerequisites (true today)
 
@@ -272,9 +278,10 @@ what's left.
 3. **AC and attacks.** Armor class and attack and damage bonuses from equipped items, read from
    `@bardcast/srd` (armor category, Dex cap, shield, weapon damage and properties), with the
    +1 to +3 bonus on top.
-4. **Creation use-cases.** `startCreation`, `answerCreation`, `proposeCharacter` (`DecisionModel`
-   choices), `reviseLine`, and `confirmCharacter` (writes the profile and sheet). Prose for the card
-   goes through `NarrativeWriter`.
+4. **Creation use-cases.** `startCreation` (first ensures the player's private space, via a new
+   `AntiphonyGateway.ensureSpace`), `answerCreation`, `proposeCharacter` (`DecisionModel` choices),
+   `reviseLine`, and `confirmCharacter` (writes the profile and sheet). Prose for the card goes
+   through `NarrativeWriter`.
 5. **Screens.** Session zero (reuse the recorder), the reveal card with front and back, the seal
    press, and the invite flow's character picker.
 6. **Projection.** Write profile, sheet and seat records once repo scopes land.

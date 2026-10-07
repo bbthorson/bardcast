@@ -53,7 +53,7 @@ export function VoiceClone({ profile, startClone, linkPvc, setIvc, revoke, onBac
 const CONSENT_TERMS: { title: string; body: string }[] = [
   {
     title: "Your recordings",
-    body: "Every answer you record is stored by Antiphony, the audio service Bardcast is built on, in your campaign's private space. Your DM and your party can hear them; nobody else can. They stay with the campaign whether or not you clone your voice.",
+    body: "Every answer you record is stored by Antiphony, the audio service Bardcast is built on. Answers at the table go in your campaign's private space: your DM and your party can hear them, nobody else can, and they stay with the campaign. Answers while you make a character go in a private space only you can hear. Either way they're kept whether or not you clone your voice.",
   },
   {
     title: "Your clone",
@@ -65,7 +65,7 @@ const CONSENT_TERMS: { title: string; body: string }[] = [
   },
   {
     title: "Taking it back",
-    body: "Revoke whenever you like. We delete the clone at ElevenLabs and stop using your voice in new chapters. Chapters already told stay as they are, and your recordings stay with the campaign.",
+    body: "Revoke whenever you like. We delete the clone at ElevenLabs and stop using your voice in new chapters. Chapters already told stay as they are, and your recordings stay where they are.",
   },
 ];
 
@@ -178,7 +178,7 @@ function Ready({ status, modelRef, onRevoke, onDone }: { status: "ivc" | "pvc"; 
         Reference: <span style={{ fontFamily: font.mono, color: color.chalk }}>{modelRef}</span>
       </p>
       <p style={{ ...styles.muted, fontSize: 14 }}>
-        Revoking deletes the clone at ElevenLabs. Chapters already told keep your voice, and your recordings stay with the campaign in Antiphony.
+        Revoking deletes the clone at ElevenLabs. Chapters already told keep your voice, and your recordings stay where they are in Antiphony.
       </p>
       <div style={{ ...styles.row, marginTop: "1rem", gap: "0.5rem" }}>
         <button style={styles.danger} onClick={onRevoke}>Revoke consent &amp; unlink</button>

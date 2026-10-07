@@ -73,13 +73,17 @@ export function YourData({ signedIn, onBack, onOpenLogin }: { signedIn: boolean;
       </Section>
 
       <Section title="Your voice">
+        <Item name="Your character-building answers">
+          What you say out loud while making a character. Stored by Antiphony in a private space only you can hear, not in your public account. Bardcast
+          keeps them, and they're where your voice clone starts.
+        </Item>
         <p style={para}>
           Bardcast only clones your voice if you say yes. When you do, we send your recordings to ElevenLabs, which builds the clone. We keep a reference to it,
           never a copy.
         </p>
         <p style={para}>
           You can take it back whenever you like. We delete the clone at ElevenLabs and stop using your voice in new chapters. Chapters already told stay as
-          they are, and your recordings stay with the campaign.
+          they are, and your recordings stay where they are.
         </p>
       </Section>
 
