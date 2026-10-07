@@ -1,6 +1,7 @@
 import type { CoreServices } from "./ports/index.js";
 import {
   checkReadiness,
+  currentSheet,
   generateChapter,
   ingestReplies,
   NotReadyError,
@@ -203,7 +204,7 @@ export function createApp(svc: CoreServices): Hono {
 
     const [profile, sheet, seat, behavior, voice] = await Promise.all([
       svc.store.getCharacter(characterId),
-      svc.store.getCharacterSheet(characterId),
+      currentSheet(svc, characterId).then((v) => v?.sheet ?? null),
       svc.store.getSeat(campaignId, characterId),
       svc.store.getBehavior(characterId),
       svc.store.getVoice(characterId),

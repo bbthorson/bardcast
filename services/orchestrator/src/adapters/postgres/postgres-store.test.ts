@@ -108,23 +108,31 @@ describe("PostgresStore & AT-Proto Stores (PGlite in-process)", () => {
     expect(seat2?.traits[0]?.value).toBe("14");
   });
 
-  it("keeps a player's own sheet apart from their seats", async () => {
+  it("stores sheet versions insert-only, oldest first", async () => {
     const charId = "char.carys";
-    const now = new Date().toISOString();
-    const sheet = {
+    const sheet = (createdAt: string, quirk: string) => ({
       character: `at://${charId}` as const,
       class: "rogue" as const,
       abilities: { strength: 8, dexterity: 15, constitution: 13, intelligence: 12, wisdom: 10, charisma: 14 },
       features: ["Sneak Attack"],
-      advancements: [{ level: 2, hitPoints: 5, features: ["Cunning Action"], createdAt: now }],
-      traits: [{ name: "temperament", value: "cautious" }],
-      quirks: ["Counts the exits"],
-      createdAt: now,
+      advancements: [],
+      traits: [],
+      quirks: [quirk],
+      createdAt,
+    });
+    const v1 = { ref: { uri: `at://did:plc:carys/game.bardcast.character.sheet/3aaa`, cid: "bafyv1" }, sheet: sheet("2026-10-01T00:00:00.000Z", "Counts the exits") };
+    const v2 = {
+      ref: { uri: `at://did:plc:carys/game.bardcast.character.sheet/3bbb`, cid: "bafyv2" },
+      sheet: { ...sheet("2026-10-02T00:00:00.000Z", "Hums when nervous"), prev: v1.ref },
     };
-    await store.putCharacterSheet(charId, sheet);
-    expect(await store.getCharacterSheet(charId)).toEqual(sheet);
+    await store.putSheetVersion(charId, v2.ref, v2.sheet);
+    await store.putSheetVersion(charId, v1.ref, v1.sheet);
+
+    expect(await store.getSheetVersion(v1.ref.uri)).toEqual(v1);
+    expect(await store.listSheetVersions(charId)).toEqual([v1, v2]);
+    await expect(store.putSheetVersion(charId, v1.ref, v2.sheet)).rejects.toThrow();
+    expect(await store.getSheetVersion(v1.ref.uri)).toEqual(v1);
     expect(await store.getSeat("camp.1", charId)).toBeNull();
-    expect(await store.getCharacterSheet("char.nobody")).toBeNull();
   });
 
   it("persists behavior models and voice profiles", async () => {

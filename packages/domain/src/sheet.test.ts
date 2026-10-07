@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { bringHome, chooseHistory, joinCampaign, playSeat, seatSheet, type CampaignSeat } from "./seat.js";
-import { CharacterSheet, levelOf, playSheet, proficiencyBonus, sheetAtLevel, type Advancement } from "./sheet.js";
+import { CharacterSheet, levelOf, levelUp, nextVersion, playSheet, proficiencyBonus, sheetAtLevel, type Advancement } from "./sheet.js";
 
 const T = "2026-10-01T00:00:00Z";
 const NOW = "2026-10-07T00:00:00Z";
@@ -80,44 +80,69 @@ describe("a seat at the table", () => {
   });
 });
 
+describe("versions", () => {
+  it("never edits a version: a change is a new one pointing back", () => {
+    const v1 = gawain(1);
+    const frozen = structuredClone(v1);
+    const v2 = levelUp(v1, REF, adv(2), NOW);
+    expect(v1).toEqual(frozen);
+    expect(v2.prev).toEqual(REF);
+    expect(v2.createdAt).toBe(NOW);
+    expect(levelOf(v2)).toBe(2);
+    expect(() => levelUp(v1, REF, adv(3), NOW)).toThrow(); // levels can't skip
+  });
+
+  it("carries the narrative face forward unless changed", () => {
+    const v2 = nextVersion(gawain(1), REF, { quirks: ["Keeps the green girdle"] }, NOW);
+    expect(v2.quirks).toEqual(["Keeps the green girdle"]);
+    expect(v2.class).toBe("fighter");
+  });
+});
+
 describe("bringing progress home", () => {
+  const SEAT_URI = "at://did:web:bardcast/space/campaign/thornwood/did:plc:alice/game.bardcast.campaign.seat/did:plc:alice";
+  const home = (current: CharacterSheet) => ({ current, currentRef: REF, seatUri: SEAT_URI, now: NOW });
   const sat = (sheet: CharacterSheet, startingLevel: number, earned: Advancement[]): CampaignSeat => ({
     ...joinCampaign({ campaign: "at://campaign.thornwood", sheet, sheetRef: REF, startingLevel, createdAt: T }),
     advancements: earned,
   });
 
-  it("fast-forwards when the owned sheet hasn't moved", () => {
-    const owned = gawain(3);
-    const result = bringHome(owned, sat(owned, 3, [adv(4), adv(5)]), NOW);
+  it("fast-forwards to a new version when the current one hasn't moved", () => {
+    const current = gawain(3);
+    const frozen = structuredClone(current);
+    const result = bringHome(sat(current, 3, [adv(4), adv(5)]), home(current));
     expect(result.kind).toBe("fast-forward");
     if (result.kind !== "fast-forward") return;
     expect(levelOf(result.sheet)).toBe(5);
-    expect(result.sheet.quirks).toEqual(owned.quirks);
-    expect(result.sheet.updatedAt).toBe(NOW);
+    expect(result.sheet.prev).toEqual(REF);
+    expect(result.sheet.fromSeat).toBe(SEAT_URI);
+    expect(result.sheet.quirks).toEqual(current.quirks);
+    expect(current).toEqual(frozen);
   });
 
-  it("has nothing new when the table is behind the owned sheet", () => {
-    const owned = gawain(8);
-    expect(bringHome(owned, sat(owned, 3, [adv(4)]), NOW).kind).toBe("nothing-new");
+  it("has nothing new when the table is behind the current sheet", () => {
+    const current = gawain(8);
+    expect(bringHome(sat(current, 3, [adv(4)]), home(current)).kind).toBe("nothing-new");
   });
 
   it("asks the player when both have levelled differently", () => {
-    const thornwood = gawain(3);
-    const seat = sat(thornwood, 3, [adv(4), adv(5), adv(6)]);
-    // Meanwhile, another table took the owned sheet to 5 with different rolls.
-    const owned = gawain(5, (a) => (a.level >= 4 ? { ...a, hitPoints: 9 } : a));
-    const result = bringHome(owned, seat, NOW);
+    const seat = sat(gawain(3), 3, [adv(4), adv(5), adv(6)]);
+    // Meanwhile, another table took their sheet to 5 with different rolls.
+    const current = gawain(5, (a) => (a.level >= 4 ? { ...a, hitPoints: 9 } : a));
+    const result = bringHome(seat, home(current));
     expect(result).toMatchObject({ kind: "diverged", fromLevel: 4 });
     if (result.kind !== "diverged") return;
-    expect(levelOf(chooseHistory(owned, result.table, "table", NOW))).toBe(6);
-    expect(chooseHistory(owned, result.table, "owned", NOW)).toBe(owned);
+    const taken = chooseHistory(result.table, "table", home(current));
+    expect(levelOf(taken!)).toBe(6);
+    expect(taken!.prev).toEqual(REF);
+    expect(chooseHistory(result.table, "owned", home(current))).toBeNull();
   });
 
   it("never changes the seat", () => {
-    const owned = gawain(3);
-    const seat = sat(owned, 3, [adv(4)]);
+    const current = gawain(3);
+    const seat = sat(current, 3, [adv(4)]);
     const before = structuredClone(seat);
-    bringHome(owned, seat, NOW);
+    bringHome(seat, home(current));
     expect(seat).toEqual(before);
   });
 });

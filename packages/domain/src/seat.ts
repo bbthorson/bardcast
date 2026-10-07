@@ -10,6 +10,7 @@ import {
   sameAdvancement,
   sameBase,
   sheetAtLevel,
+  nextVersion,
   type PlayedSheet,
 } from "./sheet.js";
 
@@ -114,42 +115,58 @@ export function playSeat(seat: CampaignSeat): PlayedSeat | null {
  * What happens when a player brings a character's progress home from a table.
  *
  * - `nothing-new`: the table hasn't taken them past their own sheet's level.
- * - `fast-forward`: their own sheet is still where the table branched from it;
- *   the table's levels simply follow on. `sheet` is the updated owned sheet.
+ * - `fast-forward`: their current sheet is still where the table branched from
+ *   it; the table's levels follow on. `sheet` is the NEW version to write, with
+ *   `prev` pointing at their current one.
  * - `diverged`: both have levelled differently since (another table, an edit).
- *   The player chooses; `chooseHistory` applies the choice.
+ *   The player chooses; `chooseHistory` makes the version for that choice.
  *
- * The seat is never changed: campaign state is kept either way.
+ * Nothing is overwritten: the seat is unchanged, and the player's earlier
+ * versions stay in their history.
  */
 export type HomeComing =
   | { kind: "nothing-new" }
   | { kind: "fast-forward"; sheet: CharacterSheet }
   | { kind: "diverged"; fromLevel: number; table: CharacterSheet };
 
-export function bringHome(owned: CharacterSheet, seat: CampaignSeat, now: string): HomeComing {
-  const table = seatSheet(seat);
-  if (!table || levelOf(table) <= levelOf(owned)) return { kind: "nothing-new" };
+export interface Home {
+  /** The player's current sheet version and its ref. */
+  current: CharacterSheet;
+  currentRef: StrongRef;
+  /** The seat's own AT-URI, recorded on the new version as `fromSeat`. */
+  seatUri: string;
+  now: string;
+}
 
-  if (!sameBase(owned, table)) return { kind: "diverged", fromLevel: 1, table };
-  const shared = owned.advancements.findIndex((a, i) => !sameAdvancement(a, table.advancements[i]!));
+export function bringHome(seat: CampaignSeat, home: Home): HomeComing {
+  const { current } = home;
+  const table = seatSheet(seat);
+  if (!table || levelOf(table) <= levelOf(current)) return { kind: "nothing-new" };
+
+  if (!sameBase(current, table)) return { kind: "diverged", fromLevel: 1, table };
+  const shared = current.advancements.findIndex((a, i) => !sameAdvancement(a, table.advancements[i]!));
   if (shared !== -1) return { kind: "diverged", fromLevel: shared + 2, table };
 
-  return { kind: "fast-forward", sheet: withHistory(owned, table, now) };
+  return { kind: "fast-forward", sheet: withHistory(table, home) };
 }
 
-/** Resolve a divergence. "table" takes the table's history; "owned" keeps the sheet as it is. */
-export function chooseHistory(owned: CharacterSheet, table: CharacterSheet, choice: "table" | "owned", now: string): CharacterSheet {
-  return choice === "owned" ? owned : withHistory(owned, table, now);
+/**
+ * Resolve a divergence. "table" makes a new version carrying the table's
+ * history; "owned" keeps the current version, so there is nothing to write.
+ */
+export function chooseHistory(table: CharacterSheet, choice: "table" | "owned", home: Home): CharacterSheet | null {
+  return choice === "owned" ? null : withHistory(table, home);
 }
 
-/** The owned sheet's narrative face, with the table's mechanics. */
-function withHistory(owned: CharacterSheet, table: CharacterSheet, now: string): CharacterSheet {
-  return {
-    ...owned,
-    class: table.class,
-    abilities: table.abilities,
-    features: table.features,
-    advancements: table.advancements,
-    updatedAt: now,
-  };
+/** A new version: the current sheet's narrative face, with the table's mechanics. */
+function withHistory(table: CharacterSheet, home: Home): CharacterSheet {
+  return CharacterSheet.parse({
+    ...nextVersion(
+      home.current,
+      home.currentRef,
+      { class: table.class, abilities: table.abilities, features: table.features, advancements: table.advancements },
+      home.now,
+    ),
+    fromSeat: home.seatUri,
+  });
 }

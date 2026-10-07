@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AtUri, Did, IsoDateTime, StoryDate } from "./ids.js";
+import { AtUri, Did, IsoDateTime, StoryDate, StrongRef } from "./ids.js";
 
 /**
  * Zod mirror of game.bardcast.character.profile. Keep in sync with the lexicon.
@@ -14,6 +14,8 @@ export const CharacterProfile = z.object({
   concept: z.string().max(300).optional(),
   pronouns: z.string().max(40).optional(),
   drives: z.array(z.string().max(200)).max(32).default([]),
+  /** The character's current sheet version. Moves forward as new versions are written. */
+  sheet: StrongRef.optional(),
   createdAt: IsoDateTime,
 });
 export type CharacterProfile = z.infer<typeof CharacterProfile>;

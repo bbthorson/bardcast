@@ -19,7 +19,7 @@ a seat branched from it. See [`character-creation.md`](character-creation.md).*
 | Record | Where it lives | Key | Why |
 |---|---|---|---|
 | `character.profile` (name, concept, pronouns, **drives**) | Player's repo | `tid` | Who the character is. A player can have several. Portable off Bardcast. |
-| `character.sheet` (5e backbone, advancement log, traits, quirks) | Player's repo | the profile's rkey | The character's mechanics, owned by the player. Travels with them. |
+| `character.sheet` (5e backbone, advancement log, traits, quirks, `prev`) | Player's repo | `tid`, one per version | The character's mechanics, owned by the player. Immutable versions; the profile's `sheet` names the current one. Travels with them. |
 | `voice.profile` | Player's repo | `self` | The player's voice. Same in every campaign. |
 | Behavior model (app state, no lexicon yet) | Keyed on the character | — | How the character acts. Durable. |
 | `campaign.seat` (the sheet as brought, levels earned here, state, reply-inferred traits) | Campaign's space | player DID | The character at **this** table. |
@@ -39,8 +39,8 @@ player's sheet: progress reaches it only when the player brings it home
 mechanics. Sheets and seats both name their `character` (the profile's AT-URI)
 so they still say what they belong to when read out of context.
 
-In the orchestrator, `Store.getCharacterSheet`/`putCharacterSheet` take a
-character id; `Store.getSeat`/`putSeat` take `(campaignId, characterId)`. The
+In the orchestrator, sheet versions are written only through
+`use-cases/sheets.ts` (`Store.putSheetVersion` is insert-only); `Store.getSeat`/`putSeat` take `(campaignId, characterId)`. The
 readiness gate reads the seat of the campaign it is gating, and ingest is
 `POST /api/campaigns/:campaignId/characters/:characterId/ingest`.
 

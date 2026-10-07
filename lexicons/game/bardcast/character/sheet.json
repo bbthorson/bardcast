@@ -4,8 +4,8 @@
     "defs": {
         "main": {
             "type": "record",
-            "description": "A character's sheet, owned by the player: a D&D 5.1 SRD (CC-BY-4.0) backbone under a narrative face. Lives in the player's own repo at the same rkey as the character.profile it belongs to, and travels with them. Stored as level-1 choices plus an advancement log, so it can be replayed to any lower level when it joins a campaign. Campaigns never edit it; they branch a game.bardcast.campaign.seat from it.",
-            "key": "any",
+            "description": "One version of a character's sheet, owned by the player: a D&D 5.1 SRD (CC-BY-4.0) backbone under a narrative face. Lives in the player's own repo and travels with them. IMMUTABLE: a version is never edited. Every change is a new record whose `prev` points at the version it replaces, like a reply pointing at its parent, and the character.profile's `sheet` ref names the current one. Two versions sharing a `prev` are a fork. Stored as level-1 choices plus an advancement log, so it can be replayed to any lower level when it joins a campaign. Campaigns never write one; they branch a game.bardcast.campaign.seat from it.",
+            "key": "tid",
             "record": {
                 "type": "object",
                 "required": [
@@ -87,13 +87,20 @@
                         },
                         "description": "Free-text quirks: the narrative face a player reads first."
                     },
+                    "prev": {
+                        "type": "ref",
+                        "ref": "com.atproto.repo.strongRef",
+                        "description": "The version this one replaces. Absent on a character's first sheet."
+                    },
+                    "fromSeat": {
+                        "type": "string",
+                        "format": "at-uri",
+                        "description": "The campaign seat this version's levels came from, when progress was brought home."
+                    },
                     "createdAt": {
                         "type": "string",
-                        "format": "datetime"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "datetime"
+                        "format": "datetime",
+                        "description": "When this version was made."
                     }
                 }
             }
@@ -180,13 +187,20 @@
                     },
                     "description": "Free-text quirks: the narrative face a player reads first."
                 },
+                "prev": {
+                    "type": "ref",
+                    "ref": "com.atproto.repo.strongRef",
+                    "description": "The version this one replaces. Absent on a character's first sheet."
+                },
+                "fromSeat": {
+                    "type": "string",
+                    "format": "at-uri",
+                    "description": "The campaign seat this version's levels came from, when progress was brought home."
+                },
                 "createdAt": {
                     "type": "string",
-                    "format": "datetime"
-                },
-                "updatedAt": {
-                    "type": "string",
-                    "format": "datetime"
+                    "format": "datetime",
+                    "description": "When this version was made."
                 }
             }
         },

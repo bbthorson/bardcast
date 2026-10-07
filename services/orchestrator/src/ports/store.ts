@@ -6,8 +6,14 @@ import type {
   CampaignSeat,
   CharacterSheet,
   Prompt,
+  StrongRef,
   VoiceProfile,
 } from "@bardcast/domain";
+
+export interface SheetVersion {
+  ref: StrongRef;
+  sheet: CharacterSheet;
+}
 
 export interface CampaignInvite {
   code: string;
@@ -36,9 +42,16 @@ export interface Store {
   // characters and their derived signal
   getCharacter(id: string): Promise<CharacterProfile | null>;
   putCharacter(id: string, profile: CharacterProfile): Promise<void>;
-  /** The player-owned sheet: one per character, the same everywhere. */
-  getCharacterSheet(characterId: string): Promise<CharacterSheet | null>;
-  putCharacterSheet(characterId: string, sheet: CharacterSheet): Promise<void>;
+  /**
+   * Player-owned sheet versions. Immutable: a version is written once and
+   * never updated (putSheetVersion rejects a URI it already holds). The
+   * profile's `sheet` ref says which version is current; use-cases/sheets.ts
+   * is the only writer.
+   */
+  putSheetVersion(characterId: string, ref: StrongRef, sheet: CharacterSheet): Promise<void>;
+  getSheetVersion(uri: string): Promise<SheetVersion | null>;
+  /** Every version of a character's sheet, oldest first. */
+  listSheetVersions(characterId: string): Promise<SheetVersion[]>;
   /** A character's seat at one campaign, branched from their sheet. */
   getSeat(campaignId: string, characterId: string): Promise<CampaignSeat | null>;
   putSeat(campaignId: string, characterId: string, seat: CampaignSeat): Promise<void>;

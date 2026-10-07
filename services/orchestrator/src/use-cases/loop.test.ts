@@ -12,6 +12,7 @@ import type { AntiphonyGateway } from "../ports/antiphony-gateway.js";
 import { checkReadiness } from "./check-readiness.js";
 import { generateChapter, NotReadyError } from "./generate-chapter.js";
 import { ingestReplies } from "./ingest-replies.js";
+import { sheetHistory, writeSheetVersion } from "./sheets.js";
 
 /** A fake gateway that returns canned replies — no network. */
 function fakeGateway(transcripts: string[]): AntiphonyGateway {
@@ -183,11 +184,11 @@ describe("the Bardcast loop", () => {
       advancements: [2, 3, 4].map((level) => ({ level, hitPoints: 6, createdAt: "2026-01-01T00:00:00Z" })),
       createdAt: "2026-01-01T00:00:00Z",
     });
-    await svc.store.putCharacterSheet(CHAR, sheet);
+    const sheetRef = await writeSheetVersion(svc, CHAR, sheet);
     const seat = joinCampaign({
       campaign: `at://${CAMPAIGN}`,
       sheet,
-      sheetRef: { uri: `at://${CHAR}/sheet`, cid: "bafysheet" },
+      sheetRef,
       startingLevel: 2,
       createdAt: "2026-01-01T00:00:00Z",
     });
@@ -195,7 +196,7 @@ describe("the Bardcast loop", () => {
 
     await ingestReplies(svc, { campaignId: CAMPAIGN, characterId: CHAR, antiphonyPromptUri: "at://prompt/1", intent: "story" });
 
-    expect(await svc.store.getCharacterSheet(CHAR)).toEqual(sheet);
+    expect(await sheetHistory(svc, CHAR)).toEqual([{ ref: sheetRef, sheet }]);
     const after = await svc.store.getSeat(CAMPAIGN, CHAR);
     expect(after?.brought?.advancements).toHaveLength(1); // reset to level 2
     expect(after?.sourceReplies).toContain("at://reply/0");

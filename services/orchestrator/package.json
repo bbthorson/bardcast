@@ -12,6 +12,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@atproto/common-web": "0.5.14",
+    "@atproto/lex-cbor": "0.1.6",
     "@bardcast/antiphony-client": "*",
     "@bardcast/domain": "*",
     "@bardcast/engagement": "*",

@@ -6,9 +6,10 @@ import type {
   CampaignSeat,
   CharacterSheet,
   Prompt,
+  StrongRef,
   VoiceProfile,
 } from "@bardcast/domain";
-import type { CampaignInvite, Store } from "../../ports/store.js";
+import type { CampaignInvite, SheetVersion, Store } from "../../ports/store.js";
 import { parseJson, type D1Database } from "./d1.js";
 
 type DataRow = { data: string };
@@ -112,17 +113,25 @@ export class D1Store implements Store {
     );
   }
 
-  async getCharacterSheet(characterId: string): Promise<CharacterSheet | null> {
-    return this.one<CharacterSheet>("SELECT data FROM player_sheets WHERE character_id = ?1", characterId);
+  async putSheetVersion(characterId: string, ref: StrongRef, sheet: CharacterSheet): Promise<void> {
+    // Plain INSERT, no upsert: a second write to the same URI fails. Versions are immutable.
+    await this.exec(
+      "INSERT INTO sheet_versions (uri, character_id, data, created_at) VALUES (?1, ?2, ?3, ?4)",
+      ref.uri,
+      characterId,
+      JSON.stringify({ ref, sheet }),
+      sheet.createdAt,
+    );
   }
 
-  async putCharacterSheet(characterId: string, sheet: CharacterSheet): Promise<void> {
-    await this.exec(
-      `INSERT INTO player_sheets (character_id, data, created_at) VALUES (?1, ?2, ?3)
-       ON CONFLICT (character_id) DO UPDATE SET data = ?2`,
+  async getSheetVersion(uri: string): Promise<SheetVersion | null> {
+    return this.one<SheetVersion>("SELECT data FROM sheet_versions WHERE uri = ?1", uri);
+  }
+
+  async listSheetVersions(characterId: string): Promise<SheetVersion[]> {
+    return this.many<SheetVersion>(
+      "SELECT data FROM sheet_versions WHERE character_id = ?1 ORDER BY created_at ASC, uri ASC",
       characterId,
-      JSON.stringify(sheet),
-      sheet.createdAt,
     );
   }
 

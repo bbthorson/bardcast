@@ -43,8 +43,8 @@ export function YourData({ signedIn, onBack, onOpenLogin }: { signedIn: boolean;
           leave with you.
         </Item>
         <Item name="Their character sheets">
-          Quirks and personality up front, the 5e numbers underneath, and every level they've earned. Also in your own account. A campaign never edits
-          them; it plays from its own copy.
+          Quirks and personality up front, the 5e numbers underneath, and every level they've earned. Also in your own account. Each change is saved as a
+          new version, so the whole history is there. A campaign never edits them; it plays from its own copy.
         </Item>
         <Item name="Your voice profile">
           Whether you've agreed to a voice clone, and a reference to it. Also in your own account.
@@ -53,6 +53,10 @@ export function YourData({ signedIn, onBack, onOpenLogin }: { signedIn: boolean;
           What Bardcast learns from your answers about how your character talks and acts. We keep it with your character rather than with any one campaign,
           so it follows you to every table.
         </Item>
+        <p style={para}>
+          One thing to know: what's in your AT Protocol account is public, like a Bluesky post. Anyone can look up your characters and their sheets. What
+          happens at the table stays private.
+        </p>
       </Section>
 
       <Section title="The table's">

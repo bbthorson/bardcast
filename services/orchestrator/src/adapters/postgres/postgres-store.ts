@@ -6,10 +6,11 @@ import type {
   CampaignSeat,
   CharacterSheet,
   Prompt,
+  StrongRef,
   VoiceProfile,
 } from "@bardcast/domain";
 import type { SqlClient } from "../../ports/sql-client.js";
-import type { CampaignInvite, Store } from "../../ports/store.js";
+import type { CampaignInvite, SheetVersion, Store } from "../../ports/store.js";
 
 /**
  * PostgreSQL implementation of the Store port.
@@ -86,21 +87,26 @@ export class PostgresStore implements Store {
     );
   }
 
-  async getCharacterSheet(characterId: string): Promise<CharacterSheet | null> {
-    const rows = await this.sql.query<{ data: CharacterSheet }>(
-      "SELECT data FROM player_sheets WHERE character_id = $1",
-      [characterId],
+  async putSheetVersion(characterId: string, ref: StrongRef, sheet: CharacterSheet): Promise<void> {
+    // Plain INSERT, no upsert: a second write to the same URI fails. Versions are immutable.
+    await this.sql.query(
+      `INSERT INTO sheet_versions (uri, character_id, data, created_at)
+       VALUES ($1, $2, $3::jsonb, $4)`,
+      [ref.uri, characterId, JSON.stringify({ ref, sheet }), sheet.createdAt],
     );
+  }
+
+  async getSheetVersion(uri: string): Promise<SheetVersion | null> {
+    const rows = await this.sql.query<{ data: SheetVersion }>("SELECT data FROM sheet_versions WHERE uri = $1", [uri]);
     return rows[0]?.data ?? null;
   }
 
-  async putCharacterSheet(characterId: string, sheet: CharacterSheet): Promise<void> {
-    await this.sql.query(
-      `INSERT INTO player_sheets (character_id, data, created_at)
-       VALUES ($1, $2::jsonb, $3)
-       ON CONFLICT (character_id) DO UPDATE SET data = $2::jsonb`,
-      [characterId, JSON.stringify(sheet), sheet.createdAt],
+  async listSheetVersions(characterId: string): Promise<SheetVersion[]> {
+    const rows = await this.sql.query<{ data: SheetVersion }>(
+      "SELECT data FROM sheet_versions WHERE character_id = $1 ORDER BY created_at ASC, uri ASC",
+      [characterId],
     );
+    return rows.map((r) => r.data);
   }
 
   async getSeat(campaignId: string, characterId: string): Promise<CampaignSeat | null> {

@@ -4,7 +4,7 @@
     "defs": {
         "main": {
             "type": "record",
-            "description": "A Bardcast character's durable identity: who they are, independent of any campaign. Lives in the player's own repo, so it stays portable off Bardcast. A player can have several characters, one record each (rkey: tid). Mechanics live in game.bardcast.character.sheet (same repo, same rkey); what a character is at one table lives in game.bardcast.campaign.seat inside that campaign's space.",
+            "description": "A Bardcast character's durable identity: who they are, independent of any campaign. Lives in the player's own repo, so it stays portable off Bardcast. A player can have several characters, one record each (rkey: tid). Mechanics live in game.bardcast.character.sheet versions in the same repo, and `sheet` names the current one; what a character is at one table lives in game.bardcast.campaign.seat inside that campaign's space.",
             "key": "tid",
             "record": {
                 "type": "object",
@@ -41,6 +41,11 @@
                             "maxLength": 200
                         },
                         "description": "What motivates the character, across every campaign they appear in. Used by the narrative engine."
+                    },
+                    "sheet": {
+                        "type": "ref",
+                        "ref": "com.atproto.repo.strongRef",
+                        "description": "The character's current sheet version (a game.bardcast.character.sheet record in this repo). The one field that moves forward as new versions are written."
                     },
                     "createdAt": {
                         "type": "string",

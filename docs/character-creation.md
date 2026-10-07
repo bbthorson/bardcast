@@ -35,7 +35,7 @@ record that joins a player-owned sheet to a campaign. Call it a **seat**.
 | Record | Where it lives | Key | Change |
 |---|---|---|---|
 | `character.profile` | Player's repo | `tid` (was `self`) | A player can have more than one character. |
-| `character.sheet` | Player's repo (was the campaign's space) | same rkey as its profile | The player's sheet: the 5e backbone, the narrative layer, and an advancement log. |
+| `character.sheet` | Player's repo (was the campaign's space) | `tid`, one record per version | One version of the player's sheet: the 5e backbone, the narrative layer, an advancement log, and `prev`. Never edited. |
 | `voice.profile` | Player's repo | `self` | Unchanged. One voice per player, used by all their characters. |
 | `campaign.campaign` | Campaign's space | `tid` | Gains `startingLevel` and `characterGuidance`. |
 | **`campaign.seat`** (new) | Campaign's space | player DID | A character at this table: a StrongRef to the sheet version brought in, a snapshot of it reset to the table's level, the levels and state earned here, and reply-inferred traits. Replaces the old campaign-scoped sheet. |
@@ -44,30 +44,63 @@ record that joins a player-owned sheet to a campaign. Call it a **seat**.
 The seat is the campaign-scoped part that `character-model.md` needed (25 AC at one table, 14 at
 another). The sheet becomes the part that travels.
 
-### A seat is a branch, not a copy
+### Versions, not edits
 
-A seat doesn't clone the sheet. It holds:
+*Decided 2026-10-07.* A sheet record is never edited. Every change is a new record whose `prev`
+(a StrongRef) points at the version it replaces, the way a Bluesky reply points at its parent. The
+character's profile carries a `sheet` StrongRef to the current version; it's the one field that moves.
 
-- **where it branched from:** a StrongRef (URI + CID) to the exact sheet version the player brought,
-  and the table's `startingLevel`;
+```
+v1 (level 1) ← v2 (level 2) ← v3 (level 3) ← v4 (level 4, brought home from Thornwood)
+                                  ↖ v4′ (level 4, levelled at home), superseded
+```
+
+- **History is walkable** by following `prev` from the current version (`sheetHistory`).
+- **Nothing is lost.** A superseded version stays in the repo; choosing one history over another
+  makes a new version, it doesn't delete the other.
+- **Concurrent writes can't silently fork.** A new version must name the current one as its `prev`,
+  or it's refused (`StaleSheetError`): re-read, then try again.
+- **Refs are real.** Each version's rkey is a TID and its CID is the record's dag-cbor CID (with
+  `$type`), computed when it's written to the `Store`, so a seat's StrongRef stays valid when the
+  record is published to the player's repo.
+
+Why not edit one record and look up old versions by CID? AT Protocol repos don't keep history: the
+current repo format dropped the link from each commit to the one before, and a PDS needn't keep a
+record's old blocks (Bluesky's doesn't). Bluesky threads look like history only because each reply
+is its own record.
+
+**Sheets are public.** Records in a player's repo can be read by anyone, like Bluesky posts. So a
+character's sheet, and every earlier version of it, is visible to the world. Only the campaign's
+space is private. `/your-data` says so.
+
+### A seat is a branch
+
+A seat holds:
+
+- **where it branched from:** a StrongRef to the exact sheet version the player brought, and the
+  table's `startingLevel`;
+- **a snapshot of that version, reset to the table's level** (`brought`). The version lives in the
+  player's repo, and players can delete their own records; a campaign, and the episodes built on a
+  character, mustn't break because someone tidied up. The StrongRef proves provenance; the
+  snapshot keeps the table playable;
 - **what the table added:** its own advancement entries (the levels earned here);
 - **the table's running state:** hit points, conditions, gear, anything that only makes sense at this
   table.
 
-The sheet in play is computed:
-`sheetAtLevel(source, startingLevel) + table advancements + table state`. So two concurrent
-campaigns are two branches off the same character, each with its own history, and the source sheet
-never changes underneath them, because the CID pins it.
+The sheet in play is `brought + table advancements + table state`. Two concurrent campaigns are two
+branches off the same character, each with its own history.
 
 ### Bringing progress home
 
 When a player carries a character's progress back (at the campaign's end, or whenever they choose),
-the table's advancements are appended to the owned sheet's log:
+`bringProgressHome` compares the table's history with the current version:
 
-- **The owned sheet hasn't moved since the branch:** append the table's levels. It's a fast-forward.
-- **It has moved** (they levelled at another table too): the two histories disagree about the same
-  levels. The player picks which one the character keeps ("the Saltmarsh Gawain or the Thornwood
-  Gawain"). The other stays in its campaign's seat, untouched.
+- **The current version hasn't moved since the branch:** a new version with the table's levels,
+  `prev` pointing at the current one and `fromSeat` naming the seat. It's a fast-forward.
+- **It has moved** (they levelled at another table, or at home): the two histories disagree about the
+  same levels. The player picks which one the character keeps ("the Saltmarsh Gawain or the
+  Thornwood Gawain"). Choosing the table's makes a new version; choosing their own writes nothing.
+- **The table is behind their sheet:** nothing to bring.
 
 The seat is never deleted or rewritten by bringing progress home. Campaign state is kept.
 

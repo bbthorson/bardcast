@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AtUri, IsoDateTime } from "./ids.js";
+import { AtUri, IsoDateTime, StrongRef } from "./ids.js";
 import { ABILITY_SCORES, type AbilityScore } from "./traits.js";
 
 /**
@@ -67,9 +67,14 @@ const SheetTrait = z.object({
 
 /**
  * Zod mirror of game.bardcast.character.sheet. PLAYER-OWNED: lives in the
- * player's repo, one per character, and travels with them. The narrative face
- * (traits, quirks) is what a player sees first; the 5e backbone is underneath.
- * A campaign never edits it directly; it branches a CampaignSeat from it.
+ * player's repo and travels with them. The narrative face (traits, quirks) is
+ * what a player sees first; the 5e backbone is underneath.
+ *
+ * IMMUTABLE VERSIONS: a sheet record is never edited. Every change (a level
+ * gained at home, progress brought home, an edit) is a new record whose `prev`
+ * points at the version it replaces, like a reply pointing at its parent. The
+ * character's profile points at the current version. Two versions sharing a
+ * `prev` are a fork. A campaign never writes one; it branches a CampaignSeat.
  */
 export const CharacterSheet = z
   .object({
@@ -88,14 +93,37 @@ export const CharacterSheet = z
     traits: z.array(SheetTrait).max(32).default([]),
     /** Free-text quirks, the lines a player reads first. */
     quirks: z.array(z.string().max(200)).max(8).default([]),
+    /** The version this one replaces. Absent on a character's first sheet. */
+    prev: StrongRef.optional(),
+    /** The campaign seat this version's levels came from, when progress was brought home. */
+    fromSeat: AtUri.optional(),
+    /** When this version was made. Versions are never edited, so there's no updatedAt. */
     createdAt: IsoDateTime,
-    updatedAt: IsoDateTime.optional(),
   })
   .refine((s) => s.advancements.every((a, i) => a.level === i + 2), {
     message: "advancements must run 2, 3, 4… with no gaps",
     path: ["advancements"],
   });
 export type CharacterSheet = z.infer<typeof CharacterSheet>;
+
+/**
+ * The next version of a sheet: the change applied, `prev` pointing at the
+ * version it replaces. The old version is untouched; write this as a new record.
+ */
+export function nextVersion(
+  current: CharacterSheet,
+  currentRef: StrongRef,
+  change: Partial<Omit<CharacterSheet, "character" | "prev" | "createdAt">>,
+  now: string,
+): CharacterSheet {
+  const { fromSeat: _drop, ...base } = current;
+  return CharacterSheet.parse({ ...base, ...change, prev: currentRef, createdAt: now });
+}
+
+/** A level gained outside any campaign, as a new version. */
+export function levelUp(current: CharacterSheet, currentRef: StrongRef, advancement: Advancement, now: string): CharacterSheet {
+  return nextVersion(current, currentRef, { advancements: [...current.advancements, advancement] }, now);
+}
 
 /** The sheet's own level. */
 export function levelOf(sheet: Pick<CharacterSheet, "advancements">): number {
