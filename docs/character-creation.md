@@ -205,10 +205,19 @@ them arrive.
 
 ## Where creation recordings live
 
-Campaign recordings belong to the campaign's space. Creation happens outside any campaign, so those
-recordings should belong to the player. In Antiphony's authority table, that's "a solo user's own
-post: authority the user's DID", which is marked *to confirm before it's built*
-(`antiphony/specs/atproto-authority-model.md`, D2). **This plan depends on that row.**
+**Open; decide before the first kept creation recording.** Campaign recordings belong to the
+campaign's space. Creation happens outside any campaign, so its recordings need a home of their own,
+and Antiphony's authority table has none that fits (`antiphony/specs/atproto-authority-model.md`,
+D6):
+
+- **"A solo user's own post"** (authority: the user's DID) fails Antiphony's custody check, because
+  a player's DID is their own Bluesky DID, pointing at their own PDS.
+- **The player's repo** is public, and these are raw voice recordings used for cloning.
+
+The leaning option is a **private space per player** under Bardcast's DID (space type e.g.
+`game.bardcast.space.player`, `skey` the player's DID), visible to the player and Bardcast only.
+Bardcast keeps the raw audio; what travels with the player is the profile, the sheet and the voice
+profile.
 
 ## Prerequisites (true today)
 
@@ -229,9 +238,9 @@ post: authority the user's DID", which is marked *to confirm before it's built*
 
 ## Build order
 
-Steps 1 and 2 are built. Step 1 still lacks three things: the profile-key change in the web app
-(the lexicon says `tid`, but the app still keys a joined character by the player's DID), the D2
-row in Antiphony's spec, and the NSID swap, which waits on a domain. `ROADMAP.md` (M3b) tracks
+Steps 1 and 2 are built. Step 1 still lacks two things: the profile-key change in the web app
+(the lexicon says `tid`, but the app still keys a joined character by the player's DID), and the
+NSID swap, which waits on a domain. Antiphony's spec records the model (D2, D6). `ROADMAP.md` (M3b) tracks
 what's left.
 
 1. **Model.** *Built.* Lexicons: profile keyed by `tid` with a `sheet` ref to the current version;
@@ -240,8 +249,7 @@ what's left.
    `gearPolicy`. Zod mirrors and the pure logic in `@bardcast/domain` (`sheet.ts`, `seat.ts`,
    `items.ts`, `action.ts`); the orchestrator's `use-cases/sheets.ts` and `use-cases/actions.ts`;
    insert-only sheet versions and actions, and seats, in all three `Store` adapters.
-   `character-model.md`, `/your-data` and the consent copy say the sheet is yours. Still to do:
-   update the D2 row in Antiphony's spec to include sheets.
+   `character-model.md`, `/your-data` and the consent copy say the sheet is yours.
 2. **5e core.** *Built 2026-10-07* (`packages/srd`; see its README). An SRD 5.2 subset: classes,
    species, backgrounds, feats, equipment (weapons with damage, properties and mastery; armor with AC, Dex cap, Strength minimum
    and stealth), starting kits, skills and conditions. Spells, monsters and magic items wait.

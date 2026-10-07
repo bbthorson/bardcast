@@ -89,8 +89,10 @@ The player makes and owns their characters; a campaign seats them. Design and de
       confirms), then the screens (reveal card, seal press, invite flow's character picker).
 - [ ] The You tab lists a player's characters; the web app stops keying a joined character by the
       player's DID (profiles are keyed by `tid` now).
-- [ ] Update the authority table (D2) in Antiphony's `specs/atproto-authority-model.md`: sheets are
-      the player's, and creation recordings need the "solo user's own post" row confirmed.
+- [x] Update the authority table in Antiphony's `specs/atproto-authority-model.md`: D2 says sheets
+      are the player's; D6 records the character model.
+- [ ] Decide where character-creation recordings live (Antiphony D6; leaning: a private space per
+      player under Bardcast's DID).
 - [ ] Decide campaigns with fixed characters (the Green Knight casting Gawain): a `characterPolicy`.
 
 ## M4 — Voice pipeline (ElevenLabs)
