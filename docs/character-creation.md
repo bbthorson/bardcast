@@ -238,8 +238,22 @@ still keys a joined character by the player's DID) and the NSID swap, which wait
    `@bardcast/domain`. `Store` gets `getSeat`/`putSeat` and owned-sheet methods. Rewrite
    `character-model.md`, the `/your-data` page and the consent copy so they say the sheet is yours.
    Update the D2 row in Antiphony's spec to include sheets.
-2. **5e core.** An SRD 5.2 subset in `@bardcast/domain`: classes, backgrounds, species, the standard
-   array, derived stats, and `sheetAtLevel`. Pure and tested.
+2. **5e core.** An SRD 5.2 subset in a new `packages/srd`: classes, species, backgrounds, feats,
+   equipment (weapons with damage, properties and mastery; armor with AC, Dex cap, Strength minimum
+   and stealth), starting kits, skills and conditions. Spells, monsters and magic items wait.
+   - **Source:** `5e-bits/5e-srd-api`, `packages/5e-database/src/2024/en` (checked 2026-10-07 at
+     `05c109ea1f6b`). Its 2024 data is structured, not just prose: 12 classes with level tables and
+     starting kits as item references, the 4 SRD backgrounds with ability options, feat and kit, 9
+     species, 17 feats, 182 equipment entries. The older `5e-bits/5e-database` repo is archived.
+   - **How:** an import script reads a pinned commit, validates every entry with Zod (it's outside
+     data), keeps only the fields we use, and writes typed TS modules that are checked in. No
+     runtime API, and every data change is a reviewable diff.
+   - **Licensing:** 5e-bits' code is MIT; the content is Wizards' SRD 5.2, CC-BY-4.0. Their README
+     still cites OGL 1.0a, which is out of date for 5.2, so our attribution cites SRD 5.2 under
+     CC-BY-4.0 directly, plus the MIT notice for their compilation. It goes in `NOTICE` and on a
+     credits line in the app.
+   - Spot-check against the SRD itself in tests (longsword 1d8 slashing, versatile 1d10, mastery
+     Sap; chain mail AC 16, Strength 13, stealth disadvantage).
 3. **Creation use-cases.** `startCreation`, `answerCreation`, `proposeCharacter` (`DecisionModel`
    choices), `reviseLine`, and `confirmCharacter` (writes the profile and sheet). Prose for the card
    goes through `NarrativeWriter`.
