@@ -1,5 +1,6 @@
 import type {
   BehaviorModel,
+  CampaignAction,
   Campaign,
   Chapter,
   CharacterProfile,
@@ -124,6 +125,31 @@ export class PostgresStore implements Store {
        ON CONFLICT (campaign_id, character_id) DO UPDATE SET data = $3::jsonb`,
       [campaignId, characterId, JSON.stringify(seat), seat.createdAt],
     );
+  }
+
+  async listSeats(campaignId: string): Promise<Array<{ characterId: string; seat: CampaignSeat }>> {
+    const rows = await this.sql.query<{ character_id: string; data: CampaignSeat }>(
+      "SELECT character_id, data FROM campaign_seats WHERE campaign_id = $1 ORDER BY character_id",
+      [campaignId],
+    );
+    return rows.map((r) => ({ characterId: r.character_id, seat: r.data }));
+  }
+
+  async putAction(campaignId: string, uri: string, action: CampaignAction): Promise<void> {
+    // Plain INSERT, no upsert: the log is append-only.
+    await this.sql.query(
+      `INSERT INTO campaign_actions (uri, campaign_id, data, created_at)
+       VALUES ($1, $2, $3::jsonb, $4)`,
+      [uri, campaignId, JSON.stringify({ uri, action }), action.createdAt],
+    );
+  }
+
+  async listActions(campaignId: string): Promise<Array<{ uri: string; action: CampaignAction }>> {
+    const rows = await this.sql.query<{ data: { uri: string; action: CampaignAction } }>(
+      "SELECT data FROM campaign_actions WHERE campaign_id = $1 ORDER BY created_at ASC, uri ASC",
+      [campaignId],
+    );
+    return rows.map((r) => r.data);
   }
 
   async getBehavior(characterId: string): Promise<BehaviorModel | null> {

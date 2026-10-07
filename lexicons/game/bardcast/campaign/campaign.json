@@ -54,6 +54,14 @@
                         "maxLength": 2000,
                         "description": "The DM's note to players building or choosing a character for this table."
                     },
+                    "gearPolicy": {
+                        "type": "string",
+                        "knownValues": [
+                            "starting",
+                            "bring"
+                        ],
+                        "description": "What characters carry in. starting (the default): the table's starting kit, and their own equipment stays home. bring: their own equipment."
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "datetime"

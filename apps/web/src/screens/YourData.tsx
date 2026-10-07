@@ -65,8 +65,8 @@ export function YourData({ signedIn, onBack, onOpenLogin }: { signedIn: boolean;
           Every answer you record is stored by Antiphony, the audio service Bardcast is built on, in the campaign's space. They stay with the campaign.
         </Item>
         <Item name="Your seat">
-          When you join, your sheet sits down at the table's starting level, so a veteran can join a table of beginners. Levels, hit points and gear earned
-          here stay with the campaign. Bring the progress home to your own sheet whenever you like.
+          When you join, your sheet sits down at the table's starting level, so a veteran can join a table of beginners. Hit points rise and fall here and
+          never touch your own sheet. Levels and gear earned here stay with the campaign until it ends, then you can bring them home.
         </Item>
         <Item name="The episodes">Every chapter is published to the campaign's space, for the party only.</Item>
       </Section>

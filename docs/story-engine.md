@@ -62,7 +62,7 @@ request more player audio or a DM decision mid-chapter.
 Randomness is core: good ideas should sometimes fall through, and outcomes shouldn't
 be foreordained.
 
-- **System:** explicit dice on the **D&D 5.1 SRD (CC-BY-4.0)** — a vetted, licensable
+- **System:** explicit dice on the **D&D SRD 5.2 (CC-BY-4.0)** (5.1 until 2026-10-07; see character-creation.md) — a vetted, licensable
   resolution system (ability checks, DCs, advantage). No need to invent mechanics.
 - **The loop that makes it cohere:** *player replies → character sheet → dice
   modifier → outcome.* The sheet traits (built from replies) are the modifiers on

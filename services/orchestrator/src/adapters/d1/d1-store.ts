@@ -1,5 +1,6 @@
 import type {
   BehaviorModel,
+  CampaignAction,
   Campaign,
   Chapter,
   CharacterProfile,
@@ -151,6 +152,35 @@ export class D1Store implements Store {
       characterId,
       JSON.stringify(seat),
       seat.createdAt,
+    );
+  }
+
+  async listSeats(campaignId: string): Promise<Array<{ characterId: string; seat: CampaignSeat }>> {
+    const rows = await this.db
+      .prepare("SELECT character_id, data FROM campaign_seats WHERE campaign_id = ?1 ORDER BY character_id")
+      .bind(campaignId)
+      .all<{ character_id: string; data: string }>();
+    return rows.results.flatMap((r) => {
+      const seat = parseJson<CampaignSeat>(r.data);
+      return seat ? [{ characterId: r.character_id, seat }] : [];
+    });
+  }
+
+  async putAction(campaignId: string, uri: string, action: CampaignAction): Promise<void> {
+    // Plain INSERT, no upsert: the log is append-only.
+    await this.exec(
+      "INSERT INTO campaign_actions (uri, campaign_id, data, created_at) VALUES (?1, ?2, ?3, ?4)",
+      uri,
+      campaignId,
+      JSON.stringify({ uri, action }),
+      action.createdAt,
+    );
+  }
+
+  async listActions(campaignId: string): Promise<Array<{ uri: string; action: CampaignAction }>> {
+    return this.many<{ uri: string; action: CampaignAction }>(
+      "SELECT data FROM campaign_actions WHERE campaign_id = ?1 ORDER BY created_at ASC, uri ASC",
+      campaignId,
     );
   }
 

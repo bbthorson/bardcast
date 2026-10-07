@@ -22,8 +22,9 @@ a seat branched from it. See [`character-creation.md`](character-creation.md).*
 | `character.sheet` (5e backbone, advancement log, traits, quirks, `prev`) | Player's repo | `tid`, one per version | The character's mechanics, owned by the player. Immutable versions; the profile's `sheet` names the current one. Travels with them. |
 | `voice.profile` | Player's repo | `self` | The player's voice. Same in every campaign. |
 | Behavior model (app state, no lexicon yet) | Keyed on the character | — | How the character acts. Durable. |
-| `campaign.seat` (the sheet as brought, levels earned here, state, reply-inferred traits) | Campaign's space | player DID | The character at **this** table. |
+| `campaign.seat` (the sheet as brought, levels earned here, starting items, derived state, reply-inferred traits) | Campaign's space | player DID | The character at **this** table. |
 | `character.stateEvent` | Campaign's space | `tid` | A beat in this campaign's story, tied by `chapterRef`. |
+| `campaign.action` (a mechanical event and its effects) | Campaign's space | `tid` | Append-only. A seat's hit points, conditions and items are derived from it. |
 | `campaign.chapter` (the episode) | Campaign's space | `tid` | Published to the party, not the public. |
 | Reply recordings (Antiphony posts) | Campaign's space, held by Antiphony | — | The raw audio behind every seat, behavior model and voice clone. The campaign keeps them. |
 

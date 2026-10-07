@@ -101,6 +101,7 @@ describe("the Bardcast loop", () => {
       traits: Array.from({ length: 5 }, (_, i) => ({ name: `t${i}`, confidence: 80 })),
       sourceReplies: [],
       startingLevel: 1,
+      startingItems: [],
       advancements: [],
       createdAt: "2026-01-01T00:00:00Z",
     });
@@ -135,6 +136,7 @@ describe("the Bardcast loop", () => {
       traits: [{ name: "armor class", value: ac, confidence: 90 }],
       sourceReplies: [],
       startingLevel: 1,
+      startingItems: [],
       advancements: [],
       createdAt: "2026-01-01T00:00:00Z",
     });
@@ -154,6 +156,7 @@ describe("the Bardcast loop", () => {
       traits: [{ name: "armor class", value: "25", confidence: 90 }],
       sourceReplies: ["at://reply/thornwood-1"],
       startingLevel: 1,
+      startingItems: [],
       advancements: [],
       createdAt: "2026-01-01T00:00:00Z",
     });

@@ -1,5 +1,6 @@
 import type {
   BehaviorModel,
+  CampaignAction,
   Campaign,
   Chapter,
   CharacterProfile,
@@ -55,6 +56,16 @@ export interface Store {
   /** A character's seat at one campaign, branched from their sheet. */
   getSeat(campaignId: string, characterId: string): Promise<CampaignSeat | null>;
   putSeat(campaignId: string, characterId: string, seat: CampaignSeat): Promise<void>;
+  listSeats(campaignId: string): Promise<Array<{ characterId: string; seat: CampaignSeat }>>;
+
+  /**
+   * The campaign's action log. Append-only: an action is written once and
+   * never updated (putAction rejects a URI it already holds). Written only by
+   * use-cases/actions.ts, when a chapter's actions are committed.
+   */
+  putAction(campaignId: string, uri: string, action: CampaignAction): Promise<void>;
+  /** In the order they happened: by createdAt, then URI (a TID, so time-ordered). */
+  listActions(campaignId: string): Promise<Array<{ uri: string; action: CampaignAction }>>;
   getBehavior(characterId: string): Promise<BehaviorModel | null>;
   putBehavior(characterId: string, behavior: BehaviorModel): Promise<void>;
   getVoice(characterId: string): Promise<VoiceProfile | null>;

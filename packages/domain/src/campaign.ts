@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AtUri, Did, IsoDateTime, StoryDate } from "./ids.js";
+import { GearPolicy } from "./items.js";
 import { Outcome, RollLogEntry } from "./resolution.js";
 
 /** Zod mirror of game.bardcast.campaign.campaign. */
@@ -11,6 +12,8 @@ export const Campaign = z.object({
   calendar: z.string().max(80).optional(),
   /** The level characters sit down at. Absent means 1. */
   startingLevel: z.number().int().min(1).max(20).optional(),
+  /** What characters carry in: the starting kit, or their own equipment. Absent means "starting". */
+  gearPolicy: GearPolicy.optional(),
   /** The DM's note to players building a character for this table. */
   characterGuidance: z.string().max(2000).optional(),
   createdAt: IsoDateTime,

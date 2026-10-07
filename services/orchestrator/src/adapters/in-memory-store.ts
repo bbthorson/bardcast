@@ -1,5 +1,6 @@
 import type {
   BehaviorModel,
+  CampaignAction,
   Campaign,
   Chapter,
   CharacterProfile,
@@ -21,6 +22,7 @@ export class InMemoryStore implements Store {
   /** Keyed by version URI. Insert-only: versions are immutable. */
   private sheetVersions = new Map<string, SheetVersion & { characterId: string }>();
   private seats = new Map<string, CampaignSeat>();
+  private actions = new Map<string, { campaignId: string; uri: string; action: CampaignAction }>();
   private behaviors = new Map<string, BehaviorModel>();
   private voices = new Map<string, VoiceProfile>();
   private chapters = new Map<string, Chapter>();
@@ -83,6 +85,22 @@ export class InMemoryStore implements Store {
   }
   async putSeat(campaignId: string, characterId: string, seat: CampaignSeat) {
     this.seats.set(`${campaignId}/${characterId}`, seat);
+  }
+  async listSeats(campaignId: string) {
+    const prefix = `${campaignId}/`;
+    return [...this.seats.entries()]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, seat]) => ({ characterId: key.slice(prefix.length), seat }));
+  }
+  async putAction(campaignId: string, uri: string, action: CampaignAction) {
+    if (this.actions.has(uri)) throw new Error(`action ${uri} already exists; the log is append-only`);
+    this.actions.set(uri, { campaignId, uri, action });
+  }
+  async listActions(campaignId: string) {
+    return [...this.actions.values()]
+      .filter((a) => a.campaignId === campaignId)
+      .sort((a, b) => a.action.createdAt.localeCompare(b.action.createdAt) || a.uri.localeCompare(b.uri))
+      .map(({ uri, action }) => ({ uri, action }));
   }
   async getBehavior(characterId: string) {
     return this.behaviors.get(characterId) ?? null;

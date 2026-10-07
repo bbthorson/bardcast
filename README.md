@@ -27,7 +27,7 @@ that owns audio prompts, asynchronous audio replies, and storage). Bardcast adds
 
 1. **A world/narrative engine** — curated campaign canon + character data → a written, then spoken, chapter.
 2. **A readiness gate** — decides when a character has enough signal (sheet + behavior + voice) to appear.
-3. **A seeded dice/resolution engine** — SRD 5.1 ability checks resolve outcomes; failure is usually a
+3. **A seeded dice/resolution engine** — SRD 5.2 ability checks resolve outcomes; failure is usually a
    setback, and a forbidden outcome (a PC death) backtracks to the last decision node.
 4. **Its own AT-Protocol identity layer** — players authenticate by **DID** (Antiphony is headless and has no user auth), so a
    character can follow its player across campaigns (the "portable canon" thesis).
@@ -89,7 +89,7 @@ Design decisions live in [`docs/`](./docs):
 ## Status
 
 **Backend, pre-UI.** Real and tested: the domain model, the **readiness gate**, the **dice/resolution
-engine** (deterministic, SRD 5.1), Bardcast's own **AT-Proto identity** provider, and the first
+engine** (deterministic, SRD 5.2), Bardcast's own **AT-Proto identity** provider, and the first
 **campaign canon** seed (Gawain, OKF). A first UI surface, the **`apps/web` front door**, is now
 scaffolded on the live identity seam: AT-Proto sign-in wired to the orchestrator's `/atproto` OAuth
 (with an offline dev fallback), plus create-campaign, join-invite, and a full voice-clone management

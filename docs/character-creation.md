@@ -11,7 +11,7 @@ the player's own repo, and a campaign holds a **seat** that branches from it.
    the character isn't the campaign's.
 2. **Creation is driven by voice.** The player builds the character by answering questions out
    loud, so creation also starts their voice profile.
-3. **The sheet is 5e underneath and story on top.** The SRD 5.1 sheet is the backbone and can always
+3. **The sheet is 5e underneath and story on top.** The SRD 5.2 sheet is the backbone and can always
    be surfaced. A player sees a narrative card first: who the character is, their quirks, what
    drives them, and a line in their voice.
 4. **Players own every sheet.** A player keeps all their characters' sheets and brings one into a
@@ -25,6 +25,15 @@ the player's own repo, and a campaign holds a **seat** that branches from it.
 8. **Clef may suggest ability scores during creation; the player places them.** This replaces "ability
    scores are never inferred" with "never set without the player": nothing guesses a player's numbers
    silently.
+9. **What happens at the table stays at the table until it's over.** Hit points go up and down in the
+   campaign and never touch the player's sheet. Levels, weapon and armor upgrades, and anything found
+   stay with the campaign until the seat closes (the campaign ends or the character leaves). Then
+   levels and gear can come home; hit points and conditions never do.
+10. **Actions are an append-only log.** Each mechanical event is its own immutable record in the
+    campaign's space, posted when its chapter is finished. A seat's state is derived from the log.
+11. **A campaign sets a gear policy.** "Starting gear only" (the default) hands everyone the table's
+    starting kit; "bring your gear" lets them carry their own equipment in.
+12. **SRD 5.2** (the 2024 rules), not 5.1.
 
 ## The record model
 
@@ -37,9 +46,10 @@ record that joins a player-owned sheet to a campaign. Call it a **seat**.
 | `character.profile` | Player's repo | `tid` (was `self`) | A player can have more than one character. |
 | `character.sheet` | Player's repo (was the campaign's space) | `tid`, one record per version | One version of the player's sheet: the 5e backbone, the narrative layer, an advancement log, and `prev`. Never edited. |
 | `voice.profile` | Player's repo | `self` | Unchanged. One voice per player, used by all their characters. |
-| `campaign.campaign` | Campaign's space | `tid` | Gains `startingLevel` and `characterGuidance`. |
+| `campaign.campaign` | Campaign's space | `tid` | Gains `startingLevel`, `characterGuidance` and `gearPolicy`. |
 | **`campaign.seat`** (new) | Campaign's space | player DID | A character at this table: a StrongRef to the sheet version brought in, a snapshot of it reset to the table's level, the levels and state earned here, and reply-inferred traits. Replaces the old campaign-scoped sheet. |
-| `character.stateEvent`, `campaign.chapter` | Campaign's space | `tid` | Unchanged. |
+| **`campaign.action`** (new) | Campaign's space | `tid` | One mechanical event: who acted, the roll, and its effects on seats (hit points, conditions, items). Append-only. |
+| `character.stateEvent`, `campaign.chapter` | Campaign's space | `tid` | Unchanged. Story beats stay stateEvents; mechanics are actions. |
 
 The seat is the campaign-scoped part that `character-model.md` needed (25 AC at one table, 14 at
 another). The sheet becomes the part that travels.
@@ -84,23 +94,56 @@ A seat holds:
   character, mustn't break because someone tidied up. The StrongRef proves provenance; the
   snapshot keeps the table playable;
 - **what the table added:** its own advancement entries (the levels earned here);
-- **the table's running state:** hit points, conditions, gear, anything that only makes sense at this
-  table.
+- **what they sat down with:** `startingItems`, the table's starting kit or their own equipment,
+  per the campaign's gear policy;
+- **the table's running state:** hit points, conditions and items, as a snapshot derived from
+  `startingItems` and the action log (below). It's refreshed whenever a chapter's actions are
+  committed, and can be rebuilt from the log at any time;
+- **when it closed** (`closedAt`): the campaign ended or the character left.
 
-The sheet in play is `brought + table advancements + table state`. Two concurrent campaigns are two
-branches off the same character, each with its own history.
+The sheet in play is `brought + table advancements`, and the character in play adds the running
+state. Two concurrent campaigns are two branches off the same character, each with its own history.
+
+### Actions
+
+A chapter is written as beats, and the beats contain actions: an attack, a check, damage, a rest, a
+sword re-edged by the smith. Each one becomes a `campaign.action` record:
+
+- **who acted** (a character, or an NPC by name), **what kind** of action, a one-line label, and
+  **the roll** that decided it;
+- **its effects** on characters at the table: hit points up or down (kept between 0 and the
+  maximum), a full restore, conditions added or removed, items gained, lost or changed (an upgrade,
+  equipping).
+
+The log is append-only, like sheet versions: an action is never edited. A seat's state is what you
+get by replaying the log from the seat's starting items at full health (`applyActions`), so a DM can
+always see *why* Gawain is at 3 hit points.
+
+**Posted when the chapter is finished, not while it's drafted.** The story engine can backtrack out
+of a branch (a PC death, `story-engine.md` §4). Actions are held with the draft and committed
+together once the chapter is ready (`commitChapterActions`), so a discarded branch never reaches
+the log. A chapter is validated whole before any of it is written.
+
+The chapter's `rollLog` is kept for now, for reproducing a generation run; once the engine writes
+actions, the rolls that mattered live on the actions.
 
 ### Bringing progress home
 
-When a player carries a character's progress back (at the campaign's end, or whenever they choose),
-`bringProgressHome` compares the table's history with the current version:
+Progress comes home only from a **closed** seat (`closeSeat`), so levels and gear stay with the
+campaign until it ends or the character leaves. Then `bringProgressHome` compares the table's
+history with the current version:
 
 - **The current version hasn't moved since the branch:** a new version with the table's levels,
   `prev` pointing at the current one and `fromSeat` naming the seat. It's a fast-forward.
 - **It has moved** (they levelled at another table, or at home): the two histories disagree about the
   same levels. The player picks which one the character keeps ("the Saltmarsh Gawain or the
   Thornwood Gawain"). Choosing the table's makes a new version; choosing their own writes nothing.
-- **The table is behind their sheet:** nothing to bring.
+- **The table is behind their sheet:** no levels to bring.
+
+**Gear comes home either way.** What they didn't bring stays as it was. What they carried out
+comes home, except the table's plain starting kit: a starting longsword the smith made +1 comes
+home, an untouched one doesn't. Something they brought and lost at the table stays lost. Hit points
+and conditions never come home.
 
 The seat is never deleted or rewritten by bringing progress home. Campaign state is kept.
 
@@ -195,7 +238,7 @@ still keys a joined character by the player's DID) and the NSID swap, which wait
    `@bardcast/domain`. `Store` gets `getSeat`/`putSeat` and owned-sheet methods. Rewrite
    `character-model.md`, the `/your-data` page and the consent copy so they say the sheet is yours.
    Update the D2 row in Antiphony's spec to include sheets.
-2. **5e core.** An SRD 5.1 subset in `@bardcast/domain`: classes, backgrounds, species, the standard
+2. **5e core.** An SRD 5.2 subset in `@bardcast/domain`: classes, backgrounds, species, the standard
    array, derived stats, and `sheetAtLevel`. Pure and tested.
 3. **Creation use-cases.** `startCreation`, `answerCreation`, `proposeCharacter` (`DecisionModel`
    choices), `reviseLine`, and `confirmCharacter` (writes the profile and sheet). Prose for the card

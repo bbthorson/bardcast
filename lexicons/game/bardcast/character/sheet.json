@@ -4,7 +4,7 @@
     "defs": {
         "main": {
             "type": "record",
-            "description": "One version of a character's sheet, owned by the player: a D&D 5.1 SRD (CC-BY-4.0) backbone under a narrative face. Lives in the player's own repo and travels with them. IMMUTABLE: a version is never edited. Every change is a new record whose `prev` points at the version it replaces, like a reply pointing at its parent, and the character.profile's `sheet` ref names the current one. Two versions sharing a `prev` are a fork. Stored as level-1 choices plus an advancement log, so it can be replayed to any lower level when it joins a campaign. Campaigns never write one; they branch a game.bardcast.campaign.seat from it.",
+            "description": "One version of a character's sheet, owned by the player: a D&D SRD 5.2 (CC-BY-4.0) backbone under a narrative face. Lives in the player's own repo and travels with them. IMMUTABLE: a version is never edited. Every change is a new record whose `prev` points at the version it replaces, like a reply pointing at its parent, and the character.profile's `sheet` ref names the current one. Two versions sharing a `prev` are a fork. Stored as level-1 choices plus an advancement log, so it can be replayed to any lower level when it joins a campaign. Campaigns never write one; they branch a game.bardcast.campaign.seat from it.",
             "key": "tid",
             "record": {
                 "type": "object",
@@ -36,7 +36,7 @@
                             "warlock",
                             "wizard"
                         ],
-                        "description": "SRD 5.1 class."
+                        "description": "SRD 5.2 class."
                     },
                     "species": {
                         "type": "string",
@@ -49,7 +49,7 @@
                     "abilities": {
                         "type": "ref",
                         "ref": "#abilityScores",
-                        "description": "Level-1 ability scores, after species bonuses. Later increases live in `advancements`."
+                        "description": "Level-1 ability scores, after the background's increases (SRD 5.2). Later increases live in `advancements`."
                     },
                     "features": {
                         "type": "array",
@@ -86,6 +86,15 @@
                             "maxLength": 200
                         },
                         "description": "Free-text quirks: the narrative face a player reads first."
+                    },
+                    "equipment": {
+                        "type": "array",
+                        "maxLength": 64,
+                        "items": {
+                            "type": "ref",
+                            "ref": "#item"
+                        },
+                        "description": "Permanent equipment. A campaign's gear policy decides whether it comes to the table."
                     },
                     "prev": {
                         "type": "ref",
@@ -136,7 +145,7 @@
                         "warlock",
                         "wizard"
                     ],
-                    "description": "SRD 5.1 class."
+                    "description": "SRD 5.2 class."
                 },
                 "species": {
                     "type": "string",
@@ -149,7 +158,7 @@
                 "abilities": {
                     "type": "ref",
                     "ref": "#abilityScores",
-                    "description": "Level-1 ability scores, after species bonuses. Later increases live in `advancements`."
+                    "description": "Level-1 ability scores, after the background's increases (SRD 5.2). Later increases live in `advancements`."
                 },
                 "features": {
                     "type": "array",
@@ -186,6 +195,15 @@
                         "maxLength": 200
                     },
                     "description": "Free-text quirks: the narrative face a player reads first."
+                },
+                "equipment": {
+                    "type": "array",
+                    "maxLength": 64,
+                    "items": {
+                        "type": "ref",
+                        "ref": "#item"
+                    },
+                    "description": "Permanent equipment. A campaign's gear policy decides whether it comes to the table."
                 },
                 "prev": {
                     "type": "ref",
@@ -338,6 +356,66 @@
                 "value": {
                     "type": "string",
                     "maxLength": 200
+                }
+            }
+        },
+        "item": {
+            "type": "object",
+            "description": "A piece of equipment, on a player's sheet or a campaign seat.",
+            "required": [
+                "id",
+                "name",
+                "kind",
+                "source"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "Stable within one sheet or seat, so an action can lose, upgrade or equip this item."
+                },
+                "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                },
+                "kind": {
+                    "type": "string",
+                    "knownValues": [
+                        "weapon",
+                        "armor",
+                        "shield",
+                        "gear"
+                    ]
+                },
+                "srd": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "The SRD 5.2 equipment entry, when there is one (e.g. 'longsword'). AC and attacks are computed from it."
+                },
+                "bonus": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3,
+                    "description": "A magic +1 to +3."
+                },
+                "equipped": {
+                    "type": "boolean"
+                },
+                "source": {
+                    "type": "string",
+                    "knownValues": [
+                        "start",
+                        "brought",
+                        "found",
+                        "bought",
+                        "given"
+                    ],
+                    "description": "Where it came from at the table. start: the table's starting kit. brought: the player's own equipment."
+                },
+                "note": {
+                    "type": "string",
+                    "maxLength": 300
                 }
             }
         }

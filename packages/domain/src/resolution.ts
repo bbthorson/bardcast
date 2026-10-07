@@ -4,7 +4,7 @@ import type { AbilityScore } from "./traits.js";
 import { deriveSeed, makeRng, rollD20 } from "./dice.js";
 
 /**
- * Action resolution on the D&D 5.1 SRD (CC-BY-4.0): a d20 ability check + the
+ * Action resolution on the D&D SRD 5.2 (CC-BY-4.0): a d20 ability check + the
  * character's modifier vs a Difficulty Class. This is where the loop closes —
  * *player replies → character sheet → dice modifier → outcome* (docs/story-engine.md §3).
  */

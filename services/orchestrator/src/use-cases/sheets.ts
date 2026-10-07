@@ -77,9 +77,10 @@ export interface BringProgressHomeInput {
 }
 
 /**
- * Carry a character's progress from a table back to their own sheet. A
- * fast-forward is written straight away; a divergence is returned for the
- * player to choose, and written once they have. The seat is never changed.
+ * Carry a character's progress from a closed seat back to their own sheet:
+ * levels earned at the table and the gear they carried out. An update is
+ * written straight away; a divergence is returned for the player to choose,
+ * and written once they have. The seat is never changed.
  */
 export async function bringProgressHome(
   svc: CoreServices,
@@ -99,11 +100,11 @@ export async function bringProgressHome(
     now: svc.clock().toISOString(),
   };
   const result = bringHome(seat, home);
-  if (result.kind === "fast-forward") {
+  if (result.kind === "update") {
     return { ...result, written: await writeSheetVersion(svc, input.characterId, result.sheet) };
   }
   if (result.kind === "diverged" && input.choice) {
-    const chosen = chooseHistory(result.table, input.choice, home);
+    const chosen = chooseHistory(result, input.choice, home);
     if (chosen) return { ...result, written: await writeSheetVersion(svc, input.characterId, chosen) };
   }
   return result;

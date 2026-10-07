@@ -75,8 +75,8 @@ describe("a seat at the table", () => {
 
   it("keeps hit points within the maximum", () => {
     const seat = joinCampaign({ campaign: "at://campaign.saltmarsh", sheet: gawain(1), sheetRef: REF, startingLevel: 1, createdAt: T });
-    expect(playSeat({ ...seat, state: { hitPoints: 4, conditions: [], gear: [] } })?.hitPoints).toBe(4);
-    expect(playSeat({ ...seat, state: { hitPoints: 99, conditions: [], gear: [] } })?.hitPoints).toBe(12);
+    expect(playSeat({ ...seat, state: { hitPoints: 4, conditions: [], items: [] } })?.hitPoints).toBe(4);
+    expect(playSeat({ ...seat, state: { hitPoints: 99, conditions: [], items: [] } })?.hitPoints).toBe(12);
   });
 });
 
@@ -102,17 +102,23 @@ describe("versions", () => {
 describe("bringing progress home", () => {
   const SEAT_URI = "at://did:web:bardcast/space/campaign/thornwood/did:plc:alice/game.bardcast.campaign.seat/did:plc:alice";
   const home = (current: CharacterSheet) => ({ current, currentRef: REF, seatUri: SEAT_URI, now: NOW });
-  const sat = (sheet: CharacterSheet, startingLevel: number, earned: Advancement[]): CampaignSeat => ({
+  const sat = (sheet: CharacterSheet, startingLevel: number, earned: Advancement[], open = false): CampaignSeat => ({
     ...joinCampaign({ campaign: "at://campaign.thornwood", sheet, sheetRef: REF, startingLevel, createdAt: T }),
     advancements: earned,
+    ...(open ? {} : { closedAt: NOW }),
   });
 
-  it("fast-forwards to a new version when the current one hasn't moved", () => {
+  it("waits until the seat closes", () => {
+    const current = gawain(3);
+    expect(bringHome(sat(current, 3, [adv(4)], true), home(current)).kind).toBe("seat-open");
+  });
+
+  it("makes a new version with the table's levels when the current one hasn't moved", () => {
     const current = gawain(3);
     const frozen = structuredClone(current);
     const result = bringHome(sat(current, 3, [adv(4), adv(5)]), home(current));
-    expect(result.kind).toBe("fast-forward");
-    if (result.kind !== "fast-forward") return;
+    expect(result.kind).toBe("update");
+    if (result.kind !== "update") return;
     expect(levelOf(result.sheet)).toBe(5);
     expect(result.sheet.prev).toEqual(REF);
     expect(result.sheet.fromSeat).toBe(SEAT_URI);
@@ -120,7 +126,7 @@ describe("bringing progress home", () => {
     expect(current).toEqual(frozen);
   });
 
-  it("has nothing new when the table is behind the current sheet", () => {
+  it("has nothing new when the table is behind and no gear changed", () => {
     const current = gawain(8);
     expect(bringHome(sat(current, 3, [adv(4)]), home(current)).kind).toBe("nothing-new");
   });
@@ -132,10 +138,10 @@ describe("bringing progress home", () => {
     const result = bringHome(seat, home(current));
     expect(result).toMatchObject({ kind: "diverged", fromLevel: 4 });
     if (result.kind !== "diverged") return;
-    const taken = chooseHistory(result.table, "table", home(current));
+    const taken = chooseHistory(result, "table", home(current));
     expect(levelOf(taken!)).toBe(6);
     expect(taken!.prev).toEqual(REF);
-    expect(chooseHistory(result.table, "owned", home(current))).toBeNull();
+    expect(chooseHistory(result, "owned", home(current))).toBeNull();
   });
 
   it("never changes the seat", () => {

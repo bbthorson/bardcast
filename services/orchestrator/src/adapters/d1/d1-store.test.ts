@@ -85,6 +85,7 @@ describe("D1Store (node:sqlite stand-in)", () => {
       traits: [{ name: "AC", value: "25", confidence: 100 }],
       sourceReplies: [],
       startingLevel: 1,
+      startingItems: [],
       advancements: [],
       createdAt: now,
     });
@@ -95,6 +96,7 @@ describe("D1Store (node:sqlite stand-in)", () => {
       traits: [{ name: "AC", value: "14", confidence: 100 }],
       sourceReplies: [],
       startingLevel: 1,
+      startingItems: [],
       advancements: [],
       createdAt: now,
     });
@@ -115,6 +117,7 @@ describe("D1Store (node:sqlite stand-in)", () => {
       advancements: [],
       traits: [],
       quirks: [quirk],
+      equipment: [],
       createdAt,
     });
     const v1 = { ref: { uri: `at://did:plc:carys/game.bardcast.character.sheet/3aaa`, cid: "bafyv1" }, sheet: sheet("2026-10-01T00:00:00.000Z", "Counts the exits") };
@@ -130,6 +133,29 @@ describe("D1Store (node:sqlite stand-in)", () => {
     await expect(store.putSheetVersion(charId, v1.ref, v2.sheet)).rejects.toThrow();
     expect(await store.getSheetVersion(v1.ref.uri)).toEqual(v1);
     expect(await store.getSeat("camp.1", charId)).toBeNull();
+  });
+
+  it("keeps the action log append-only and in order, and lists a campaign's seats", async () => {
+    const action = (label: string, createdAt: string) => ({
+      campaign: "at://camp.log",
+      chapter: "at://camp.log/chapter/1",
+      beat: 0,
+      actor: "Fate",
+      kind: "damage" as const,
+      label,
+      effects: [],
+      createdAt,
+    });
+    await store.putAction("camp.log", "at://camp.log/a/3bbb", action("second", "2026-10-02T00:00:00.000Z"));
+    await store.putAction("camp.log", "at://camp.log/a/3aaa", action("first", "2026-10-01T00:00:00.000Z"));
+    await store.putAction("camp.log", "at://camp.log/a/3ccc", action("third", "2026-10-02T00:00:00.000Z"));
+    expect((await store.listActions("camp.log")).map((a) => a.action.label)).toEqual(["first", "second", "third"]);
+    await expect(store.putAction("camp.log", "at://camp.log/a/3aaa", action("rewrite", "2026-10-01T00:00:00.000Z"))).rejects.toThrow();
+    expect(await store.listActions("camp.other")).toEqual([]);
+
+    const seats = await store.listSeats("camp.1");
+    expect(seats.map((s) => s.characterId)).toContain("char.alice");
+    expect(seats.every((s) => s.seat.campaign === "at://camp.1")).toBe(true);
   });
 
   it("persists behavior models and voice profiles", async () => {

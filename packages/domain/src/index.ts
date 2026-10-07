@@ -10,6 +10,8 @@ export * from "./identity.js";
 export * from "./character.js";
 export * from "./sheet.js";
 export * from "./seat.js";
+export * from "./items.js";
+export * from "./action.js";
 export * from "./campaign.js";
 export * from "./voice.js";
 export * from "./readiness.js";

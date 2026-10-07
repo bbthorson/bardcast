@@ -1,41 +1,40 @@
 import { z } from "zod";
+import { SeatState } from "./action.js";
 import { Trait } from "./character.js";
 import { AtUri, IsoDateTime, StrongRef } from "./ids.js";
+import { equipmentAfter, Item, sameItems, type GearPolicy } from "./items.js";
 import {
   Advancement,
   CharacterSheet,
   levelOf,
   MAX_LEVEL,
+  nextVersion,
   playSheet,
   sameAdvancement,
   sameBase,
   sheetAtLevel,
-  nextVersion,
   type PlayedSheet,
 } from "./sheet.js";
 
 /**
  * A character at one table: a branch of the player's sheet
- * (docs/character-creation.md, "A seat is a branch, not a copy").
+ * (docs/character-creation.md, "A seat is a branch").
  *
  * `brought` is a snapshot of the sheet as it sat down, already reset to the
- * table's starting level. It's kept whole because AT Protocol doesn't serve old
- * record versions: the StrongRef in `sheet` proves where it came from, the
- * snapshot is what the table plays from. Levels earned here go in
- * `advancements`; hit points, conditions and gear go in `state`.
+ * table's starting level. It's kept whole because the player can delete their
+ * own records: the StrongRef in `sheet` proves where it came from, the snapshot
+ * keeps the table playable. Levels earned here go in `advancements`.
+ *
+ * Hit points, conditions and items are campaign-specific. `startingItems` is
+ * what they sat down with (per the campaign's gear policy); `state` is a
+ * snapshot derived from those plus the campaign's action log (`applyActions`),
+ * refreshed when a chapter's actions are committed. None of it touches the
+ * player's own sheet until the seat closes and they bring it home.
  *
  * The seat also carries what replies to THIS campaign's prompts taught us
  * (`traits`, `sourceReplies`): that signal is campaign-scoped and feeds the
  * readiness gate.
  */
-export const SeatState = z.object({
-  hitPoints: z.number().int().min(0).optional(),
-  conditions: z.array(z.string().max(80)).max(16).default([]),
-  gear: z.array(z.string().max(120)).max(64).default([]),
-});
-export type SeatState = z.infer<typeof SeatState>;
-
-/** Zod mirror of game.bardcast.campaign.seat. Lives in the campaign's space. */
 export const CampaignSeat = z.object({
   campaign: AtUri,
   /** AT-URI of the character.profile in the player's repo. */
@@ -48,7 +47,12 @@ export const CampaignSeat = z.object({
   brought: CharacterSheet.optional(),
   /** Levels gained at this table, continuing from `brought`. */
   advancements: z.array(Advancement).max(MAX_LEVEL - 1).default([]),
+  /** What they sat down with: the starting kit, or their own equipment. */
+  startingItems: z.array(Item).max(64).default([]),
+  /** Derived from startingItems + the action log. Absent until the first actions are committed. */
   state: SeatState.optional(),
+  /** When the character left the table or the campaign ended. Progress comes home only after this. */
+  closedAt: IsoDateTime.optional(),
   /** Reply-inferred traits from this campaign's prompts. */
   traits: z.array(Trait).max(64).default([]),
   /** Antiphony replies to this campaign's prompts (provenance). */
@@ -61,16 +65,24 @@ export type CampaignSeat = z.infer<typeof CampaignSeat>;
  * Sit a character down at a table. A sheet above the starting level is
  * replayed down to it; a sheet below it sits at its own level, and
  * `pendingLevels` on the played seat says how many advancements the player
- * still has to choose.
+ * still has to choose. The gear policy decides what they carry in.
  */
 export function joinCampaign(input: {
   campaign: string;
   sheet: CharacterSheet;
   sheetRef: StrongRef;
   startingLevel: number;
+  /** Absent means "starting". */
+  gearPolicy?: GearPolicy;
+  /** The table's starting kit for this character (used when the policy is "starting"). */
+  startingKit?: Item[];
   createdAt: string;
 }): CampaignSeat {
   const level = Math.min(input.startingLevel, levelOf(input.sheet));
+  const startingItems =
+    input.gearPolicy === "bring"
+      ? input.sheet.equipment.map((i) => ({ ...i, source: "brought" as const }))
+      : (input.startingKit ?? []).map((i) => ({ ...i, source: "start" as const }));
   return {
     campaign: input.campaign as CampaignSeat["campaign"],
     character: input.sheet.character,
@@ -78,6 +90,7 @@ export function joinCampaign(input: {
     startingLevel: input.startingLevel,
     brought: sheetAtLevel(input.sheet, level),
     advancements: [],
+    startingItems,
     traits: [],
     sourceReplies: [],
     createdAt: input.createdAt,
@@ -96,8 +109,10 @@ export function seatSheet(seat: CampaignSeat): CharacterSheet | null {
 export interface PlayedSeat extends PlayedSheet {
   /** Advancements still owed to reach the table's starting level. */
   pendingLevels: number;
-  /** Current hit points: the seat's state, or full health. */
+  /** Current hit points (never above the maximum). */
   hitPoints: number;
+  conditions: string[];
+  items: Item[];
 }
 
 export function playSeat(seat: CampaignSeat): PlayedSeat | null {
@@ -108,26 +123,32 @@ export function playSeat(seat: CampaignSeat): PlayedSeat | null {
     ...played,
     pendingLevels: Math.max(0, seat.startingLevel - played.level),
     hitPoints: Math.min(seat.state?.hitPoints ?? played.maxHitPoints, played.maxHitPoints),
+    conditions: seat.state?.conditions ?? [],
+    items: seat.state?.items ?? seat.startingItems,
   };
 }
 
 /**
  * What happens when a player brings a character's progress home from a table.
+ * Only a closed seat comes home: levels and gear stay with the campaign until
+ * it ends or the character leaves. Hit points and conditions never come home.
  *
- * - `nothing-new`: the table hasn't taken them past their own sheet's level.
- * - `fast-forward`: their current sheet is still where the table branched from
- *   it; the table's levels follow on. `sheet` is the NEW version to write, with
- *   `prev` pointing at their current one.
+ * - `seat-open`: the campaign is still going.
+ * - `nothing-new`: no levels past their own sheet, and no gear to carry.
+ * - `update`: a NEW version to write (`prev` = their current one) with the
+ *   table's levels, if the current version is still where the table branched
+ *   from, and the gear they carried out.
  * - `diverged`: both have levelled differently since (another table, an edit).
  *   The player chooses; `chooseHistory` makes the version for that choice.
  *
- * Nothing is overwritten: the seat is unchanged, and the player's earlier
- * versions stay in their history.
+ * Nothing is overwritten: the seat is unchanged, and earlier versions stay in
+ * the player's history.
  */
 export type HomeComing =
+  | { kind: "seat-open" }
   | { kind: "nothing-new" }
-  | { kind: "fast-forward"; sheet: CharacterSheet }
-  | { kind: "diverged"; fromLevel: number; table: CharacterSheet };
+  | { kind: "update"; sheet: CharacterSheet }
+  | { kind: "diverged"; fromLevel: number; table: CharacterSheet; equipment: Item[] };
 
 export interface Home {
   /** The player's current sheet version and its ref. */
@@ -139,34 +160,41 @@ export interface Home {
 }
 
 export function bringHome(seat: CampaignSeat, home: Home): HomeComing {
+  if (!seat.closedAt) return { kind: "seat-open" };
   const { current } = home;
+  const equipment = equipmentAfter(current.equipment, seat.startingItems, seat.state?.items ?? seat.startingItems);
   const table = seatSheet(seat);
-  if (!table || levelOf(table) <= levelOf(current)) return { kind: "nothing-new" };
 
-  if (!sameBase(current, table)) return { kind: "diverged", fromLevel: 1, table };
-  const shared = current.advancements.findIndex((a, i) => !sameAdvancement(a, table.advancements[i]!));
-  if (shared !== -1) return { kind: "diverged", fromLevel: shared + 2, table };
-
-  return { kind: "fast-forward", sheet: withHistory(table, home) };
+  if (table && levelOf(table) > levelOf(current)) {
+    if (!sameBase(current, table)) return { kind: "diverged", fromLevel: 1, table, equipment };
+    const shared = current.advancements.findIndex((a, i) => !sameAdvancement(a, table.advancements[i]!));
+    if (shared !== -1) return { kind: "diverged", fromLevel: shared + 2, table, equipment };
+    return { kind: "update", sheet: newVersion(home, equipment, table) };
+  }
+  if (!sameItems(equipment, current.equipment)) return { kind: "update", sheet: newVersion(home, equipment) };
+  return { kind: "nothing-new" };
 }
 
 /**
- * Resolve a divergence. "table" makes a new version carrying the table's
- * history; "owned" keeps the current version, so there is nothing to write.
+ * Resolve a divergence. "table" takes the table's levels; "owned" keeps their
+ * own. Gear comes home either way. Null when there's nothing to write.
  */
-export function chooseHistory(table: CharacterSheet, choice: "table" | "owned", home: Home): CharacterSheet | null {
-  return choice === "owned" ? null : withHistory(table, home);
+export function chooseHistory(
+  diverged: Extract<HomeComing, { kind: "diverged" }>,
+  choice: "table" | "owned",
+  home: Home,
+): CharacterSheet | null {
+  if (choice === "table") return newVersion(home, diverged.equipment, diverged.table);
+  return sameItems(diverged.equipment, home.current.equipment) ? null : newVersion(home, diverged.equipment);
 }
 
-/** A new version: the current sheet's narrative face, with the table's mechanics. */
-function withHistory(table: CharacterSheet, home: Home): CharacterSheet {
+/** A new version: the current sheet's narrative face, the gear carried home, and (optionally) the table's mechanics. */
+function newVersion(home: Home, equipment: Item[], table?: CharacterSheet): CharacterSheet {
+  const mechanics = table
+    ? { class: table.class, abilities: table.abilities, features: table.features, advancements: table.advancements }
+    : {};
   return CharacterSheet.parse({
-    ...nextVersion(
-      home.current,
-      home.currentRef,
-      { class: table.class, abilities: table.abilities, features: table.features, advancements: table.advancements },
-      home.now,
-    ),
+    ...nextVersion(home.current, home.currentRef, { ...mechanics, equipment }, home.now),
     fromSeat: home.seatUri,
   });
 }

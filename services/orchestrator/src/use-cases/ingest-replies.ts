@@ -34,6 +34,7 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
       campaign: `at://${input.campaignId}`,
       character: `at://${input.characterId}`,
       startingLevel: 1,
+      startingItems: [],
       advancements: [],
       traits: [],
       sourceReplies: [],

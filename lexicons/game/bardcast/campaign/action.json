@@ -1,0 +1,214 @@
+{
+    "lexicon": 1,
+    "id": "game.bardcast.campaign.action",
+    "defs": {
+        "main": {
+            "type": "record",
+            "description": "One mechanical thing that happened at the table: an attack, a check, damage, a rest, a sword found. Written into the campaign's space (authority: Bardcast's DID, skey: the campaign). IMMUTABLE and append-only: the action log is the record of what happened, and each seat's hit points, conditions and items are derived by replaying it. Posted when a chapter is finished, never while it's drafted, so a branch the story engine backtracked out of never appears. Story beats are game.bardcast.character.stateEvent, not actions.",
+            "key": "tid",
+            "record": {
+                "type": "object",
+                "required": [
+                    "campaign",
+                    "chapter",
+                    "beat",
+                    "actor",
+                    "kind",
+                    "label",
+                    "createdAt"
+                ],
+                "properties": {
+                    "campaign": {
+                        "type": "string",
+                        "format": "at-uri"
+                    },
+                    "chapter": {
+                        "type": "string",
+                        "format": "at-uri",
+                        "description": "The game.bardcast.campaign.chapter this happened in."
+                    },
+                    "beat": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "The beat within the chapter."
+                    },
+                    "actor": {
+                        "type": "string",
+                        "maxLength": 300,
+                        "description": "Who acted: a character's profile AT-URI, or an NPC's name."
+                    },
+                    "kind": {
+                        "type": "string",
+                        "knownValues": [
+                            "attack",
+                            "check",
+                            "save",
+                            "damage",
+                            "heal",
+                            "rest",
+                            "condition",
+                            "item",
+                            "other"
+                        ]
+                    },
+                    "label": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 300,
+                        "description": "One line for the log, e.g. 'Gawain swings at the Green Knight'."
+                    },
+                    "roll": {
+                        "type": "ref",
+                        "ref": "#roll"
+                    },
+                    "effects": {
+                        "type": "array",
+                        "maxLength": 16,
+                        "items": {
+                            "type": "ref",
+                            "ref": "#effect"
+                        }
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "datetime"
+                    }
+                }
+            }
+        },
+        "effect": {
+            "type": "object",
+            "description": "What the action did to one character at the table.",
+            "required": [
+                "target"
+            ],
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "format": "at-uri",
+                    "description": "The affected character's profile AT-URI (matches the seat's `character`)."
+                },
+                "hitPoints": {
+                    "type": "integer",
+                    "minimum": -999,
+                    "maximum": 999,
+                    "description": "Hit points gained (positive) or lost (negative). Kept between 0 and the character's maximum."
+                },
+                "restore": {
+                    "type": "boolean",
+                    "description": "Back to full hit points, as after a long rest. Applied before hitPoints."
+                },
+                "conditionsAdded": {
+                    "type": "array",
+                    "maxLength": 8,
+                    "items": {
+                        "type": "string",
+                        "maxLength": 80
+                    }
+                },
+                "conditionsRemoved": {
+                    "type": "array",
+                    "maxLength": 8,
+                    "items": {
+                        "type": "string",
+                        "maxLength": 80
+                    }
+                },
+                "itemsGained": {
+                    "type": "array",
+                    "maxLength": 8,
+                    "items": {
+                        "type": "ref",
+                        "ref": "game.bardcast.character.sheet#item"
+                    }
+                },
+                "itemsLost": {
+                    "type": "array",
+                    "maxLength": 8,
+                    "items": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "description": "Ids of items lost, broken or given away."
+                },
+                "itemsChanged": {
+                    "type": "array",
+                    "maxLength": 8,
+                    "items": {
+                        "type": "ref",
+                        "ref": "game.bardcast.character.sheet#item"
+                    },
+                    "description": "Items replaced by id: an upgrade, equipping or unequipping."
+                }
+            }
+        },
+        "roll": {
+            "type": "object",
+            "description": "The roll that decided it, kept for reproducibility (mirrors RollLogEntry).",
+            "required": [
+                "label",
+                "dc",
+                "d20s",
+                "d20",
+                "modifier",
+                "total",
+                "outcome",
+                "seed"
+            ],
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "maxLength": 300
+                },
+                "ability": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "dc": {
+                    "type": "integer"
+                },
+                "mode": {
+                    "type": "string",
+                    "knownValues": [
+                        "normal",
+                        "advantage",
+                        "disadvantage"
+                    ]
+                },
+                "d20s": {
+                    "type": "array",
+                    "minLength": 1,
+                    "maxLength": 2,
+                    "items": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 20
+                    }
+                },
+                "d20": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20
+                },
+                "modifier": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "outcome": {
+                    "type": "string",
+                    "knownValues": [
+                        "critical-success",
+                        "success",
+                        "failure",
+                        "critical-failure"
+                    ]
+                },
+                "seed": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

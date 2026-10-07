@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { AtUri, IsoDateTime, StrongRef } from "./ids.js";
+import { Item } from "./items.js";
 import { ABILITY_SCORES, type AbilityScore } from "./traits.js";
 
 /**
- * The player-owned 5e sheet and the arithmetic over it (D&D 5.1 SRD,
+ * The player-owned 5e sheet and the arithmetic over it (D&D SRD 5.2,
  * CC-BY-4.0). A sheet is level-1 choices plus an advancement log, one entry per
  * level gained, so it can be replayed to any lower level: a level-8 character
  * joining a table that starts at 3 sits down as their level-3 self
@@ -14,10 +15,10 @@ import { ABILITY_SCORES, type AbilityScore } from "./traits.js";
 
 export const MAX_LEVEL = 20;
 
-/** SRD 5.1 standard array, placed by the player (Clef may only suggest). */
+/** SRD 5.2 standard array, placed by the player (Clef may only suggest). */
 export const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8] as const;
 
-/** SRD 5.1 classes and their hit dice. */
+/** SRD 5.2 classes and their hit dice. */
 export const SRD_CLASSES = {
   barbarian: { hitDie: 12 },
   bard: { hitDie: 8 },
@@ -83,7 +84,7 @@ export const CharacterSheet = z
     class: SrdClass,
     species: z.string().max(60).optional(),
     background: z.string().max(60).optional(),
-    /** Level-1 scores, after species bonuses. Increases live in `advancements`. */
+    /** Level-1 scores, after the background's increases (SRD 5.2). Increases live in `advancements`. */
     abilities: AbilityScores,
     /** Level-1 features. */
     features: z.array(z.string().max(120)).max(32).default([]),
@@ -93,6 +94,8 @@ export const CharacterSheet = z
     traits: z.array(SheetTrait).max(32).default([]),
     /** Free-text quirks, the lines a player reads first. */
     quirks: z.array(z.string().max(200)).max(8).default([]),
+    /** Permanent equipment. A campaign's gear policy decides whether it comes to the table. */
+    equipment: z.array(Item).max(64).default([]),
     /** The version this one replaces. Absent on a character's first sheet. */
     prev: StrongRef.optional(),
     /** The campaign seat this version's levels came from, when progress was brought home. */

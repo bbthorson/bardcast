@@ -4,7 +4,7 @@
     "defs": {
         "main": {
             "type": "record",
-            "description": "A character at one table: a branch of the player's game.bardcast.character.sheet. Written into the campaign's space (authority: Bardcast's DID, skey: the campaign), never into the player's repo. Holds a snapshot of the sheet as it sat down, reset to the table's starting level (AT Protocol doesn't serve old record versions, so the StrongRef proves provenance and the snapshot is what the table plays from), the levels earned at this table, the table's running state, and what replies to this campaign's prompts taught Bardcast. The rkey is the player's DID: one seat per player per campaign.",
+            "description": "A character at one table: a branch of the player's game.bardcast.character.sheet. Written into the campaign's space (authority: Bardcast's DID, skey: the campaign), never into the player's repo. Holds a snapshot of the sheet as it sat down, reset to the table's starting level (AT Protocol doesn't serve old record versions, so the StrongRef proves provenance and the snapshot is what the table plays from), the levels earned at this table, the items they sat down with, a state snapshot derived from the campaign's action log (game.bardcast.campaign.action), when the seat closed, and what replies to this campaign's prompts taught Bardcast. The rkey is the player's DID: one seat per player per campaign.",
             "key": "any",
             "record": {
                 "type": "object",
@@ -48,9 +48,24 @@
                         },
                         "description": "Levels gained at this table, continuing from `brought`."
                     },
+                    "startingItems": {
+                        "type": "array",
+                        "maxLength": 64,
+                        "items": {
+                            "type": "ref",
+                            "ref": "game.bardcast.character.sheet#item"
+                        },
+                        "description": "What they sat down with: the table's starting kit, or their own equipment, per the campaign's gearPolicy."
+                    },
                     "state": {
                         "type": "ref",
-                        "ref": "#state"
+                        "ref": "#state",
+                        "description": "Derived from startingItems plus the action log, refreshed when a chapter's actions are committed. Never the source of truth."
+                    },
+                    "closedAt": {
+                        "type": "string",
+                        "format": "datetime",
+                        "description": "When the character left the table or the campaign ended. Levels and gear come home only after this."
                     },
                     "traits": {
                         "type": "array",
@@ -79,7 +94,10 @@
         },
         "state": {
             "type": "object",
-            "description": "The character's running state at this table.",
+            "description": "The character's running state at this table: hit points, conditions and items. Hit points and conditions never leave the table.",
+            "required": [
+                "hitPoints"
+            ],
             "properties": {
                 "hitPoints": {
                     "type": "integer",
@@ -93,12 +111,12 @@
                         "maxLength": 80
                     }
                 },
-                "gear": {
+                "items": {
                     "type": "array",
                     "maxLength": 64,
                     "items": {
-                        "type": "string",
-                        "maxLength": 120
+                        "type": "ref",
+                        "ref": "game.bardcast.character.sheet#item"
                     }
                 }
             }

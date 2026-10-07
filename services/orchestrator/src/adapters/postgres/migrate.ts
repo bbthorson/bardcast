@@ -36,6 +36,16 @@ CREATE TABLE IF NOT EXISTS sheet_versions (
 
 CREATE INDEX IF NOT EXISTS idx_sheet_versions_character ON sheet_versions (character_id);
 
+-- The campaign's action log: append-only. Seat state is derived from it.
+CREATE TABLE IF NOT EXISTS campaign_actions (
+    uri VARCHAR(512) PRIMARY KEY,
+    campaign_id VARCHAR(128) NOT NULL,
+    data JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_campaign_actions_campaign ON campaign_actions (campaign_id);
+
 CREATE TABLE IF NOT EXISTS campaign_seats (
     campaign_id VARCHAR(128) NOT NULL,
     character_id VARCHAR(128) NOT NULL,
@@ -182,6 +192,7 @@ export async function seedGawainCampaign(store: Store): Promise<void> {
       ],
       sourceReplies: [],
       startingLevel: 1,
+      startingItems: [],
       advancements: [],
       createdAt: now,
     };

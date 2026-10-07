@@ -3,6 +3,7 @@ import { CharacterSheet, Collections, joinCampaign, levelUp, type Advancement } 
 import { describe, expect, it } from "vitest";
 import { InMemoryStore } from "../adapters/in-memory-store.js";
 import type { CoreServices } from "../ports/index.js";
+import { closeSeat } from "./actions.js";
 import { bringProgressHome, currentSheet, sheetHistory, StaleSheetError, writeSheetVersion } from "./sheets.js";
 
 const CHAR = "char.gawain";
@@ -67,16 +68,17 @@ describe("bringing progress home", () => {
     const ref = await writeSheetVersion(svc, CHAR, first());
     const seat = joinCampaign({ campaign: "at://campaign.thornwood", sheet: first(), sheetRef: ref, startingLevel: 1, createdAt: T });
     await svc.store.putSeat("campaign.thornwood", CHAR, { ...seat, advancements: earned });
+    await closeSeat(svc, "campaign.thornwood", CHAR);
     return { svc, ref };
   }
 
-  it("fast-forwards with a new version and leaves the old one in history", async () => {
+  it("writes a new version with the table's levels and leaves the old one in history", async () => {
     const { svc, ref } = await seated([adv(2), adv(3)]);
     const seatBefore = await svc.store.getSeat("campaign.thornwood", CHAR);
 
     const result = await bringProgressHome(svc, { campaignId: "campaign.thornwood", characterId: CHAR });
 
-    expect(result.kind).toBe("fast-forward");
+    expect(result.kind).toBe("update");
     const history = await sheetHistory(svc, CHAR);
     expect(history.map((v) => v.ref)).toEqual([result.written, ref]);
     expect(history[0]!.sheet.advancements).toHaveLength(2);
