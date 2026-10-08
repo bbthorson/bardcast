@@ -93,14 +93,18 @@ The player makes and owns their characters; a campaign seats them. Design and de
       are the player's; D6 records the character model.
 - [x] Decide where character-creation recordings live: a private space per player under Bardcast's
       DID, created when they start their first character (Antiphony D6).
-- [ ] **Blocker for real players:** keep no real recordings until Antiphony ships spaces Phase 2
-      (`antiphony/specs/spaces.md`, built on `@atproto/space`). Phase 1 landed 2026-10-07: posts can
-      carry a space placement and space URIs (`@antiphony/shared` 0.8.0), but no route takes a space
-      yet and playback is still anonymous, so the privacy promises on the consent screen and
-      `/your-data` aren't true yet.
-- [ ] Bardcast's side of spaces (Phase 4 in that spec): `AntiphonyGateway.ensureSpace`, prompts
-      published into the campaign's or player's space (`SpaceTypes` in `packages/domain/src/nsid.ts`),
-      and `@antiphony/shared` 0.8.0 once it's published. Needs Antiphony Phase 2's API.
+- [ ] **Blocker for real players:** keep no real recordings until Bardcast publishes into spaces
+      (the next item) and the Antiphony deployment has `ANTIPHONY_PLAYBACK_SECRET` set. Antiphony's
+      side is built: Phase 1 (2026-10-07) gave posts a space placement and space URIs, and Phase 2
+      (2026-10-08, API contract 0.7.0) added the spaces API, uploads and posts into a space, and
+      signed, expiring playback for that audio, so the proxy no longer plays it to anyone holding a
+      link. Until Bardcast's prompts and replies actually go into a space, the privacy promises on
+      the consent screen and `/your-data` still aren't true.
+- [ ] Bardcast's side of spaces (Phase 4 in `antiphony/specs/spaces.md`): `AntiphonyGateway.ensureSpace`
+      over `PUT /api/v1/spaces/{type}/{skey}`; recordings uploaded with `spaceType` + `skey`; prompts
+      posted with `space` into the campaign's or player's space (`SpaceTypes` in
+      `packages/domain/src/nsid.ts`); playback URLs fetched fresh, never stored, since they expire in
+      an hour. Adopt `@antiphony/shared` 0.9.0 once it's published.
 - [ ] Decide campaigns with fixed characters (the Green Knight casting Gawain): a `characterPolicy`.
 
 ## M4 — Voice pipeline (ElevenLabs)
