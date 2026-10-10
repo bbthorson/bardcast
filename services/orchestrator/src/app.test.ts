@@ -12,6 +12,7 @@ import type { AntiphonyGateway } from "./ports/antiphony-gateway.js";
 
 function fakeGateway(): AntiphonyGateway {
   return {
+    async ensureSpace() {},
     async createPrompt(input) {
       return {
         uri: "at://dev.antiphony.audio.post/p1",

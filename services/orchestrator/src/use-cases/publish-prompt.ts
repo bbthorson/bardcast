@@ -1,4 +1,4 @@
-import type { Prompt } from "@bardcast/domain";
+import { campaignSpace, type Prompt } from "@bardcast/domain";
 import type { CoreServices } from "../ports/index.js";
 
 export interface PublishPromptInput {
@@ -16,14 +16,16 @@ export interface PublishPromptInput {
 
 /**
  * Step 1 of the loop: the DM publishes a prompt. We create the backing audio
- * prompt in Antiphony, persist the Bardcast Prompt with the link, then hand
- * it to the engagement channel for delivery to the players.
+ * prompt in Antiphony, in the campaign's private space (so the players' replies
+ * land there too), persist the Bardcast Prompt with the link, then hand it to
+ * the engagement channel for delivery to the players.
  */
 export async function publishPrompt(svc: CoreServices, input: PublishPromptInput): Promise<Prompt> {
   const vp = await svc.antiphony.createPrompt({
     title: input.title,
     ...(input.scene !== undefined ? { scene: input.scene } : {}),
     actingDid: input.dmDid,
+    space: campaignSpace(input.campaignId),
   });
 
   const prompt: Prompt = {

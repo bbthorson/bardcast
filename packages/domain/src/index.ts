@@ -5,6 +5,7 @@
  * the Zod schemas; the lexicons are the published-record contract.
  */
 export * from "./nsid.js";
+export * from "./spaces.js";
 export * from "./ids.js";
 export * from "./identity.js";
 export * from "./character.js";

@@ -4,9 +4,11 @@ import { z } from "zod";
 
 /**
  * Wire shapes for the slice of the Antiphony (`dev.antiphony.*`) Core API that
- * Bardcast uses: uploading audio, creating posts (a post with no `reply` is a
- * prompt, a post with one is a reply), and reading a prompt's replies. Mirrors
- * apps/core-api/openapi.json (contract v0.2.0) in the antiphony repo.
+ * Bardcast uses: creating spaces, uploading audio, creating posts (a post with
+ * no `reply` is a prompt, a post with one is a reply), and reading a prompt's
+ * replies. Mirrors apps/core-api/openapi.json (contract 0.8.0) in the antiphony
+ * repo. The space shapes are declared here rather than imported, until
+ * `@antiphony/shared` 0.9.0 (which exports them) is published.
  *
  * The canonical codecs (`BlobRefSchema`, the NSID constants) come from
  * `@antiphony/shared`; the request/response envelopes below are Bardcast's view
@@ -25,8 +27,48 @@ export type ApiFailure = z.infer<typeof ApiFailure>;
 export const BlobRef = BlobRefSchema;
 export type BlobRef = z.infer<typeof BlobRefSchema>;
 
-/** `POST /api/v1/audio/upload` result (inside `data`). */
-export const UploadAudioResult = z.object({ blob: BlobRef });
+// --- Spaces (antiphony specs/spaces.md) --------------------------------------
+
+/** One of the tenant's spaces, by type (an NSID) and key (record-key syntax; a DID is valid). */
+export const SpaceKey = z.object({
+  type: z.string().regex(/^[a-zA-Z][a-zA-Z0-9.-]*\.[a-zA-Z][a-zA-Z0-9]*$/, "Must be an NSID"),
+  skey: z.string().min(1).max(512).regex(/^[A-Za-z0-9._:~-]+$/, "Must be a record key"),
+});
+export type SpaceKey = z.infer<typeof SpaceKey>;
+
+/** Who may read, and who may write, a space. */
+export const SpacePolicy = z.enum(["public", "member-list", "managing-app"]);
+export type SpacePolicy = z.infer<typeof SpacePolicy>;
+
+/** `PUT /api/v1/spaces/{type}/{skey}` result (inside `data`). */
+export const SpaceView = SpaceKey.extend({
+  uri: z.string(),
+  readPolicy: SpacePolicy,
+  writePolicy: SpacePolicy,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type SpaceView = z.infer<typeof SpaceView>;
+
+/**
+ * The space a post lives in, read off its at:// uri
+ * (`at://{appDid}/space/{type}/{skey}/{author}/{collection}/{rkey}`), or null
+ * for a flat post. A reply goes in its parent's space, so this is how a reply
+ * knows where its audio must be uploaded.
+ */
+export function spaceOfUri(uri: string): SpaceKey | null {
+  const parts = uri.replace(/^at:\/\//, "").split("/");
+  if (parts[1] !== "space" || parts.length < 7) return null;
+  const parsed = SpaceKey.safeParse({ type: parts[2], skey: parts[3] });
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * `POST /api/v1/audio/upload` result (inside `data`). `space` is where the blob
+ * actually lives: the first upload of the same bytes decides it, so it can
+ * differ from the space the upload named.
+ */
+export const UploadAudioResult = z.object({ blob: BlobRef, space: SpaceKey.optional() });
 
 /** `dev.antiphony.embed.audio` — the audio attachment referenced on a post. */
 export const AudioEmbed = z.object({
@@ -53,6 +95,8 @@ export const CreatePostRequest = z.object({
   embed: AudioEmbed.optional(),
   reply: ReplyRef.optional(),
   langs: z.array(z.string()).optional(),
+  /** Place a prompt in a space. A reply inherits its parent's and must not name another. */
+  space: SpaceKey.optional(),
 });
 export type CreatePostRequest = z.infer<typeof CreatePostRequest>;
 
@@ -60,9 +104,10 @@ export type CreatePostRequest = z.infer<typeof CreatePostRequest>;
 export const CreatePostResult = z.object({ postId: z.string() });
 
 /**
- * The hydrated audio embed on a read view: a playback URL + transcript. Since
- * Antiphony 0.5.0 the URL is stable and unsigned, so anyone holding it can play
- * the audio; signed playback for private spaces is antiphony specs/spaces.md Phase 2.
+ * The hydrated audio embed on a read view: a playback URL + transcript. For a
+ * flat post the URL is stable and unsigned. For a post in a space it is signed
+ * and expires within the hour (Antiphony 0.8.0), so use it right away and
+ * re-read the post for a fresh one: never store it.
  */
 export const AudioEmbedView = z.object({
   url: httpsUrl().optional(),

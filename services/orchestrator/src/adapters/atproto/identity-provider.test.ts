@@ -18,6 +18,7 @@ function servicesWithRealSignIn(): CoreServices {
   return {
     store: new InMemoryStore(),
     antiphony: {
+      ensureSpace: async () => {},
       createPrompt: async () => {
         throw new Error("unused");
       },

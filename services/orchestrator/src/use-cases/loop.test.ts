@@ -17,6 +17,7 @@ import { sheetHistory, writeSheetVersion } from "./sheets.js";
 /** A fake gateway that returns canned replies — no network. */
 function fakeGateway(transcripts: string[]): AntiphonyGateway {
   return {
+    async ensureSpace() {},
     async createPrompt(input) {
       return { uri: "at://prompt/1", cid: "bafyprompt", postId: "1", title: input.title, createdAt: "2026-01-01T00:00:00Z" };
     },
@@ -203,5 +204,25 @@ describe("the Bardcast loop", () => {
     const after = await svc.store.getSeat(CAMPAIGN, CHAR);
     expect(after?.brought?.advancements).toHaveLength(1); // reset to level 2
     expect(after?.sourceReplies).toContain("at://reply/0");
+  });
+});
+
+describe("publishing into a space", () => {
+  it("puts a campaign's prompt in that campaign's space", async () => {
+    const seen: unknown[] = [];
+    const gateway = { ...fakeGateway([]), async createPrompt(input: Parameters<AntiphonyGateway["createPrompt"]>[0]) {
+      seen.push(input.space);
+      return fakeGateway([]).createPrompt(input);
+    } };
+    const { publishPrompt } = await import("./publish-prompt.js");
+    await publishPrompt(services(gateway), {
+      promptId: "prompt.thornwood.1",
+      campaignId: CAMPAIGN,
+      title: "A scar you carry",
+      dmDid: "did:example:dm",
+      audience: [CHAR],
+      audienceDids: ["did:example:alice"],
+    });
+    expect(seen).toEqual([{ type: "game.bardcast.space.campaign", skey: CAMPAIGN }]);
   });
 });

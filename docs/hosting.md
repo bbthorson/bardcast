@@ -79,3 +79,11 @@ Can be authored in-repo: `wrangler` configs for each Worker, R2 buckets, Queues,
 secrets slots (`wrangler secret put` for the ElevenLabs key and the Antiphony service
 token), and Workers Builds settings. Account-level steps stay manual: billing,
 DNS/domain setup, and supplying secret *values*.
+
+One secret lives on Antiphony's side, not ours: its deployment needs
+`ANTIPHONY_PLAYBACK_SECRET` set. Every Bardcast recording goes into an atproto
+space (the campaign's, or the player's own), and Antiphony refuses to create a
+space when it couldn't sign the playback links that keep that audio private. So
+without the secret, publishing a prompt fails rather than storing audio in the
+open. Those links expire within the hour: Bardcast reads one when it needs the
+audio and never stores it.

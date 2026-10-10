@@ -17,10 +17,15 @@ interface Captured {
   method: string;
   headers: Record<string, string | undefined>;
   body: string;
+  /** Text fields of a multipart body. */
+  form?: Record<string, string>;
 }
 
 const baseUrl = "http://mock-antiphony";
 const captured: Captured[] = [];
+/** Set to make the mock answer that the uploaded bytes already live in this space. */
+let uploadedElsewhere: { type: string; skey: string } | undefined;
+const SPACE = { type: "game.bardcast.space.campaign", skey: "campaign.thornwood" };
 
 function ok(data: unknown) {
   return JSON.stringify({ success: true, data });
@@ -49,9 +54,12 @@ async function mockFetch(input: string | URL | { toString(): string }, init: Req
   }
 
   let bodyStr = "";
+  let form: Record<string, string> | undefined;
   if (init.body instanceof FormData) {
     rawHeaders["content-type"] = "multipart/form-data; boundary=---mockboundary";
     bodyStr = "[FormData]";
+    form = {};
+    for (const [k, v] of init.body.entries()) if (typeof v === "string") form[k] = v;
   } else if (typeof init.body === "string") {
     bodyStr = init.body;
   }
@@ -61,11 +69,26 @@ async function mockFetch(input: string | URL | { toString(): string }, init: Req
     method,
     headers: rawHeaders,
     body: bodyStr,
+    ...(form ? { form } : {}),
   });
 
-  if (path === "/api/v1/audio/upload" && method === "POST") {
+  const spaceMatch = /^\/api\/v1\/spaces\/([^/]+)\/([^/]+)$/.exec(path);
+  if (spaceMatch && method === "PUT") {
+    const type = decodeURIComponent(spaceMatch[1]!);
+    const skey = decodeURIComponent(spaceMatch[2]!);
+    const policies = JSON.parse(bodyStr) as { readPolicy: string; writePolicy: string };
     return new Response(
-      ok({ blob: { $type: "blob", ref: { $link: "bafyaudiocid" }, mimeType: "audio/webm", size: 123 } }),
+      ok({ uri: `at://${APP_DID}/space/${type}/${skey}`, type, skey, ...policies, createdAt: "2026-10-10T00:00:00Z", updatedAt: "2026-10-10T00:00:00Z" }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  } else if (path === "/api/v1/audio/upload" && method === "POST") {
+    // Where the blob "already lives", for the first-upload-wins case.
+    const stored = uploadedElsewhere ?? (form?.spaceType ? { type: form.spaceType, skey: form.skey } : undefined);
+    return new Response(
+      ok({
+        blob: { $type: "blob", ref: { $link: "bafyaudiocid" }, mimeType: "audio/webm", size: 123 },
+        ...(stored ? { space: stored } : {}),
+      }),
       { status: 200, headers: { "content-type": "application/json" } },
     );
   } else if (path === "/api/v1/posts" && method === "POST") {
@@ -127,6 +150,7 @@ describe("Antiphony gateway", () => {
       title: "A scar you carry",
       scene: "Firelight catches an old mark.",
       actingDid: "did:example:dm",
+      space: SPACE,
     });
 
     // Normalized prompt view.
@@ -144,6 +168,62 @@ describe("Antiphony gateway", () => {
     expect(body.title).toBe("A scar you carry");
     expect(body.text).toBe("Firelight catches an old mark.");
     expect(body.reply).toBeUndefined(); // no reply ⇒ it's a prompt
+    expect((body as { space?: unknown }).space).toEqual(SPACE); // in the campaign's space
+  });
+
+  it("puts the space first, as Bardcast's own, and only once per space", async () => {
+    captured.length = 0;
+    const gw = gateway();
+    await gw.createPrompt({ title: "One", actingDid: "did:example:dm", space: SPACE });
+    await gw.createPrompt({ title: "Two", actingDid: "did:example:dm", space: SPACE });
+
+    const puts = captured.filter((c) => c.method === "PUT");
+    expect(puts).toHaveLength(1);
+    expect(puts[0]!.path).toBe("/api/v1/spaces/game.bardcast.space.campaign/campaign.thornwood");
+    expect(JSON.parse(puts[0]!.body)).toEqual({ readPolicy: "managing-app", writePolicy: "managing-app" });
+    // Service token only: the space isn't any one player's.
+    expect(puts[0]!.headers["x-antiphony-acting-actor"]).toBeUndefined();
+    expect(captured.findIndex((c) => c.method === "PUT")).toBeLessThan(captured.findIndex((c) => c.path === "/api/v1/posts"));
+  });
+
+  it("puts a player's own space under their DID", async () => {
+    captured.length = 0;
+    await gateway().ensureSpace({ type: "game.bardcast.space.player", skey: "did:plc:alice" });
+    expect(captured[0]!.path).toBe(`/api/v1/spaces/game.bardcast.space.player/${encodeURIComponent("did:plc:alice")}`);
+  });
+
+  it("uploads a reply's audio into its prompt's space", async () => {
+    captured.length = 0;
+    const client = new AntiphonyClient({ baseUrl, getServiceToken: () => TOKEN, fetch: mockFetch as any });
+    const prompt = {
+      uri: `at://${APP_DID}/space/${SPACE.type}/${SPACE.skey}/did:example:dm/dev.antiphony.audio.post/p1`,
+      cid: "bafypostcid",
+    };
+    await client.createReply({ prompt, audio: { blob: new Blob([new Uint8Array([1])], { type: "audio/webm" }) } }, "did:example:alice");
+
+    expect(captured.find((c) => c.path === "/api/v1/audio/upload")!.form).toEqual({ spaceType: SPACE.type, skey: SPACE.skey });
+    // The reply names no space: it inherits its parent's.
+    const body = JSON.parse(captured.find((c) => c.path === "/api/v1/posts")!.body) as { space?: unknown };
+    expect(body.space).toBeUndefined();
+  });
+
+  it("refuses audio that already lives somewhere else, before posting it", async () => {
+    captured.length = 0;
+    uploadedElsewhere = { type: SPACE.type, skey: "campaign.other" };
+    try {
+      const err = await gateway()
+        .createReply({
+          promptUri: `at://${APP_DID}/space/${SPACE.type}/${SPACE.skey}/did:example:dm/dev.antiphony.audio.post/p1`,
+          audioBlob: new Blob([new Uint8Array([1])]),
+          actingDid: "did:example:alice",
+        })
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(AntiphonyError);
+      expect((err as AntiphonyError).code).toBe("AUDIO_PLACEMENT");
+      expect(captured.some((c) => c.path === "/api/v1/posts")).toBe(false);
+    } finally {
+      uploadedElsewhere = undefined;
+    }
   });
 
   it("lists replies, mapping the signed audio URL and transcript", async () => {

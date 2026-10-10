@@ -35,7 +35,7 @@ export type CollectionId = (typeof Collections)[keyof typeof Collections];
  * swap NSID_ROOT before the first kept one.
  */
 export const SpaceTypes = {
-  /** One per campaign; skey: the campaign record's rkey. Semi-private: the party. */
+  /** One per campaign; skey: the campaign's stable local id (`campaign.thornwood`). Semi-private: the party. */
   campaign: nsid("space.campaign"),
   /**
    * One per player; skey: the player's DID. Private: that player only. Holds
