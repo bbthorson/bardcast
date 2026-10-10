@@ -98,12 +98,12 @@ describe("ingestReplies trait inference", () => {
       );
 
     await run(fakeModel({ temperament: { choice: "bold", confidence: 0.9 } }).model);
-    expect((await store.getSheet("campaign.x", "char.alice"))?.traits).toEqual([
+    expect((await store.getSeat("campaign.x", "char.alice"))?.traits).toEqual([
       { name: "temperament", value: "bold", confidence: 90 },
     ]);
 
     await run({ decide: async () => { throw new Error("down"); } });
-    const sheet = await store.getSheet("campaign.x", "char.alice");
+    const sheet = await store.getSeat("campaign.x", "char.alice");
     expect(sheet?.traits).toHaveLength(1);
     expect(sheet?.sourceReplies).toEqual(["at://reply/0"]);
   });

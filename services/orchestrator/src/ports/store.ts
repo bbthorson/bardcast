@@ -1,12 +1,20 @@
 import type {
   BehaviorModel,
+  CampaignAction,
   Campaign,
   Chapter,
   CharacterProfile,
+  CampaignSeat,
   CharacterSheet,
   Prompt,
+  StrongRef,
   VoiceProfile,
 } from "@bardcast/domain";
+
+export interface SheetVersion {
+  ref: StrongRef;
+  sheet: CharacterSheet;
+}
 
 export interface CampaignInvite {
   code: string;
@@ -35,9 +43,29 @@ export interface Store {
   // characters and their derived signal
   getCharacter(id: string): Promise<CharacterProfile | null>;
   putCharacter(id: string, profile: CharacterProfile): Promise<void>;
-  /** Sheets are campaign-scoped: the same character has one per campaign. */
-  getSheet(campaignId: string, characterId: string): Promise<CharacterSheet | null>;
-  putSheet(campaignId: string, characterId: string, sheet: CharacterSheet): Promise<void>;
+  /**
+   * Player-owned sheet versions. Immutable: a version is written once and
+   * never updated (putSheetVersion rejects a URI it already holds). The
+   * profile's `sheet` ref says which version is current; use-cases/sheets.ts
+   * is the only writer.
+   */
+  putSheetVersion(characterId: string, ref: StrongRef, sheet: CharacterSheet): Promise<void>;
+  getSheetVersion(uri: string): Promise<SheetVersion | null>;
+  /** Every version of a character's sheet, oldest first. */
+  listSheetVersions(characterId: string): Promise<SheetVersion[]>;
+  /** A character's seat at one campaign, branched from their sheet. */
+  getSeat(campaignId: string, characterId: string): Promise<CampaignSeat | null>;
+  putSeat(campaignId: string, characterId: string, seat: CampaignSeat): Promise<void>;
+  listSeats(campaignId: string): Promise<Array<{ characterId: string; seat: CampaignSeat }>>;
+
+  /**
+   * The campaign's action log. Append-only: an action is written once and
+   * never updated (putAction rejects a URI it already holds). Written only by
+   * use-cases/actions.ts, when a chapter's actions are committed.
+   */
+  putAction(campaignId: string, uri: string, action: CampaignAction): Promise<void>;
+  /** In the order they happened: by createdAt, then URI (a TID, so time-ordered). */
+  listActions(campaignId: string): Promise<Array<{ uri: string; action: CampaignAction }>>;
   getBehavior(characterId: string): Promise<BehaviorModel | null>;
   putBehavior(characterId: string, behavior: BehaviorModel): Promise<void>;
   getVoice(characterId: string): Promise<VoiceProfile | null>;

@@ -123,7 +123,7 @@ export function voiceColor(hue: number, ground: "felt" | "vellum" = "felt"): str
 
 /** Canonical voice lines — the tone reference for any copy an adapter emits. */
 export const voice = {
-  tagline: "Your table, told back in your own voices.",
+  tagline: "Answer tonight. Wake up in the story.",
   cta: "Pull up a chair",
   promptNotification: (characterName: string) => `The DM has a question for ${characterName}.`,
   answerAs: (characterName: string) => `Answer as ${characterName}`,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CharacterSheet } from "./character.js";
+import { playSheet } from "./sheet.js";
 import { deriveSeed, makeRng } from "./dice.js";
 import { abilityCheck, abilityScoreModifier, DC, modifierFor } from "./resolution.js";
 
@@ -26,16 +26,15 @@ describe("resolution", () => {
     expect(abilityScoreModifier(8)).toBe(-1);
   });
 
-  it("reads a modifier from the character sheet (replies → sheet → modifier)", () => {
-    const sheet: CharacterSheet = {
-      campaign: "at://campaign.thornwood",
-      character: "at://char.alice",
-      traits: [{ name: "dexterity", value: "16", confidence: 80 }],
-      sourceReplies: [],
-      createdAt: "2026-01-01T00:00:00Z",
-    };
-    expect(modifierFor(sheet, "dexterity")).toBe(3);
-    expect(modifierFor(sheet, "strength")).toBe(0);
+  it("reads a modifier from the sheet as played", () => {
+    const played = playSheet({
+      class: "rogue",
+      abilities: { strength: 10, dexterity: 15, constitution: 12, intelligence: 13, wisdom: 8, charisma: 14 },
+      features: [],
+      advancements: [{ level: 2, hitPoints: 5, abilityIncreases: { dexterity: 1 }, features: [], createdAt: "2026-01-01T00:00:00Z" }],
+    });
+    expect(modifierFor(played, "dexterity")).toBe(3);
+    expect(modifierFor(played, "strength")).toBe(0);
     expect(modifierFor(null, "dexterity")).toBe(0);
   });
 

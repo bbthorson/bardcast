@@ -9,8 +9,9 @@ import { z } from "zod";
  * - Did      — the AT-Protocol decentralized identifier the LocalId maps to.
  *
  * Characters, behavior models, and voice profiles hang off the player's Did so
- * a character can follow its player across campaigns ("portable canon"). The
- * character sheet is campaign-scoped instead; see docs/character-model.md.
+ * a character can follow its player across campaigns ("portable canon"). So
+ * does the character sheet; a campaign holds a seat branched from it. See
+ * docs/character-creation.md.
  */
 
 export const LocalId = z
@@ -29,6 +30,16 @@ export type AtUri = z.infer<typeof AtUri>;
 
 export const IsoDateTime = z.iso.datetime({ offset: true });
 export type IsoDateTime = z.infer<typeof IsoDateTime>;
+
+/**
+ * com.atproto.repo.strongRef: a record URI pinned to one version by its CID.
+ * Records can be edited; the CID says which version was meant.
+ */
+export const StrongRef = z.object({
+  uri: AtUri,
+  cid: z.string().min(1).max(200),
+});
+export type StrongRef = z.infer<typeof StrongRef>;
 
 /**
  * An in-world date. A PLAIN STRING on purpose — fantasy calendars don't fit a

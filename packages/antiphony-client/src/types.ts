@@ -59,7 +59,11 @@ export type CreatePostRequest = z.infer<typeof CreatePostRequest>;
 /** `POST /api/v1/posts` result (inside `data`). */
 export const CreatePostResult = z.object({ postId: z.string() });
 
-/** The hydrated audio embed on a read view: a signed playback URL + transcript. */
+/**
+ * The hydrated audio embed on a read view: a playback URL + transcript. Since
+ * Antiphony 0.5.0 the URL is stable and unsigned, so anyone holding it can play
+ * the audio; signed playback for private spaces is antiphony specs/spaces.md Phase 2.
+ */
 export const AudioEmbedView = z.object({
   url: httpsUrl().optional(),
   durationMs: z.number().int().optional(),

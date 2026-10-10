@@ -33,7 +33,7 @@ describe("PostgresStore & AT-Proto Stores (PGlite in-process)", () => {
     expect(gawain).not.toBeNull();
     expect(gawain?.displayName).toBe("Sir Gawain");
 
-    const sheet = await store.getSheet("gawain-green-knight", "gawain");
+    const sheet = await store.getSeat("gawain-green-knight", "gawain");
     expect(sheet).not.toBeNull();
     expect(sheet?.traits.length).toBeGreaterThan(0);
   });
@@ -72,7 +72,7 @@ describe("PostgresStore & AT-Proto Stores (PGlite in-process)", () => {
     expect(await store.getInvite("INVITE123")).toBeNull();
   });
 
-  it("isolates character sheets per campaign", async () => {
+  it("isolates seats per campaign", async () => {
     const charId = "char.alice";
     const now = new Date().toISOString();
 
@@ -82,26 +82,83 @@ describe("PostgresStore & AT-Proto Stores (PGlite in-process)", () => {
       createdAt: now,
     });
 
-    await store.putSheet("camp.1", charId, {
+    await store.putSeat("camp.1", charId, {
       campaign: "at://camp.1" as any,
       character: `at://${charId}` as any,
       traits: [{ name: "AC", value: "25", confidence: 100 }],
       sourceReplies: [],
+      startingLevel: 1,
+      startingItems: [],
+      advancements: [],
       createdAt: now,
     });
 
-    await store.putSheet("camp.2", charId, {
+    await store.putSeat("camp.2", charId, {
       campaign: "at://camp.2" as any,
       character: `at://${charId}` as any,
       traits: [{ name: "AC", value: "14", confidence: 100 }],
       sourceReplies: [],
+      startingLevel: 1,
+      startingItems: [],
+      advancements: [],
       createdAt: now,
     });
 
-    const sheet1 = await store.getSheet("camp.1", charId);
-    const sheet2 = await store.getSheet("camp.2", charId);
-    expect(sheet1?.traits[0]?.value).toBe("25");
-    expect(sheet2?.traits[0]?.value).toBe("14");
+    const seat1 = await store.getSeat("camp.1", charId);
+    const seat2 = await store.getSeat("camp.2", charId);
+    expect(seat1?.traits[0]?.value).toBe("25");
+    expect(seat2?.traits[0]?.value).toBe("14");
+  });
+
+  it("stores sheet versions insert-only, oldest first", async () => {
+    const charId = "char.carys";
+    const sheet = (createdAt: string, quirk: string) => ({
+      character: `at://${charId}` as const,
+      class: "rogue" as const,
+      abilities: { strength: 8, dexterity: 15, constitution: 13, intelligence: 12, wisdom: 10, charisma: 14 },
+      features: ["Sneak Attack"],
+      advancements: [],
+      traits: [],
+      quirks: [quirk],
+      equipment: [],
+      createdAt,
+    });
+    const v1 = { ref: { uri: `at://did:plc:carys/game.bardcast.character.sheet/3aaa`, cid: "bafyv1" }, sheet: sheet("2026-10-01T00:00:00.000Z", "Counts the exits") };
+    const v2 = {
+      ref: { uri: `at://did:plc:carys/game.bardcast.character.sheet/3bbb`, cid: "bafyv2" },
+      sheet: { ...sheet("2026-10-02T00:00:00.000Z", "Hums when nervous"), prev: v1.ref },
+    };
+    await store.putSheetVersion(charId, v2.ref, v2.sheet);
+    await store.putSheetVersion(charId, v1.ref, v1.sheet);
+
+    expect(await store.getSheetVersion(v1.ref.uri)).toEqual(v1);
+    expect(await store.listSheetVersions(charId)).toEqual([v1, v2]);
+    await expect(store.putSheetVersion(charId, v1.ref, v2.sheet)).rejects.toThrow();
+    expect(await store.getSheetVersion(v1.ref.uri)).toEqual(v1);
+    expect(await store.getSeat("camp.1", charId)).toBeNull();
+  });
+
+  it("keeps the action log append-only and in order, and lists a campaign's seats", async () => {
+    const action = (label: string, createdAt: string) => ({
+      campaign: "at://camp.log",
+      chapter: "at://camp.log/chapter/1",
+      beat: 0,
+      actor: "Fate",
+      kind: "damage" as const,
+      label,
+      effects: [],
+      createdAt,
+    });
+    await store.putAction("camp.log", "at://camp.log/a/3bbb", action("second", "2026-10-02T00:00:00.000Z"));
+    await store.putAction("camp.log", "at://camp.log/a/3aaa", action("first", "2026-10-01T00:00:00.000Z"));
+    await store.putAction("camp.log", "at://camp.log/a/3ccc", action("third", "2026-10-02T00:00:00.000Z"));
+    expect((await store.listActions("camp.log")).map((a) => a.action.label)).toEqual(["first", "second", "third"]);
+    await expect(store.putAction("camp.log", "at://camp.log/a/3aaa", action("rewrite", "2026-10-01T00:00:00.000Z"))).rejects.toThrow();
+    expect(await store.listActions("camp.other")).toEqual([]);
+
+    const seats = await store.listSeats("camp.1");
+    expect(seats.map((s) => s.characterId)).toContain("char.alice");
+    expect(seats.every((s) => s.seat.campaign === "at://camp.1")).toBe(true);
   });
 
   it("persists behavior models and voice profiles", async () => {

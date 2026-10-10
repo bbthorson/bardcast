@@ -1,13 +1,16 @@
 import type {
   BehaviorModel,
+  CampaignAction,
   Campaign,
   Chapter,
   CharacterProfile,
+  CampaignSeat,
   CharacterSheet,
   Prompt,
+  StrongRef,
   VoiceProfile,
 } from "@bardcast/domain";
-import type { CampaignInvite, Store } from "../ports/store.js";
+import type { CampaignInvite, SheetVersion, Store } from "../ports/store.js";
 
 /**
  * In-memory Store — the default adapter for local dev and tests. Swap for a
@@ -16,8 +19,10 @@ import type { CampaignInvite, Store } from "../ports/store.js";
 export class InMemoryStore implements Store {
   private campaigns = new Map<string, Campaign>();
   private characters = new Map<string, CharacterProfile>();
-  /** Keyed by `${campaignId}/${characterId}`: a sheet is per campaign. */
-  private sheets = new Map<string, CharacterSheet>();
+  /** Keyed by version URI. Insert-only: versions are immutable. */
+  private sheetVersions = new Map<string, SheetVersion & { characterId: string }>();
+  private seats = new Map<string, CampaignSeat>();
+  private actions = new Map<string, { campaignId: string; uri: string; action: CampaignAction }>();
   private behaviors = new Map<string, BehaviorModel>();
   private voices = new Map<string, VoiceProfile>();
   private chapters = new Map<string, Chapter>();
@@ -62,11 +67,40 @@ export class InMemoryStore implements Store {
   async putCharacter(id: string, profile: CharacterProfile) {
     this.characters.set(id, profile);
   }
-  async getSheet(campaignId: string, characterId: string) {
-    return this.sheets.get(`${campaignId}/${characterId}`) ?? null;
+  async putSheetVersion(characterId: string, ref: StrongRef, sheet: CharacterSheet) {
+    if (this.sheetVersions.has(ref.uri)) throw new Error(`sheet version ${ref.uri} already exists; versions are immutable`);
+    this.sheetVersions.set(ref.uri, { characterId, ref, sheet });
   }
-  async putSheet(campaignId: string, characterId: string, sheet: CharacterSheet) {
-    this.sheets.set(`${campaignId}/${characterId}`, sheet);
+  async getSheetVersion(uri: string) {
+    const v = this.sheetVersions.get(uri);
+    return v ? { ref: v.ref, sheet: v.sheet } : null;
+  }
+  async listSheetVersions(characterId: string) {
+    return [...this.sheetVersions.values()]
+      .filter((v) => v.characterId === characterId)
+      .map(({ ref, sheet }) => ({ ref, sheet }));
+  }
+  async getSeat(campaignId: string, characterId: string) {
+    return this.seats.get(`${campaignId}/${characterId}`) ?? null;
+  }
+  async putSeat(campaignId: string, characterId: string, seat: CampaignSeat) {
+    this.seats.set(`${campaignId}/${characterId}`, seat);
+  }
+  async listSeats(campaignId: string) {
+    const prefix = `${campaignId}/`;
+    return [...this.seats.entries()]
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, seat]) => ({ characterId: key.slice(prefix.length), seat }));
+  }
+  async putAction(campaignId: string, uri: string, action: CampaignAction) {
+    if (this.actions.has(uri)) throw new Error(`action ${uri} already exists; the log is append-only`);
+    this.actions.set(uri, { campaignId, uri, action });
+  }
+  async listActions(campaignId: string) {
+    return [...this.actions.values()]
+      .filter((a) => a.campaignId === campaignId)
+      .sort((a, b) => a.action.createdAt.localeCompare(b.action.createdAt) || a.uri.localeCompare(b.uri))
+      .map(({ uri, action }) => ({ uri, action }));
   }
   async getBehavior(characterId: string) {
     return this.behaviors.get(characterId) ?? null;

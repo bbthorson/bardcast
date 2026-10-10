@@ -1,6 +1,7 @@
 # Character model: what is durable, what is per campaign
 
-**Status:** decided 2026-09-24. Each Bardcast campaign becomes an atproto
+**Status:** decided 2026-09-24, revised 2026-10-07 (the sheet became the
+player's; see [`character-creation.md`](character-creation.md)). Each Bardcast campaign becomes an atproto
 **space** under Bardcast's own DID, keyed by `skey` (see Antiphony's
 `specs/atproto-authority-model.md`, Decision 2). This doc says which character
 records live in the player's repo and which live in the campaign's space.
@@ -9,25 +10,43 @@ records live in the player's repo and which live in the campaign's space.
 
 `character.sheet` was keyed `literal:self` in the player's repo: one sheet per
 character, everywhere. A character in two concurrent campaigns could not carry
-25 AC in one and 14 AC in the other.
+25 AC in one and 14 AC in the other. The first fix (2026-09-24) moved the sheet into
+each campaign's space; the second (2026-10-07) gave it back to the player and put a
+**seat** in each campaign instead.
 
 ## The split
 
+*Revised 2026-10-07: the sheet moved to the player's repo, and a campaign holds
+a seat branched from it. See [`character-creation.md`](character-creation.md).*
+
 | Record | Where it lives | Key | Why |
 |---|---|---|---|
-| `character.profile` (name, concept, pronouns, **drives**) | Player's repo | `self` | Who the character is. Portable off Bardcast. |
+| `character.profile` (name, concept, pronouns, **drives**) | Player's repo | `tid` | Who the character is. A player can have several. Portable off Bardcast. |
+| `character.sheet` (5e backbone, advancement log, traits, quirks, `prev`) | Player's repo | `tid`, one per version | The character's mechanics, owned by the player. Immutable versions; the profile's `sheet` names the current one. Travels with them. |
 | `voice.profile` | Player's repo | `self` | The player's voice. Same in every campaign. |
 | Behavior model (app state, no lexicon yet) | Keyed on the character | — | How the character acts. Durable. |
-| `character.sheet` (traits, provenance) | Campaign's space | player DID | Mechanics for **this** campaign. |
+| `campaign.seat` (the sheet as brought, levels earned here, starting items, derived state, reply-inferred traits) | Campaign's space | player DID | The character at **this** table. |
 | `character.stateEvent` | Campaign's space | `tid` | A beat in this campaign's story, tied by `chapterRef`. |
+| `campaign.action` (a mechanical event and its effects) | Campaign's space | `tid` | Append-only. A seat's hit points, conditions and items are derived from it. |
+| `campaign.chapter` (the episode) | Campaign's space | `tid` | Published to the party, not the public. |
+| Reply recordings (Antiphony posts) | Campaign's space, held by Antiphony | — | The raw audio behind every seat, behavior model and voice clone. The campaign keeps them. |
+
+**A new campaign starts a fresh seat.** Seats are keyed by (campaign, character).
+Joining replays the player's sheet down to the table's starting level
+(`joinCampaign`); a character with no sheet yet gets an empty seat on first
+ingest. Nothing is copied from another campaign's seat; what carries over is the
+profile, the sheet, the behavior model and the voice. Play never writes the
+player's sheet: progress reaches it only when the player brings it home
+(`bringHome`). `loop.test.ts` and `sheet.test.ts` pin this.
 
 `drives` moved from the sheet to the profile: motivation is identity, not
-mechanics. The sheet gained `campaign` and `character` (the profile's AT-URI) so
-a sheet read out of context still says what it belongs to.
+mechanics. Sheets and seats both name their `character` (the profile's AT-URI)
+so they still say what they belong to when read out of context.
 
-In the orchestrator, `Store.getSheet`/`putSheet` take `(campaignId,
-characterId)`, the readiness gate reads the sheet from the campaign it is
-gating, and ingest is `POST /api/campaigns/:campaignId/characters/:characterId/ingest`.
+In the orchestrator, sheet versions are written only through
+`use-cases/sheets.ts` (`Store.putSheetVersion` is insert-only); `Store.getSeat`/`putSeat` take `(campaignId, characterId)`. The
+readiness gate reads the seat of the campaign it is gating, and ingest is
+`POST /api/campaigns/:campaignId/characters/:characterId/ingest`.
 
 ## Why now
 
@@ -52,7 +71,5 @@ kept campaign is the cheap moment.
    exist. Options range from accepting dangling provenance, to copying a CID
    alongside each URI so the claim stays verifiable, to dropping provenance from
    the portable records entirely.
-3. **One character per player.** `character.profile` is `literal:self`, so a
-   player has exactly one character. Campaign-scoped sheets make that livable
-   (one character, different mechanics per campaign), but a player who wants two
-   different characters still can't have them.
+3. ~~**One character per player.**~~ Decided 2026-10-07: `character.profile` is
+   keyed by `tid`, so a player can have several characters.

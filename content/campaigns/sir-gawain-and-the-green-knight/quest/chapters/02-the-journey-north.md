@@ -27,7 +27,7 @@ Prompts about fear, faith, doubt, and resolve. Strong beat for **voice** capture
 (soliloquy, prayer) and **behavior** signal (how they handle privation).
 
 ## Resolution notes
-Survival/endurance **checks** keyed to sheet traits. Failures are **setbacks** — a
+Survival/endurance **checks** (Wisdom (Survival) checks, Constitution saves). Failures are **setbacks** — a
 lost supply, a wound, a lost day — never death. The beat ends safely at the castle
 gate regardless; the rolls color *how battered* the character arrives.
 

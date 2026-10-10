@@ -2,12 +2,14 @@
 
 > Turn a group of friends into characters in an ongoing RPG actual-play podcast — generated from their own voices.
 
-Bardcast is a tabletop-RPG storytelling engine. A **Dungeon Master** sets a scene and prompts the
-players; the **players** answer in their own recorded audio. Those answers do triple duty: they fill
-in a character sheet, train a predictive model of how the character behaves, and provide voice samples
-to clone each player's voice. Once a character is rich enough, Bardcast writes the next **chapter** of
-narrative from the campaign lore and the characters, renders it as **audio in the players' cloned
-voices**, and hands the DM fresh prompt ideas to keep the quest moving.
+Bardcast is a tabletop-RPG storytelling engine. Players **make their characters out loud** and own
+them: a character and its sheet live in the player's own AT-Protocol account and come along to every
+campaign. A **Dungeon Master** sets a scene and prompts the players; the **players** answer in their
+own recorded audio. Those answers do triple duty: they teach Bardcast who the character is at this
+table, train a predictive model of how the character behaves, and provide voice samples to clone
+each player's voice. Once the party is rich enough, Bardcast writes the next **chapter** of narrative
+from the campaign lore and the characters, renders it as **audio in the players' cloned voices**,
+and hands the DM fresh prompt ideas to keep the quest moving.
 
 The loop:
 
@@ -26,11 +28,13 @@ Bardcast does **not** reinvent audio call-and-response. It is a *consumer* of
 that owns audio prompts, asynchronous audio replies, and storage). Bardcast adds the parts that are genuinely new:
 
 1. **A world/narrative engine** — curated campaign canon + character data → a written, then spoken, chapter.
-2. **A readiness gate** — decides when a character has enough signal (sheet + behavior + voice) to appear.
-3. **A seeded dice/resolution engine** — SRD 5.1 ability checks resolve outcomes; failure is usually a
+2. **A readiness gate** — decides when a character has enough signal (traits + behavior + voice) to appear.
+3. **A seeded dice/resolution engine** — SRD 5.2 ability checks resolve outcomes; failure is usually a
    setback, and a forbidden outcome (a PC death) backtracks to the last decision node.
 4. **Its own AT-Protocol identity layer** — players authenticate by **DID** (Antiphony is headless and has no user auth), so a
-   character can follow its player across campaigns (the "portable canon" thesis).
+   character can follow its player across campaigns (the "portable canon" thesis). The player owns
+   the character and its sheet (immutable versions); a campaign holds a **seat** branched from the
+   sheet and an append-only **action log** of what happened at the table.
 5. **Two human surfaces** — a low-friction player client and a richer DM console.
 
 The architecture deliberately follows [`universe-starter-kit/protocol/ARCHITECTURE.md`](https://github.com/bbthorson/universe-starter-kit/blob/main/protocol/ARCHITECTURE.md)
@@ -45,6 +49,7 @@ reverse. In-world (fantasy-calendar) dates are stored as plain string fields, wh
 | --- | --- |
 | `lexicons/game/bardcast/*` | AT-Protocol record schemas (NSID root behind a single constant — see below). |
 | `packages/domain` | The domain model + Zod schemas, the **readiness gate**, and the **dice/resolution engine**. The load-bearing seam everything shares. |
+| `packages/srd` | A typed subset of the **D&D SRD 5.2** (CC-BY-4.0): classes, species, backgrounds, feats, equipment, skills, conditions. Generated from a pinned commit by its importer; never hand-edited. |
 | `packages/antiphony-client` | Typed client for the engine's `/api/v1/*` API. |
 | `packages/engagement` | The engagement **port** + a PWA adapter (live) + a Bluesky-communities adapter (stub). |
 | `services/orchestrator` | Hono service: the readiness gate, chapter pipeline, prompt suggestion, and Bardcast's own AT-Proto OAuth routes. |
@@ -64,11 +69,12 @@ and the seams are visible; real implementations slot in without touching the use
 | --- | --- | --- |
 | `AntiphonyGateway` | audio prompts + replies | `packages/antiphony-client` |
 | `NarrativeWriter` | canon + characters → chapter script | LLM (stub) |
-| `VoiceCloner` | player audio → voice model | ElevenLabs (stub) |
-| `AudioRenderer` | chapter script + voices → audio | ElevenLabs (stub) |
+| `VoiceCloner` | player audio → voice model | ElevenLabs (with `ELEVENLABS_API_KEY`; stub otherwise) |
+| `AudioRenderer` | chapter script + voices → audio | ElevenLabs (with `ELEVENLABS_API_KEY`; stub otherwise) |
 | `IdentityProvider` | AT-Proto OAuth → player DID | atproto (**live**) |
 | `EngagementChannel` | deliver prompts / collect replies | PWA (live-ish), Bluesky (stub) |
-| `Store` | persist campaign/character state | in-memory (stub) |
+| `DecisionModel` | pick among listed options (trait inference) | Clef on Workers AI (stub without credentials) |
+| `Store` | persist campaign/character state | D1 (deployed), Postgres, in-memory (tests/dev) |
 
 ## The NSID namespace is a placeholder
 
@@ -82,22 +88,25 @@ domain you control. The same one-constant discipline is documented in
 Design decisions live in [`docs/`](./docs):
 
 - [`story-engine.md`](./docs/story-engine.md) — content/canon model, staged generation, seeded SRD dice, the death-backtrack design.
+- [`character-model.md`](./docs/character-model.md) — which character records live in the player's repo and which in the campaign's space.
+- [`character-creation.md`](./docs/character-creation.md) — the character decisions: player-owned versioned sheets, campaign seats, the action log, gear, and the voice-driven creation flow.
+- [`packages/srd/README.md`](./packages/srd/README.md) — the SRD 5.2 data: where it comes from, how to update it, attribution.
 - [`integration-with-core.md`](./docs/integration-with-core.md) — the two-layer identity model (DID auth + a headless engine user) and the engine requirements it implies.
 - [`hosting.md`](./docs/hosting.md) — Cloudflare-only hosting: what is deployed today, the target for the rest, and ElevenLabs.
 - [`brand.md`](./docs/brand.md) — the visual identity ("Felt & Vellum"): palette, type, voice seals, dice shapes, and the candle rule. Tokens, generative marks + assets live in `packages/brand`.
 
 ## Status
 
-**Backend, pre-UI.** Real and tested: the domain model, the **readiness gate**, the **dice/resolution
-engine** (deterministic, SRD 5.1), Bardcast's own **AT-Proto identity** provider, and the first
-**campaign canon** seed (Gawain, OKF). A first UI surface, the **`apps/web` front door**, is now
-scaffolded on the live identity seam: AT-Proto sign-in wired to the orchestrator's `/atproto` OAuth
-(with an offline dev fallback), plus create-campaign, join-invite, and a full voice-clone management
-panel modelled on the `VoiceCloner` port — the last three stubbed client-side pending their endpoints.
-Still stubbed (marked `TODO(bardcast)`): the LLM `NarrativeWriter`, the ElevenLabs
-`VoiceCloner`/`AudioRenderer`, persistence, the Bluesky channel, and the player/DM app UIs — which stay
-parked until the backend works. The milestone-by-milestone path to the MVP is tracked in
-[`ROADMAP.md`](./ROADMAP.md). See [`CLAUDE.md`](./CLAUDE.md) for contributor orientation.
+**Backend first, front door live.** Real and tested: the domain model, the **readiness gate**, the
+**dice/resolution engine** (deterministic, SRD 5.2, not yet wired into chapter generation), the
+**character model** (player-owned sheet versions, campaign seats, the action log, gear), the
+**SRD 5.2 data** (`packages/srd`), persistence (**D1** deployed, Postgres, in-memory), ElevenLabs
+voice adapters, trait inference on Workers AI, Bardcast's own **AT-Proto identity**, and the first
+**campaign canon** seed (Gawain, OKF). The **`apps/web` front door** runs on Cloudflare: the home page,
+the `/your-data` page, sign-in, campaigns, invites and voice consent. Still stubbed (marked `TODO(bardcast)`):
+the LLM `NarrativeWriter`, character creation, writing records to players' repos, the Bluesky
+channel. The milestone-by-milestone path to the MVP is tracked in [`ROADMAP.md`](./ROADMAP.md). See
+[`CLAUDE.md`](./CLAUDE.md) for contributor orientation.
 
 ## Getting started
 
@@ -105,9 +114,10 @@ parked until the backend works. The milestone-by-milestone path to the MVP is tr
 nvm use            # Node 22
 npm install        # install all workspaces
 npm run typecheck  # all workspaces type-check green
-npm test           # domain + orchestrator tests
+npm test           # srd + domain + orchestrator tests
 ```
 
 ## License
 
-MIT.
+MIT. Includes material from the D&D System Reference Document 5.2 under CC-BY-4.0; see
+[`NOTICE`](./NOTICE).

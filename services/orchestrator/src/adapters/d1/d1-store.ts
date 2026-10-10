@@ -1,13 +1,16 @@
 import type {
   BehaviorModel,
+  CampaignAction,
   Campaign,
   Chapter,
   CharacterProfile,
+  CampaignSeat,
   CharacterSheet,
   Prompt,
+  StrongRef,
   VoiceProfile,
 } from "@bardcast/domain";
-import type { CampaignInvite, Store } from "../../ports/store.js";
+import type { CampaignInvite, SheetVersion, Store } from "../../ports/store.js";
 import { parseJson, type D1Database } from "./d1.js";
 
 type DataRow = { data: string };
@@ -111,22 +114,73 @@ export class D1Store implements Store {
     );
   }
 
-  async getSheet(campaignId: string, characterId: string): Promise<CharacterSheet | null> {
-    return this.one<CharacterSheet>(
-      "SELECT data FROM character_sheets WHERE campaign_id = ?1 AND character_id = ?2",
+  async putSheetVersion(characterId: string, ref: StrongRef, sheet: CharacterSheet): Promise<void> {
+    // Plain INSERT, no upsert: a second write to the same URI fails. Versions are immutable.
+    await this.exec(
+      "INSERT INTO sheet_versions (uri, character_id, data, created_at) VALUES (?1, ?2, ?3, ?4)",
+      ref.uri,
+      characterId,
+      JSON.stringify({ ref, sheet }),
+      sheet.createdAt,
+    );
+  }
+
+  async getSheetVersion(uri: string): Promise<SheetVersion | null> {
+    return this.one<SheetVersion>("SELECT data FROM sheet_versions WHERE uri = ?1", uri);
+  }
+
+  async listSheetVersions(characterId: string): Promise<SheetVersion[]> {
+    return this.many<SheetVersion>(
+      "SELECT data FROM sheet_versions WHERE character_id = ?1 ORDER BY created_at ASC, uri ASC",
+      characterId,
+    );
+  }
+
+  async getSeat(campaignId: string, characterId: string): Promise<CampaignSeat | null> {
+    return this.one<CampaignSeat>(
+      "SELECT data FROM campaign_seats WHERE campaign_id = ?1 AND character_id = ?2",
       campaignId,
       characterId,
     );
   }
 
-  async putSheet(campaignId: string, characterId: string, sheet: CharacterSheet): Promise<void> {
+  async putSeat(campaignId: string, characterId: string, seat: CampaignSeat): Promise<void> {
     await this.exec(
-      `INSERT INTO character_sheets (campaign_id, character_id, data, created_at) VALUES (?1, ?2, ?3, ?4)
+      `INSERT INTO campaign_seats (campaign_id, character_id, data, created_at) VALUES (?1, ?2, ?3, ?4)
        ON CONFLICT (campaign_id, character_id) DO UPDATE SET data = ?3`,
       campaignId,
       characterId,
-      JSON.stringify(sheet),
-      sheet.createdAt,
+      JSON.stringify(seat),
+      seat.createdAt,
+    );
+  }
+
+  async listSeats(campaignId: string): Promise<Array<{ characterId: string; seat: CampaignSeat }>> {
+    const rows = await this.db
+      .prepare("SELECT character_id, data FROM campaign_seats WHERE campaign_id = ?1 ORDER BY character_id")
+      .bind(campaignId)
+      .all<{ character_id: string; data: string }>();
+    return rows.results.flatMap((r) => {
+      const seat = parseJson<CampaignSeat>(r.data);
+      return seat ? [{ characterId: r.character_id, seat }] : [];
+    });
+  }
+
+  async putAction(campaignId: string, uri: string, action: CampaignAction): Promise<void> {
+    // Plain INSERT, no upsert: the log is append-only.
+    await this.exec(
+      "INSERT INTO campaign_actions (uri, campaign_id, data, created_at) VALUES (?1, ?2, ?3, ?4)",
+      uri,
+      campaignId,
+      JSON.stringify({ uri, action }),
+      action.createdAt,
+    );
+  }
+
+  async listActions(campaignId: string): Promise<Array<{ uri: string; action: CampaignAction }>> {
+    return this.many<{ uri: string; action: CampaignAction }>(
+      "SELECT data FROM campaign_actions WHERE campaign_id = ?1 ORDER BY created_at ASC, uri ASC",
+      campaignId,
     );
   }
 

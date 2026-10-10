@@ -14,7 +14,7 @@ Everything is modeled as **OKF concepts** (markdown + frontmatter `type`), per
 |---|---|---|---|
 | **World** | places, factions, NPCs, items, lore | **Bardcast staff** (licensing-reviewed) | static |
 | **Quest** | the arc/module: objectives, beats, the spine | **Bardcast staff** | semi-static |
-| **Character** | the player characters (sheet, behavior, voice) | *derived from player replies* | grows |
+| **Character** | the player characters: the player's own sheet, plus a seat at this table (traits, behavior, voice) | *made by the player; the seat grows from replies and play* | grows |
 | **Chapter** | generated output (prose + events) | *generated*, becomes new canon | append |
 
 **Governance (v1):** world + quest canon are staff-authored and licensing-reviewed,
@@ -26,7 +26,10 @@ world lore. DM/player world-building is deferred to a later version.
 **Storage:** staff seed bundles live as OKF in a vetted content catalog. Per-campaign
 **character + chapter canon** live in the orchestrator `Store`, projected to OKF for
 the writer's context. "Story drives the data" holds for character/chapter canon:
-replies and generated chapters are the source; records are the projection.
+replies and generated chapters are the source; records are the projection. Characters
+split in two (`character-creation.md`): the player's own **sheet** (immutable versions,
+in their repo) and the campaign's **seat** branched from it, whose hit points,
+conditions and items come from the campaign's append-only **action log**.
 
 ## 2. Generation — replies are anchors, the chapter is an expansion
 
@@ -62,15 +65,24 @@ request more player audio or a DM decision mid-chapter.
 Randomness is core: good ideas should sometimes fall through, and outcomes shouldn't
 be foreordained.
 
-- **System:** explicit dice on the **D&D 5.1 SRD (CC-BY-4.0)** — a vetted, licensable
+- **System:** explicit dice on the **D&D SRD 5.2 (CC-BY-4.0)** (5.1 until 2026-10-07; see character-creation.md) — a vetted, licensable
   resolution system (ability checks, DCs, advantage). No need to invent mechanics.
-- **The loop that makes it cohere:** *player replies → character sheet → dice
-  modifier → outcome.* The sheet traits (built from replies) are the modifiers on
-  the roll. The data the players generate literally shapes their luck.
+- **The loop that makes it cohere** (revised 2026-10-07): *player replies → who the
+  character is → what they attempt; the sheet → the modifier → the outcome.* Roll
+  modifiers come from the sheet's ability scores and proficiencies (5e numbers the
+  player placed), as played at this table (`playSeat`, `modifierFor`). Reply-inferred
+  traits are personality: they steer what the writer has a character *try*, not the
+  numbers on the roll. Open idea, not decided: let Clef read a character's traits
+  against an action and pick advantage, normal or disadvantage, keeping the die
+  itself deterministic.
 - **Determinism:** a **seeded PRNG**; each beat derives a sub-seed from a stored
   master seed. The **roll log** (seed, check, DC, result) is persisted on the
   chapter — so any run is reproducible and any branch replayable. (Narrating the
-  rolls can be part of the charm.)
+  rolls can be part of the charm.) The rolls that mattered also land on the
+  campaign's **actions**, committed when the chapter is finished, so backtracked
+  branches never reach the log (`character-creation.md`, "Actions").
+- **Status:** `abilityCheck` (`packages/domain/src/resolution.ts`) is built and tested
+  but not yet called by chapter generation, which writes an empty `rollLog`.
 
 ## 4. Outcomes, safety, and backtracking
 
@@ -91,13 +103,20 @@ be foreordained.
 
 ## 5. Implications for the data model / code (build TODOs)
 
-- `Chapter.transcript` (freeform) → add a structured **`script: Array<{ speaker:
-  characterId | "narrator"; text: string }>`**. The `AudioRenderer` maps each line
-  to an ElevenLabs `voice_id`; the readable transcript is a render of the script.
-- `Chapter` gains a **`rollLog`** and **`seed`** for reproducibility, and a
-  **`beats`/checkpoint** structure for rollback.
-- `ChapterStatus` gains **`awaiting_input`** (DM decision or more player audio).
+Done (in `@bardcast/domain`):
+
+- `Chapter` has a structured **`script`** (`{ speaker, text }` lines, `speaker` a
+  character id or `"narrator"`); the `AudioRenderer` maps each line to an
+  ElevenLabs `voice_id`, and the readable transcript is a render of the script.
+- `Chapter` has a **`rollLog`**, a **`seed`**, and **`beats`** (with decision nodes)
+  for rollback; `ChapterStatus` has **`awaiting_input`**.
+- The **action log** (`campaign.action`) and seat state replay; AC and attacks
+  will read equipped items from `@bardcast/srd`.
+
+Still to build:
+
 - `NarrativeWriter` port likely splits into staged steps; add a **resolution
-  service** (dice + SRD checks) and a **director/backtrack policy** component.
+  service** (dice + SRD checks, writing actions) and a **director/backtrack policy**
+  component.
 - `suggestPrompts` is powered by the writer's open quest threads + readiness gaps —
   the same staged writer drives both ends of the loop.

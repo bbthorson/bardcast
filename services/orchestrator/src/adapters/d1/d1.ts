@@ -47,7 +47,26 @@ export const D1_SCHEMA: readonly string[] = [
     created_at TEXT NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_characters_player_did ON characters (player_did)`,
-  `CREATE TABLE IF NOT EXISTS character_sheets (
+  // Player-owned sheet versions (insert-only; the profile points at the
+  // current one) and campaign seats branched from them. These replace the old
+  // campaign-scoped `character_sheets` table, which existing databases keep but
+  // nothing reads (docs/character-creation.md).
+  `CREATE TABLE IF NOT EXISTS sheet_versions (
+    uri TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_sheet_versions_character ON sheet_versions (character_id)`,
+  // The campaign's action log: append-only. Seat state is derived from it.
+  `CREATE TABLE IF NOT EXISTS campaign_actions (
+    uri TEXT PRIMARY KEY,
+    campaign_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_campaign_actions_campaign ON campaign_actions (campaign_id)`,
+  `CREATE TABLE IF NOT EXISTS campaign_seats (
     campaign_id TEXT NOT NULL,
     character_id TEXT NOT NULL,
     data TEXT NOT NULL,

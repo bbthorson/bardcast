@@ -1,6 +1,7 @@
 import type {
   Campaign,
   CharacterProfile,
+  CampaignSeat,
   CharacterSheet,
   BehaviorModel,
   VoiceProfile,
@@ -36,7 +37,10 @@ export interface CampaignDetail {
 export interface CharacterDetailResponse {
   characterId: string;
   profile: CharacterProfile;
+  /** The player's own sheet, the same at every table. */
   sheet: CharacterSheet | null;
+  /** This campaign's seat: the sheet as played here, and what replies here taught us. */
+  seat: CampaignSeat | null;
   behavior: BehaviorModel | null;
   voice: VoiceProfile | null;
 }

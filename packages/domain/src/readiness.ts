@@ -1,5 +1,6 @@
 import { z } from "zod";
-import type { BehaviorModel, CharacterSheet } from "./character.js";
+import type { BehaviorModel } from "./character.js";
+import type { CampaignSeat } from "./seat.js";
 import type { VoiceProfile } from "./voice.js";
 
 /**
@@ -45,7 +46,8 @@ export interface CharacterReadiness {
 }
 
 export interface CharacterSignal {
-  sheet?: CharacterSheet | undefined;
+  /** This campaign's seat: its reply-inferred traits are the sheet axis. */
+  seat?: CampaignSeat | undefined;
   behavior?: BehaviorModel | undefined;
   voice?: VoiceProfile | undefined;
 }
@@ -58,7 +60,7 @@ export function evaluateCharacter(
   signal: CharacterSignal,
   thresholds: ReadinessThresholds = DEFAULT_THRESHOLDS,
 ): CharacterReadiness {
-  const confidentTraits = (signal.sheet?.traits ?? []).filter(
+  const confidentTraits = (signal.seat?.traits ?? []).filter(
     (t) => (t.confidence ?? 0) >= thresholds.minTraitConfidence,
   ).length;
   const sheet: AxisStatus = {

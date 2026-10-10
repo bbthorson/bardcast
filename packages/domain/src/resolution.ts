@@ -1,9 +1,10 @@
 import { z } from "zod";
-import type { CharacterSheet } from "./character.js";
+import type { PlayedSheet } from "./sheet.js";
+import type { AbilityScore } from "./traits.js";
 import { deriveSeed, makeRng, rollD20 } from "./dice.js";
 
 /**
- * Action resolution on the D&D 5.1 SRD (CC-BY-4.0): a d20 ability check + the
+ * Action resolution on the D&D SRD 5.2 (CC-BY-4.0): a d20 ability check + the
  * character's modifier vs a Difficulty Class. This is where the loop closes —
  * *player replies → character sheet → dice modifier → outcome* (docs/story-engine.md §3).
  */
@@ -48,16 +49,12 @@ export function abilityScoreModifier(score: number): number {
 }
 
 /**
- * Derive a check modifier from the character sheet. Convention: a trait's `value`
- * parsed as a number is treated as a 5e ability SCORE (1–20) and converted to a
- * modifier. Missing/non-numeric → 0. (The narrative engine decides which trait a
- * given action keys off of.)
+ * The check modifier for an ability, from the sheet as played at the table
+ * (playSheet / playSeat). No sheet yet → 0. (The narrative engine decides
+ * which ability a given action keys off of.)
  */
-export function modifierFor(sheet: CharacterSheet | null | undefined, traitName: string): number {
-  const trait = sheet?.traits.find((t) => t.name.toLowerCase() === traitName.toLowerCase());
-  if (!trait?.value) return 0;
-  const score = Number(trait.value);
-  return Number.isFinite(score) ? abilityScoreModifier(score) : 0;
+export function modifierFor(played: Pick<PlayedSheet, "abilities"> | null | undefined, ability: AbilityScore): number {
+  return played ? abilityScoreModifier(played.abilities[ability]) : 0;
 }
 
 export interface AbilityCheckInput {

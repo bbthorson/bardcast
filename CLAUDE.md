@@ -4,10 +4,12 @@ Orientation for an agent or contributor working in this repo. Read this before c
 
 ## What this is
 
-Bardcast generates an ongoing **RPG actual-play podcast** from a group of friends. A Dungeon Master
-prompts the players; players answer in recorded audio; those answers build each character (sheet +
-behavioral model + voice clone). When a character has enough signal, Bardcast writes a narrative
-**chapter** and renders it in the players' **cloned voices**, then suggests the DM new prompts.
+Bardcast generates an ongoing **RPG actual-play podcast** from a group of friends. Players make
+their characters out loud (a voice-driven session zero) and own them; they bring a character to a
+campaign, where it takes a **seat**. A Dungeon Master prompts the players; players answer in recorded
+audio; those answers build the character's signal at that table (traits, behavioral model, voice
+clone). When the party has enough signal, Bardcast writes a narrative **chapter** and renders it in
+the players' **cloned voices**, then suggests the DM new prompts. See `docs/character-creation.md`.
 
 ## The three roles this product plays
 
@@ -30,9 +32,15 @@ kit, not the private repo.
   regenerate. Never edit a record to "fix" state.
 - **DID is the durable identity key.** Local stable IDs (`char.*`, `campaign.*`) map to DIDs. A
   character's profile, behavior model, and voice reference hang off the player's DID, not a
-  campaign-local row. The **character sheet is the exception**: it is campaign-scoped, one per
-  (campaign, character), so mechanics can differ between concurrent campaigns. See
-  `docs/character-model.md`.
+  campaign-local row. So does the **character sheet**: the player owns it. A campaign holds a
+  **seat** branched from it (reset to the table's starting level), so mechanics can differ between
+  concurrent campaigns without anyone's own sheet changing. See `docs/character-model.md` and
+  `docs/character-creation.md`.
+- **Some records are never edited.** A character sheet is a chain of immutable versions (each new one
+  points at the last with `prev`), and a campaign's action log is append-only; hit points,
+  conditions and items at a table are derived by replaying it. AT Protocol repos don't keep record
+  history, so these chains are the history. Write sheets only through
+  `services/orchestrator/src/use-cases/sheets.ts` and actions only through `use-cases/actions.ts`.
 - **Fantasy time vs. real time.** In-world dates (fantasy calendars) are a plain **string** field. Each
   record's `createdAt` carries a real ISO timestamp for ordering, so a timeline can be scrubbed. Never
   put a 5-digit fantasy year in `createdAt`.
@@ -51,7 +59,9 @@ Ports: `AntiphonyGateway`, `NarrativeWriter`, `VoiceCloner`, `AudioRenderer`, `I
 `DecisionModel` is a "System One" classifier (Cloudflare's Clef, or TypeSafe's Jev, both via the
 Workers AI REST API): it picks among options we list and returns calibrated probabilities. It never
 writes text. Trait inference uses it against the closed vocabulary in `packages/domain/src/traits.ts`;
-ability-score traits are reserved and never inferred.
+ability-score traits are reserved and never set without the player: reply inference never
+writes them, and during character creation Clef may only *suggest* a placement the player confirms
+(`docs/character-creation.md`).
 
 ## The engagement seam (why it's a port)
 
@@ -63,13 +73,18 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 
 - npm workspaces, Node ≥ 22, TypeScript strict.
 - `services/orchestrator`: **Hono** (matches Antiphony — lean JSON service, no framework magic).
-- `apps/player`, `apps/dm`: **Vite + React** (player is a PWA).
+- `apps/web`, `apps/player`, `apps/dm`: **Vite + React** (web is the front door; player is a PWA).
+- Rules data: `@bardcast/srd`, a generated, typed subset of the D&D SRD 5.2.
 - Validation: **Zod** (matches Antiphony).
-- Identity: **@atproto/oauth-client-node** (AT-Proto OAuth: players sign in with their own PDS; Bardcast never handles passwords).
+- Identity: **@bbthorson/atproto-cf-auth** (AT-Proto OAuth on Workers: players sign in with their own PDS; Bardcast never handles passwords). See `docs/hosting.md`.
 
 ## Conventions
 
 - Shared types live in `@bardcast/domain` and are imported everywhere. Don't redefine them per app.
+- Game-rules data (classes, species, equipment, …) comes from `@bardcast/srd`, the SRD 5.2. Its
+  `src/generated` is produced by its importer from a pinned commit: never hand-edit it, and fix
+  source errors in the importer's `CORRECTIONS`. Anything that shows SRD material to people also
+  shows `SRD_ATTRIBUTION` (CC-BY-4.0); see `NOTICE`.
 - Each lexicon JSON has a matching Zod schema in `@bardcast/domain`. Keep them in sync; the Zod schema
   is what runtime code validates against.
 - Mark every unimplemented seam with `TODO(bardcast): ...` so they're greppable.
@@ -85,5 +100,5 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 ## Verify
 
 ```bash
-npm install && npm run typecheck
+npm install && npm run typecheck && npm test
 ```

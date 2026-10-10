@@ -21,8 +21,26 @@ export const Collections = {
   characterSheet: nsid("character.sheet"),
   characterStateEvent: nsid("character.stateEvent"),
   campaign: nsid("campaign.campaign"),
+  campaignSeat: nsid("campaign.seat"),
+  campaignAction: nsid("campaign.action"),
   chapter: nsid("campaign.chapter"),
   voiceProfile: nsid("voice.profile"),
 } as const;
 
 export type CollectionId = (typeof Collections)[keyof typeof Collections];
+
+/**
+ * The atproto space types Bardcast creates on Antiphony (antiphony
+ * specs/spaces.md). A space type is sealed into every URI in the space, so
+ * swap NSID_ROOT before the first kept one.
+ */
+export const SpaceTypes = {
+  /** One per campaign; skey: the campaign record's rkey. Semi-private: the party. */
+  campaign: nsid("space.campaign"),
+  /**
+   * One per player; skey: the player's DID. Private: that player only. Holds
+   * their character-creation recordings, and is created when they start their
+   * first character (antiphony atproto-authority-model.md D6).
+   */
+  player: nsid("space.player"),
+} as const;

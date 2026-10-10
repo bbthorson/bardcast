@@ -1,4 +1,4 @@
-import type { CharacterProfile, Campaign } from "@bardcast/domain";
+import { CharacterSheet, joinCampaign, type CharacterProfile, type Campaign } from "@bardcast/domain";
 import { describe, expect, it } from "vitest";
 import { StubAudioRenderer } from "../adapters/stub-audio-renderer.js";
 import { StubDecisionModel } from "../adapters/stub-decision-model.js";
@@ -12,6 +12,7 @@ import type { AntiphonyGateway } from "../ports/antiphony-gateway.js";
 import { checkReadiness } from "./check-readiness.js";
 import { generateChapter, NotReadyError } from "./generate-chapter.js";
 import { ingestReplies } from "./ingest-replies.js";
+import { sheetHistory, writeSheetVersion } from "./sheets.js";
 
 /** A fake gateway that returns canned replies — no network. */
 function fakeGateway(transcripts: string[]): AntiphonyGateway {
@@ -94,11 +95,14 @@ describe("the Bardcast loop", () => {
     const svc = services(fakeGateway(Array.from({ length: 8 }, (_, i) => `decision ${i}`)));
     await seedCharacter(svc);
     // give the sheet enough confident traits directly (the stub DecisionModel infers none).
-    await svc.store.putSheet(CAMPAIGN, CHAR, {
+    await svc.store.putSeat(CAMPAIGN, CHAR, {
       campaign: `at://${CAMPAIGN}`,
       character: `at://${CHAR}`,
       traits: Array.from({ length: 5 }, (_, i) => ({ name: `t${i}`, confidence: 80 })),
       sourceReplies: [],
+      startingLevel: 1,
+      startingItems: [],
+      advancements: [],
       createdAt: "2026-01-01T00:00:00Z",
     });
 
@@ -122,7 +126,7 @@ describe("the Bardcast loop", () => {
     expect(events[0]?.subject).toBe(`at://${CHAR}`);
   });
 
-  it("keeps a character's sheet separate per campaign", async () => {
+  it("keeps a character's seat separate per campaign", async () => {
     const svc = services(fakeGateway([]));
     await seedCharacter(svc);
     const OTHER = "campaign.saltmarsh";
@@ -131,12 +135,73 @@ describe("the Bardcast loop", () => {
       character: `at://${CHAR}`,
       traits: [{ name: "armor class", value: ac, confidence: 90 }],
       sourceReplies: [],
+      startingLevel: 1,
+      startingItems: [],
+      advancements: [],
       createdAt: "2026-01-01T00:00:00Z",
     });
-    await svc.store.putSheet(CAMPAIGN, CHAR, sheet(CAMPAIGN, "25"));
-    await svc.store.putSheet(OTHER, CHAR, sheet(OTHER, "14"));
+    await svc.store.putSeat(CAMPAIGN, CHAR, sheet(CAMPAIGN, "25"));
+    await svc.store.putSeat(OTHER, CHAR, sheet(OTHER, "14"));
 
-    expect((await svc.store.getSheet(CAMPAIGN, CHAR))?.traits[0]?.value).toBe("25");
-    expect((await svc.store.getSheet(OTHER, CHAR))?.traits[0]?.value).toBe("14");
+    expect((await svc.store.getSeat(CAMPAIGN, CHAR))?.traits[0]?.value).toBe("25");
+    expect((await svc.store.getSeat(OTHER, CHAR))?.traits[0]?.value).toBe("14");
+  });
+
+  it("starts a fresh seat when a character joins a new campaign, and keeps who they are", async () => {
+    const svc = services(fakeGateway(["I'll take the left passage.", "Steady now."]));
+    await seedCharacter(svc);
+    await svc.store.putSeat(CAMPAIGN, CHAR, {
+      campaign: `at://${CAMPAIGN}`,
+      character: `at://${CHAR}`,
+      traits: [{ name: "armor class", value: "25", confidence: 90 }],
+      sourceReplies: ["at://reply/thornwood-1"],
+      startingLevel: 1,
+      startingItems: [],
+      advancements: [],
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+    await ingestReplies(svc, { campaignId: CAMPAIGN, characterId: CHAR, antiphonyPromptUri: "at://prompt/1", intent: "behavior" });
+    const behaviorBefore = await svc.store.getBehavior(CHAR);
+
+    const OTHER = "campaign.saltmarsh";
+    await ingestReplies(svc, { campaignId: OTHER, characterId: CHAR, antiphonyPromptUri: "at://prompt/2", intent: "sheet" });
+
+    const fresh = await svc.store.getSeat(OTHER, CHAR);
+    expect(fresh?.campaign).toBe(`at://${OTHER}`);
+    expect(fresh?.character).toBe(`at://${CHAR}`);
+    expect(fresh?.traits.find((t) => t.name === "armor class")).toBeUndefined();
+    expect(fresh?.sourceReplies).not.toContain("at://reply/thornwood-1");
+    // The old campaign's seat is untouched, and the durable behavior model carries over.
+    expect((await svc.store.getSeat(CAMPAIGN, CHAR))?.traits[0]?.value).toBe("25");
+    expect(behaviorBefore?.exemplars.length).toBeGreaterThan(0);
+    expect(await svc.store.getBehavior(CHAR)).toEqual(behaviorBefore);
+  });
+
+  it("never writes the player's own sheet while they play", async () => {
+    const svc = services(fakeGateway(["I'll take the left passage."]));
+    await seedCharacter(svc);
+    const sheet = CharacterSheet.parse({
+      character: `at://${CHAR}`,
+      class: "fighter",
+      abilities: { strength: 15, dexterity: 12, constitution: 14, intelligence: 8, wisdom: 13, charisma: 10 },
+      advancements: [2, 3, 4].map((level) => ({ level, hitPoints: 6, createdAt: "2026-01-01T00:00:00Z" })),
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+    const sheetRef = await writeSheetVersion(svc, CHAR, sheet);
+    const seat = joinCampaign({
+      campaign: `at://${CAMPAIGN}`,
+      sheet,
+      sheetRef,
+      startingLevel: 2,
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+    await svc.store.putSeat(CAMPAIGN, CHAR, seat);
+
+    await ingestReplies(svc, { campaignId: CAMPAIGN, characterId: CHAR, antiphonyPromptUri: "at://prompt/1", intent: "story" });
+
+    expect(await sheetHistory(svc, CHAR)).toEqual([{ ref: sheetRef, sheet }]);
+    const after = await svc.store.getSeat(CAMPAIGN, CHAR);
+    expect(after?.brought?.advancements).toHaveLength(1); // reset to level 2
+    expect(after?.sourceReplies).toContain("at://reply/0");
   });
 });

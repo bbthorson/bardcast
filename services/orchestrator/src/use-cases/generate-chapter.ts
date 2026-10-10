@@ -48,12 +48,12 @@ export async function generateChapter(
   for (const id of input.characterIds) {
     const profile = await svc.store.getCharacter(id);
     if (!profile) continue;
-    const [sheet, behavior, voice] = await Promise.all([
-      svc.store.getSheet(input.campaignId, id),
+    const [seat, behavior, voice] = await Promise.all([
+      svc.store.getSeat(input.campaignId, id),
       svc.store.getBehavior(id),
       svc.store.getVoice(id),
     ]);
-    characters.push({ id, profile, sheet, behavior });
+    characters.push({ id, profile, seat, behavior });
     if (voice?.modelRef) voiceRefs[id] = voice.modelRef;
   }
 

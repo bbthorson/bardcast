@@ -22,6 +22,7 @@ export function You({
   simulated,
   onOpenCharacter,
   onManageVoice,
+  onOpenData,
   onSignOut,
 }: {
   player: Player;
@@ -30,6 +31,7 @@ export function You({
   simulated: boolean;
   onOpenCharacter: (campaignId: string) => void;
   onManageVoice: () => void;
+  onOpenData: () => void;
   onSignOut: () => void;
 }) {
   const mine = useMemo(() => seal(player.did, { hue: 35, bars: 36 }), [player.did]);
@@ -88,7 +90,10 @@ export function You({
       <div style={{ ...styles.card, display: "flex", flexDirection: "column", gap: 10 }}>
         <span style={styles.meta}>signed in with AT Protocol{simulated ? " · demo session" : ""}</span>
         <span style={{ ...styles.meta, color: color.chalk, overflowWrap: "anywhere" }}>{player.did}</span>
-        <div>
+        <div style={styles.row}>
+          <button style={styles.compact} onClick={onOpenData}>
+            What's yours
+          </button>
           <button style={styles.compact} onClick={onSignOut}>
             Sign out
           </button>

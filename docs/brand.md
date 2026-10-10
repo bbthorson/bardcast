@@ -106,14 +106,57 @@ table."
 
 ## Voice and copy
 
-Canonical lines are exported from `@bardcast/brand` as `voice`:
+### Who's talking
 
-- **Tagline:** "Your table, told back in your own voices."
+Bardcast talks like **the friend who runs the game**. They're warm and a little wry, they love the
+group, and they've already planned something terrible for Thursday. They aren't an epic movie
+trailer, and they aren't a SaaS onboarding flow. Imagine someone leaning across the table and saying
+"you're going to want to hear this."
+
+The best lines on the home page already sound like this, and they're the tone reference for
+everything else:
+
+- *"The green stranger has lifted his own head from the floor. It is looking at you. What do you say?"*
+- *"Cadoc, I'm so sorry about that 3."*
+
+### Canonical lines
+
+They're exported from `@bardcast/brand` as `voice`:
+
+- **Tagline:** "Answer tonight. Wake up in the story."
 - **Call to action:** "Pull up a chair"
 - **Prompt:** "The DM has a question for Gawain." → "Answer as Gawain"
 - **Chapter release:** "Chapter Four is told — 22 minutes, all five of you."
 
-Rules of thumb:
+### Rules of thumb
 
-- Address the character, not the account: "Answer as Gawain", not "Submit reply".
-- Say what happened in the story: "Chapter Two is told", not "Generation complete".
+1. **Tell a story instead of listing features.** Name a time, a place, a person. "Thirty seconds,
+   from bed, at half past midnight" beats "Record short audio replies."
+2. **Be specific.** The green stranger, Cadoc's 3, twenty-two minutes. If a line would work for any
+   product, rewrite it.
+3. **Keep something at stake.** The dice are honest and the DM is plotting. A choice should cost
+   something, and the copy should know it.
+4. **Tease, and stay kind.** Friends give each other a hard time. The joke is always on the dice,
+   the DM, or the story, never on the player.
+5. **Don't show the machine.** Talk about what the player gets, not how we make it: say "how you say
+   it becomes how they sound", not "trains a voice model". (Consent and privacy copy is the
+   exception. It stays plain and literal, as in `VoiceClone.tsx`.)
+6. **Address the character, not the account.** "Answer as Gawain", not "Submit reply".
+7. **Say what happened in the story.** "Chapter Two is told", not "Generation complete".
+8. **Write short.** Use second person, present tense, and short sentences that end on the strong
+   word. Read it out loud: it's a podcast, after all.
+
+### Avoid
+
+- Fantasy clichés: *epic*, *embark*, *adventure awaits*, *realm*, *ye olde*, thee and thou.
+- Tech words in player-facing copy: *AI-powered*, *generate*, *model*, *seamless*, *platform*.
+- Exclamation marks. The DM doesn't need them.
+
+### Before and after
+
+| Flat | At the table |
+| --- | --- |
+| A question lands on your phone, addressed to your character. | Your phone buzzes. The message isn't for you. It's for your character. |
+| Every reply fills in your sheet and teaches Bardcast your voice. | What you say becomes who they are. How you say it becomes how they sound. |
+| Your answers and rolls decide the next scene. | Your answers and rolls decide the next scene. The DM decides how much you'll regret them. |
+| Bring a character. | Bring a character, or just a name and a bad idea. |
