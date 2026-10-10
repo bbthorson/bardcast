@@ -6,7 +6,11 @@ import {
   BlobRef,
   CreatePostResult,
   RepliesPage,
+  SpaceView,
   UploadAudioResult,
+  spaceOfUri,
+  type SpaceKey,
+  type SpacePolicy,
   type CreatePostRequest,
   type ListRepliesQuery,
   type ReplyRef,
@@ -41,6 +45,10 @@ export class AntiphonyError extends Error {
     super(message);
     this.name = "AntiphonyError";
   }
+}
+
+function sameSpace(a: SpaceKey | undefined, b: SpaceKey | undefined): boolean {
+  return a?.type === b?.type && a?.skey === b?.skey;
 }
 
 /** postId (rkey) is the last segment of a post's at:// uri (see the engine's postIdFromUri). */
@@ -110,15 +118,52 @@ export class AntiphonyClient {
 
   // --- low-level endpoints --------------------------------------------------
 
-  /** `POST /api/v1/audio/upload` — multipart `file` field → a blob ref to embed. */
-  async uploadAudio(audio: Blob, opts: { actingDid: string; filename?: string }): Promise<BlobRef> {
+  /**
+   * `PUT /api/v1/spaces/{type}/{skey}` — create a space, or replace its
+   * policies. Idempotent. Service token only: the space is Bardcast's own.
+   */
+  async putSpace(
+    space: SpaceKey,
+    policies: { readPolicy: SpacePolicy; writePolicy: SpacePolicy },
+  ): Promise<SpaceView> {
+    return this.send(
+      `/api/v1/spaces/${encodeURIComponent(space.type)}/${encodeURIComponent(space.skey)}`,
+      {
+        method: "PUT",
+        headers: { ...(await this.headers()), "content-type": "application/json" },
+        body: JSON.stringify(policies),
+      },
+      SpaceView,
+    );
+  }
+
+  /**
+   * `POST /api/v1/audio/upload` — multipart `file` field → a blob ref to embed.
+   * With `space`, the audio is stored privately in it. Refuses audio that ended
+   * up somewhere else (the same bytes uploaded earlier, elsewhere), since a post
+   * can only embed audio stored in its own space.
+   */
+  async uploadAudio(audio: Blob, opts: { actingDid: string; filename?: string; space?: SpaceKey }): Promise<BlobRef> {
     const form = new FormData();
     form.append("file", audio, opts.filename ?? "reply.webm");
-    const { blob } = await this.send(
+    if (opts.space) {
+      form.append("spaceType", opts.space.type);
+      form.append("skey", opts.space.skey);
+    }
+    const { blob, space } = await this.send(
       "/api/v1/audio/upload",
       { method: "POST", headers: await this.headers(opts.actingDid), body: form },
       UploadAudioResult,
     );
+    if (!sameSpace(space, opts.space)) {
+      throw new AntiphonyError(
+        `audio is stored ${space ? `in ${space.type}/${space.skey}` : "publicly"}, not ${
+          opts.space ? `in ${opts.space.type}/${opts.space.skey}` : "publicly"
+        }: the same recording was uploaded elsewhere first`,
+        409,
+        "AUDIO_PLACEMENT",
+      );
+    }
     return blob;
   }
 
@@ -149,17 +194,22 @@ export class AntiphonyClient {
    * return its at:// uri/cid.
    */
   async createPrompt(
-    input: { title: string; text?: string; audio?: { blob: Blob; filename?: string } },
+    input: { title: string; text?: string; audio?: { blob: Blob; filename?: string }; space?: SpaceKey },
     actingDid: string,
   ): Promise<AntiphonyPrompt> {
     const embed = input.audio
-      ? await this.uploadAudio(input.audio.blob, { actingDid, ...(input.audio.filename ? { filename: input.audio.filename } : {}) })
+      ? await this.uploadAudio(input.audio.blob, {
+          actingDid,
+          ...(input.audio.filename ? { filename: input.audio.filename } : {}),
+          ...(input.space ? { space: input.space } : {}),
+        })
       : undefined;
 
     const body: CreatePostRequest = {
       text: input.text ?? "",
       title: input.title,
       ...(embed ? { embed: { $type: "dev.antiphony.embed.audio", audio: embed } } : {}),
+      ...(input.space ? { space: input.space } : {}),
     };
     const postId = await this.createPost(body, { actingDid });
 
@@ -176,15 +226,18 @@ export class AntiphonyClient {
 
   /**
    * Post a player's reply to a prompt: upload audio, then create a post whose
-   * `reply.root`/`parent` point at the prompt, attributed to `actingDid`.
+   * `reply.root`/`parent` point at the prompt, attributed to `actingDid`. The
+   * reply lands in the prompt's space, so its audio is uploaded there too.
    */
   async createReply(
     input: { prompt: { uri: string; cid: string }; audio: { blob: Blob; filename?: string }; text?: string },
     actingDid: string,
   ): Promise<string> {
+    const space = spaceOfUri(input.prompt.uri);
     const audioRef = await this.uploadAudio(input.audio.blob, {
       actingDid,
       ...(input.audio.filename ? { filename: input.audio.filename } : {}),
+      ...(space ? { space } : {}),
     });
     const reply: ReplyRef = { root: input.prompt, parent: input.prompt };
     return this.createPost(

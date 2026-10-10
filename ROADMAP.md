@@ -93,18 +93,24 @@ The player makes and owns their characters; a campaign seats them. Design and de
       are the player's; D6 records the character model.
 - [x] Decide where character-creation recordings live: a private space per player under Bardcast's
       DID, created when they start their first character (Antiphony D6).
-- [ ] **Blocker for real players:** keep no real recordings until Bardcast publishes into spaces
-      (the next item) and the Antiphony deployment has `ANTIPHONY_PLAYBACK_SECRET` set. Antiphony's
-      side is built: Phase 1 (2026-10-07) gave posts a space placement and space URIs, and Phase 2
-      (2026-10-08, API contract 0.7.0) added the spaces API, uploads and posts into a space, and
-      signed, expiring playback for that audio, so the proxy no longer plays it to anyone holding a
-      link. Until Bardcast's prompts and replies actually go into a space, the privacy promises on
-      the consent screen and `/your-data` still aren't true.
-- [ ] Bardcast's side of spaces (Phase 4 in `antiphony/specs/spaces.md`): `AntiphonyGateway.ensureSpace`
-      over `PUT /api/v1/spaces/{type}/{skey}`; recordings uploaded with `spaceType` + `skey`; prompts
-      posted with `space` into the campaign's or player's space (`SpaceTypes` in
-      `packages/domain/src/nsid.ts`); playback URLs fetched fresh, never stored, since they expire in
-      an hour. Adopt `@antiphony/shared` 0.9.0 once it's published.
+- [ ] **Blocker for real players:** keep no real recordings until the Antiphony deployment has
+      `ANTIPHONY_PLAYBACK_SECRET` set (without it, creating a space fails, so publishing a prompt
+      fails too). Antiphony's side shipped in its PR #190 (API contract 0.8.0): the spaces API,
+      uploads and posts into a space, and signed playback links that expire within the hour.
+      Campaign prompts and replies now go into the campaign's space (below), so the promise on
+      `/your-data` that a table's answers stay with the party holds for them.
+- [x] Bardcast's side of spaces, for the table: `AntiphonyGateway.ensureSpace` puts the space
+      (`PUT /api/v1/spaces/{type}/{skey}`, Bardcast as managing app for both policies) before a
+      prompt is published into `campaignSpace(campaignId)`; a reply's audio is uploaded into its
+      prompt's space, read off the prompt's URI; an upload that lands anywhere else is refused
+      before posting. Playback URLs are used at once and never stored (`AntiphonyPrompt.audioUrl`,
+      `AntiphonyReply.audioUrl`).
+- [ ] Character-creation recordings into `playerSpace(did)` when the voice-driven session zero is
+      built (`docs/character-creation.md`); `ensureSpace` is ready for it.
+- [ ] Episodes into the campaign's space, so `/your-data`'s "for the party only" is true for them
+      too, once chapters are published to Antiphony.
+- [ ] Adopt `@antiphony/shared` 0.9.0 once it's published, and drop the local space shapes in
+      `packages/antiphony-client/src/types.ts`.
 - [ ] Decide campaigns with fixed characters (the Green Knight casting Gawain): a `characterPolicy`.
 
 ## M4 — Voice pipeline (ElevenLabs)

@@ -1,4 +1,4 @@
-import type { AtUri } from "@bardcast/domain";
+import type { AtUri, SpaceKey } from "@bardcast/domain";
 import { AntiphonyClient, type AntiphonyPrompt, type AntiphonyReply } from "@bardcast/antiphony-client";
 import type { AntiphonyGateway } from "../ports/antiphony-gateway.js";
 
@@ -8,12 +8,30 @@ import type { AntiphonyGateway } from "../ports/antiphony-gateway.js";
  * client is the HTTP detail.
  */
 export class ClientAntiphonyGateway implements AntiphonyGateway {
+  /** Spaces already put by this instance; the PUT is idempotent, so this only saves round trips. */
+  private readonly ensured = new Set<string>();
+
   constructor(private readonly client: AntiphonyClient) {}
 
-  async createPrompt(input: { title: string; scene?: string; actingDid: `did:${string}` }): Promise<AntiphonyPrompt> {
+  async ensureSpace(space: SpaceKey): Promise<void> {
+    const id = `${space.type}/${space.skey}`;
+    if (this.ensured.has(id)) return;
+    // Bardcast is the managing app of every space it makes: it decides who
+    // hears what, and hands out the signed links accordingly.
+    await this.client.putSpace(space, { readPolicy: "managing-app", writePolicy: "managing-app" });
+    this.ensured.add(id);
+  }
+
+  async createPrompt(input: {
+    title: string;
+    scene?: string;
+    actingDid: `did:${string}`;
+    space: SpaceKey;
+  }): Promise<AntiphonyPrompt> {
+    await this.ensureSpace(input.space);
     // The DM's scene text becomes the post body; the prompt is a post with no reply.
     return this.client.createPrompt(
-      { title: input.title, ...(input.scene !== undefined ? { text: input.scene } : {}) },
+      { title: input.title, ...(input.scene !== undefined ? { text: input.scene } : {}), space: input.space },
       input.actingDid,
     );
   }

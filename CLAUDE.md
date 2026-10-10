@@ -41,6 +41,10 @@ kit, not the private repo.
   conditions and items at a table are derived by replaying it. AT Protocol repos don't keep record
   history, so these chains are the history. Write sheets only through
   `services/orchestrator/src/use-cases/sheets.ts` and actions only through `use-cases/actions.ts`.
+- **Every recording goes into a space.** A campaign's prompts and replies live in
+  `campaignSpace(campaignId)`, a player's creation recordings in `playerSpace(did)`
+  (`packages/domain/src/spaces.ts`). Never post audio flat. Audio in a space plays only from
+  signed links that expire within the hour: read one when you need it, never store it.
 - **Fantasy time vs. real time.** In-world dates (fantasy calendars) are a plain **string** field. Each
   record's `createdAt` carries a real ISO timestamp for ordering, so a timeline can be scrubbed. Never
   put a 5-digit fantasy year in `createdAt`.
