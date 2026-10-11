@@ -2,9 +2,9 @@
 
 How Bardcast relates to the call/response engine (**Antiphony**). Updated 2026-10-11, after a
 design review across Antiphony, Vox Pop and Bardcast. The platform side is in Antiphony's
-[`specs/atproto-authority-model.md`](https://github.com/bbthorson/antiphony/blob/main/specs/atproto-authority-model.md)
+[`specs/atproto-authority-model.md`](https://github.com/bbthorson/antiphony/blob/master/specs/atproto-authority-model.md)
 (D1, D2, D6, D8) and
-[`specs/cross-repo-design.md`](https://github.com/bbthorson/antiphony/blob/main/specs/cross-repo-design.md).
+[`specs/cross-repo-design.md`](https://github.com/bbthorson/antiphony/blob/master/specs/cross-repo-design.md).
 
 ## Calling Antiphony
 
