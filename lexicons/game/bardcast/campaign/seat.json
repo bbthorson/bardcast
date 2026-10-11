@@ -4,7 +4,7 @@
     "defs": {
         "main": {
             "type": "record",
-            "description": "A character at one table: a branch of the player's game.bardcast.character.sheet. Written into the campaign's space (authority: Bardcast's DID, skey: the campaign), never into the player's repo. Holds a snapshot of the sheet as it sat down, reset to the table's starting level (AT Protocol doesn't serve old record versions, so the StrongRef proves provenance and the snapshot is what the table plays from), the levels earned at this table, the items they sat down with, a state snapshot derived from the campaign's action log (game.bardcast.campaign.action), when the seat closed, and what replies to this campaign's prompts taught Bardcast. The rkey is the player's DID: one seat per player per campaign.",
+            "description": "A character at one table: a branch of the player's game.bardcast.character.sheet. Kept in the campaign's space (authority and author segment: Bardcast's DID; skey: the campaign), never into the player's repo. Holds a snapshot of the sheet as it sat down, reset to the table's starting level (AT Protocol doesn't serve old record versions, so the StrongRef proves provenance and the snapshot is what the table plays from), the levels earned at this table, the items they sat down with, a state snapshot derived from the campaign's action log (game.bardcast.campaign.action), when the seat closed, and what replies to this campaign's prompts taught Bardcast. The rkey is the player's DID: one seat per player per campaign.",
             "key": "any",
             "record": {
                 "type": "object",

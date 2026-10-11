@@ -24,7 +24,12 @@ Audited against the repo and the Cloudflare account on 2026-10-03.
 | Database | **D1 `bardcast`**, binding `DB`. Tables are created on the first API request, including `sheet_versions`, `campaign_seats` and `campaign_actions` (the old `character_sheets` table stays in existing databases, unread) | `services/orchestrator/src/adapters/d1/d1.ts` |
 | Chapter / voice audio | **No Bardcast bucket yet** | — |
 
-There is no Dockerfile, no CI workflow and no non-Cloudflare deploy config in this repo.
+**CI and deploy (2026-10-11).** `.github/workflows/ci.yml` runs typecheck, tests and the build on
+every PR and every push to `main`. `.github/workflows/deploy.yml` deploys the Worker with
+`wrangler deploy` only after CI is green on `main`, then smoke-checks `/healthz`. Its header lists
+the one-time steps: turn off the Workers Builds Git trigger (until then `main` deploys twice, once
+untested), and add the `CLOUDFLARE_API_TOKEN` secret and `CLOUDFLARE_ACCOUNT_ID` variable. There is
+no Dockerfile and no non-Cloudflare deploy config.
 `npm run dev:orchestrator` still runs the orchestrator under Node for local development,
 with its in-memory store (or Postgres when `DATABASE_URL` is set).
 

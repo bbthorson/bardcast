@@ -4,7 +4,7 @@
     "defs": {
         "main": {
             "type": "record",
-            "description": "One mechanical thing that happened at the table: an attack, a check, damage, a rest, a sword found. Written into the campaign's space (authority: Bardcast's DID, skey: the campaign). IMMUTABLE and append-only: the action log is the record of what happened, and each seat's hit points, conditions and items are derived by replaying it. Posted when a chapter is finished, never while it's drafted, so a branch the story engine backtracked out of never appears. Story beats are game.bardcast.character.stateEvent, not actions.",
+            "description": "One mechanical thing that happened at the table: an attack, a check, damage, a rest, a sword found. Kept in the campaign's space (authority and author segment: Bardcast's DID; skey: the campaign). IMMUTABLE and append-only: the action log is the record of what happened, and each seat's hit points, conditions and items are derived by replaying it. Posted when a chapter is finished, never while it's drafted, so a branch the story engine backtracked out of never appears. Story beats are game.bardcast.character.stateEvent, not actions.",
             "key": "tid",
             "record": {
                 "type": "object",

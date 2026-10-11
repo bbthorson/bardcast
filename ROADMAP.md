@@ -109,6 +109,17 @@ The player makes and owns their characters; a campaign seats them. Design and de
       built (`docs/character-creation.md`); `ensureSpace` is ready for it.
 - [ ] Episodes into the campaign's space, so `/your-data`'s "for the party only" is true for them
       too, once chapters are published to Antiphony.
+- [ ] **Before the first kept recording:** pass the prompt's real CID on every reply
+      (`ClientAntiphonyGateway.createReply` falls back to `"bafyplaceholder"`, which gets sealed into
+      the reply), and confirm Antiphony has switched space records' author segment to Bardcast's DID
+      (Antiphony D8, decided 2026-10-11; `docs/integration-with-core.md`).
+- [ ] **Pick the real NSID root** to replace the placeholder `game.bardcast` (`packages/domain/src/nsid.ts`)
+      before the first kept campaign: the space type is sealed into every campaign URI. Listed with
+      the other open cross-repo items in Antiphony's `specs/xrpc-surface.md` §7.
+- [ ] At Antiphony 1.0, move from REST to XRPC through the generated client (Antiphony's
+      `specs/xrpc-surface.md`, rollout phase C).
+- [ ] Move onto the shared `@antiphony/client` when Antiphony publishes it, replacing
+      `packages/antiphony-client` (Antiphony's `specs/cross-repo-design.md` §5).
 - [ ] Adopt `@antiphony/shared` 0.9.0 once it's published, and drop the local space shapes in
       `packages/antiphony-client/src/types.ts`.
 - [ ] Decide campaigns with fixed characters (the Green Knight casting Gawain): a `characterPolicy`.
