@@ -225,4 +225,22 @@ describe("publishing into a space", () => {
     });
     expect(seen).toEqual([{ type: "game.bardcast.space.campaign", skey: CAMPAIGN }]);
   });
+
+  it("keeps the prompt's CID with its uri, so a reply can name it", async () => {
+    const svc = services(fakeGateway([]));
+    const { publishPrompt } = await import("./publish-prompt.js");
+    const published = await publishPrompt(svc, {
+      promptId: "prompt.thornwood.2",
+      campaignId: CAMPAIGN,
+      title: "A scar you carry",
+      dmDid: "did:example:dm",
+      audience: [CHAR],
+      audienceDids: ["did:example:alice"],
+    });
+    expect(published).toMatchObject({ antiphonyPromptUri: "at://prompt/1", antiphonyPromptCid: "bafyprompt" });
+    expect(await svc.store.getPrompt("prompt.thornwood.2")).toMatchObject({
+      antiphonyPromptUri: "at://prompt/1",
+      antiphonyPromptCid: "bafyprompt",
+    });
+  });
 });

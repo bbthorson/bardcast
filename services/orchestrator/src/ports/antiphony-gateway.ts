@@ -24,10 +24,15 @@ export interface AntiphonyGateway {
   /** Publish a prompt into `space`. Its replies land in the same space. */
   createPrompt(input: { title: string; scene?: string; actingDid: `did:${string}`; space: SpaceKey }): Promise<AntiphonyPrompt>;
   listReplies(promptUri: AtUri): Promise<AntiphonyReply[]>;
-  /** Reply to a prompt. The reply, and its audio, go in the prompt's space. */
+  /**
+   * Reply to a prompt. The reply, and its audio, go in the prompt's space.
+   * `promptCid` is the prompt's real CID (`AntiphonyPrompt.cid`, stored on the
+   * Prompt as `antiphonyPromptCid`): it is sealed into the reply, and Antiphony
+   * refuses one that doesn't match (`REPLY_CID_MISMATCH`).
+   */
   createReply(input: {
     promptUri: AtUri;
-    promptCid?: string;
+    promptCid: string;
     audioBlob: Blob;
     actingDid: `did:${string}`;
     text?: string;

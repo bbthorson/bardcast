@@ -88,8 +88,13 @@ export type Chapter = z.infer<typeof Chapter>;
 
 /**
  * A prompt the DM sends the party. Bridges to Antiphony: when published, this is
- * backed by a dev.antiphony.audio.post record whose AT-URI is `antiphonyPromptUri`.
- * Bardcast adds the campaign framing and the prompt's narrative intent.
+ * backed by a dev.antiphony.audio.post record whose AT-URI is `antiphonyPromptUri`
+ * and whose CID is `antiphonyPromptCid`. Bardcast adds the campaign framing and
+ * the prompt's narrative intent.
+ *
+ * The two are set together. Every reply seals the prompt's URI and CID into its
+ * StrongRefs, and Antiphony refuses a reply whose CID isn't the prompt's stored
+ * one (contract 0.9.0), so a published prompt without its CID can't be answered.
  */
 export const Prompt = z.object({
   campaign: AtUri,
@@ -103,6 +108,11 @@ export const Prompt = z.object({
   intent: z.enum(["sheet", "behavior", "voice", "story"]).default("story"),
   /** Set once published to Antiphony. */
   antiphonyPromptUri: AtUri.optional(),
+  /** The Antiphony prompt's CID, set with `antiphonyPromptUri`. Replies name it. */
+  antiphonyPromptCid: z.string().min(1).optional(),
   createdAt: IsoDateTime,
+}).refine((p) => (p.antiphonyPromptUri === undefined) === (p.antiphonyPromptCid === undefined), {
+  message: "antiphonyPromptUri and antiphonyPromptCid are set together",
+  path: ["antiphonyPromptCid"],
 });
 export type Prompt = z.infer<typeof Prompt>;

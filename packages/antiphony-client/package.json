@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@antiphony/shared": "^0.7.0",
+    "@antiphony/shared": "0.9.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {

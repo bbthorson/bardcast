@@ -1,12 +1,16 @@
-import { AntiphonyClient, AntiphonyError } from "@bardcast/antiphony-client";
+import { AntiphonyClient, AntiphonyError, postIdFromUri, spaceOfUri } from "@bardcast/antiphony-client";
 import { describe, expect, it } from "vitest";
 import { ClientAntiphonyGateway } from "./antiphony-gateway.js";
 
 /**
  * Integration test: drive the Antiphony client + gateway against a mock Core API
- * that implements the real v0.2.0 wire contract (openapi.json), asserting the
+ * that implements the wire contract (openapi.json, contract 0.9.0), asserting the
  * routes, response envelope, service-token auth, and — the load-bearing bit —
  * that a write carries the acting player's DID so Antiphony can stamp authorDid.
+ *
+ * As of 0.9.0 (Antiphony D8) a post in a space has the app's DID in its author
+ * segment, and the player only in the `authorDid` facet; and a reply whose
+ * StrongRef CIDs aren't the prompt's stored CID is a 400 `REPLY_CID_MISMATCH`.
  */
 
 const TOKEN = "test-service-token";
@@ -26,6 +30,17 @@ const captured: Captured[] = [];
 /** Set to make the mock answer that the uploaded bytes already live in this space. */
 let uploadedElsewhere: { type: string; skey: string } | undefined;
 const SPACE = { type: "game.bardcast.space.campaign", skey: "campaign.thornwood" };
+/** The prompt's CID as the mock stores it. */
+const PROMPT_CID = "bafypostcid";
+/** The space the last created prompt was placed in, which decides its uri on read. */
+let lastPromptSpace: { type: string; skey: string } | undefined;
+
+/** A post's at:// uri as Antiphony 0.9.0 mints it: in a space, the author segment is the app's DID. */
+function postUri(rkey: string, space?: { type: string; skey: string }): string {
+  return space
+    ? `at://${APP_DID}/space/${space.type}/${space.skey}/${APP_DID}/dev.antiphony.audio.post/${rkey}`
+    : `at://${APP_DID}/dev.antiphony.audio.post/${rkey}`;
+}
 
 function ok(data: unknown) {
   return JSON.stringify({ success: true, data });
@@ -92,6 +107,21 @@ async function mockFetch(input: string | URL | { toString(): string }, init: Req
       { status: 200, headers: { "content-type": "application/json" } },
     );
   } else if (path === "/api/v1/posts" && method === "POST") {
+    const post = JSON.parse(bodyStr) as {
+      space?: { type: string; skey: string };
+      reply?: { root: { cid: string }; parent: { cid: string } };
+    };
+    if (post.reply) {
+      // Antiphony 0.9.0 checks both StrongRef CIDs against what it stored.
+      if (post.reply.parent.cid !== PROMPT_CID || post.reply.root.cid !== PROMPT_CID) {
+        return new Response(
+          JSON.stringify({ success: false, error: { message: "reply CID mismatch", code: "REPLY_CID_MISMATCH" } }),
+          { status: 400, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response(ok({ postId: "r1" }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    lastPromptSpace = post.space;
     return new Response(ok({ postId: "p1" }), {
       status: 200,
       headers: { "content-type": "application/json" },
@@ -99,8 +129,8 @@ async function mockFetch(input: string | URL | { toString(): string }, init: Req
   } else if (path === "/api/v1/posts/p1" && method === "GET") {
     return new Response(
       ok({
-        uri: `at://${APP_DID}/dev.antiphony.audio.post/p1`,
-        cid: "bafypostcid",
+        uri: postUri("p1", lastPromptSpace),
+        cid: PROMPT_CID,
         kind: "prompt",
         authorId: "did:example:dm",
         authorDid: "did:example:dm",
@@ -117,7 +147,7 @@ async function mockFetch(input: string | URL | { toString(): string }, init: Req
       ok({
         items: [
           {
-            uri: `at://${APP_DID}/dev.antiphony.audio.post/r1`,
+            uri: postUri("r1", SPACE),
             cid: "bafyreply",
             kind: "reply",
             authorId: "did:example:alice",
@@ -154,8 +184,9 @@ describe("Antiphony gateway", () => {
     });
 
     // Normalized prompt view.
-    expect(prompt.uri).toBe(`at://${APP_DID}/dev.antiphony.audio.post/p1`);
-    expect(prompt.cid).toBe("bafypostcid");
+    // In a space, the author segment is Bardcast's DID, not the DM's (Antiphony D8).
+    expect(prompt.uri).toBe(`at://${APP_DID}/space/${SPACE.type}/${SPACE.skey}/${APP_DID}/dev.antiphony.audio.post/p1`);
+    expect(prompt.cid).toBe(PROMPT_CID);
     expect(prompt.postId).toBe("p1");
     expect(prompt.title).toBe("A scar you carry");
 
@@ -196,8 +227,8 @@ describe("Antiphony gateway", () => {
     captured.length = 0;
     const client = new AntiphonyClient({ baseUrl, getServiceToken: () => TOKEN, fetch: mockFetch as any });
     const prompt = {
-      uri: `at://${APP_DID}/space/${SPACE.type}/${SPACE.skey}/did:example:dm/dev.antiphony.audio.post/p1`,
-      cid: "bafypostcid",
+      uri: postUri("p1", SPACE),
+      cid: PROMPT_CID,
     };
     await client.createReply({ prompt, audio: { blob: new Blob([new Uint8Array([1])], { type: "audio/webm" }) } }, "did:example:alice");
 
@@ -213,7 +244,8 @@ describe("Antiphony gateway", () => {
     try {
       const err = await gateway()
         .createReply({
-          promptUri: `at://${APP_DID}/space/${SPACE.type}/${SPACE.skey}/did:example:dm/dev.antiphony.audio.post/p1`,
+          promptUri: postUri("p1", SPACE) as `at://${string}`,
+          promptCid: PROMPT_CID,
           audioBlob: new Blob([new Uint8Array([1])]),
           actingDid: "did:example:alice",
         })
@@ -246,7 +278,7 @@ describe("Antiphony gateway", () => {
   it("posts a player reply via multipart upload + a reply ref to the prompt", async () => {
     captured.length = 0;
     const client = new AntiphonyClient({ baseUrl, getServiceToken: () => TOKEN, fetch: mockFetch as any });
-    const prompt = { uri: `at://${APP_DID}/dev.antiphony.audio.post/p1` as const, cid: "bafypostcid" };
+    const prompt = { uri: `at://${APP_DID}/dev.antiphony.audio.post/p1` as const, cid: PROMPT_CID };
     await client.createReply(
       { prompt, audio: { blob: new Blob([new Uint8Array([1, 2, 3])], { type: "audio/webm" }) } },
       "did:example:alice",
@@ -263,6 +295,53 @@ describe("Antiphony gateway", () => {
     };
     expect(body.reply?.root.uri).toBe(prompt.uri); // reply ⇒ threaded to the prompt
     expect(body.embed?.audio.ref.$link).toBe("bafyaudiocid"); // AT-Proto {$link} blob shape
+  });
+
+  it("replies with the prompt's real CID, into the space read off its uri", async () => {
+    captured.length = 0;
+    const gw = gateway();
+    const prompt = await gw.createPrompt({ title: "A scar you carry", actingDid: "did:example:dm", space: SPACE });
+    captured.length = 0;
+
+    const replyId = await gw.createReply({
+      promptUri: prompt.uri as `at://${string}`,
+      promptCid: prompt.cid,
+      audioBlob: new Blob([new Uint8Array([1])], { type: "audio/webm" }),
+      actingDid: "did:example:alice",
+    });
+
+    expect(replyId).toBe("r1");
+    // The space comes from the type/skey segments; the author segment is Bardcast's.
+    expect(captured.find((c) => c.path === "/api/v1/audio/upload")!.form).toEqual({ spaceType: SPACE.type, skey: SPACE.skey });
+    const post = captured.find((c) => c.path === "/api/v1/posts")!;
+    const body = JSON.parse(post.body) as { reply: { root: { uri: string; cid: string }; parent: { uri: string; cid: string } } };
+    expect(body.reply.parent).toEqual({ uri: prompt.uri, cid: PROMPT_CID });
+    expect(body.reply.root).toEqual({ uri: prompt.uri, cid: PROMPT_CID });
+    expect(post.body).not.toContain("bafyplaceholder");
+    // The player is credited through the acting-actor headers, not the uri.
+    expect(post.headers["x-antiphony-acting-actor-did"]).toBe("did:example:alice");
+  });
+
+  it("surfaces Antiphony's refusal of a mismatched prompt CID", async () => {
+    captured.length = 0;
+    const err = await gateway()
+      .createReply({
+        promptUri: postUri("p1", SPACE) as `at://${string}`,
+        promptCid: "bafysomethingelse",
+        audioBlob: new Blob([new Uint8Array([1])]),
+        actingDid: "did:example:alice",
+      })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AntiphonyError);
+    expect((err as AntiphonyError).status).toBe(400);
+    expect((err as AntiphonyError).code).toBe("REPLY_CID_MISMATCH");
+  });
+
+  it("credits a spaced reply to its player from authorDid, not the uri's author segment", async () => {
+    const replies = await gateway().listReplies(postUri("p1", SPACE) as `at://${string}`);
+    expect(replies[0]!.uri).toBe(postUri("r1", SPACE));
+    expect(replies[0]!.uri).not.toContain("did:example:alice");
+    expect(replies[0]).toMatchObject({ author: "did:example:alice", authorDid: "did:example:alice" });
   });
 });
 
@@ -325,5 +404,26 @@ describe("AntiphonyClient.listReplies (fetch-mocked)", () => {
       expect(err.code).toBe("not_found");
       return true;
     });
+  });
+});
+
+describe("reading an at:// uri", () => {
+  const SPACED = `at://${APP_DID}/space/${SPACE.type}/${SPACE.skey}/${APP_DID}/dev.antiphony.audio.post/p1`;
+
+  it("takes the space from the type and key, whatever the author segment", () => {
+    expect(spaceOfUri(SPACED)).toEqual(SPACE);
+    // A post made before Antiphony 0.9.0 has the acting player's DID there.
+    expect(spaceOfUri(SPACED.replace(`/${SPACE.skey}/${APP_DID}/`, `/${SPACE.skey}/did:plc:alice/`))).toEqual(SPACE);
+    // A player's own space is keyed by their DID; the author segment is still Bardcast's.
+    expect(spaceOfUri(`at://${APP_DID}/space/game.bardcast.space.player/did:plc:alice/${APP_DID}/dev.antiphony.audio.post/c1`)).toEqual({
+      type: "game.bardcast.space.player",
+      skey: "did:plc:alice",
+    });
+    expect(spaceOfUri(`at://${APP_DID}/dev.antiphony.audio.post/p1`)).toBeNull();
+  });
+
+  it("takes the postId from the last segment, whatever the author segment", () => {
+    expect(postIdFromUri(SPACED)).toBe("p1");
+    expect(postIdFromUri(`at://${APP_DID}/dev.antiphony.audio.post/p1`)).toBe("p1");
   });
 });
