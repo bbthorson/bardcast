@@ -322,9 +322,17 @@ export function createApp(svc: CoreServices): Hono {
       return c.json({ error: "validation_failed", message: "promptUri must be an at:// URI" }, 400);
     }
 
+    // The reply seals the prompt's CID, and Antiphony refuses a wrong one: take
+    // it from the prompt as this campaign published it, never from the client.
+    const prompt = (await svc.store.listPrompts(campaignId)).find((p) => p.antiphonyPromptUri === promptUri);
+    if (!prompt?.antiphonyPromptCid) {
+      return c.json({ error: "not_found", message: "No published prompt with that promptUri in this campaign." }, 404);
+    }
+
     // Post to Antiphony via gateway
     const replyUri = await svc.antiphony.createReply({
       promptUri: promptUri as any,
+      promptCid: prompt.antiphonyPromptCid,
       audioBlob,
       actingDid: player.did as any,
       ...(text ? { text } : {}),

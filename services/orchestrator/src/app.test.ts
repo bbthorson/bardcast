@@ -10,7 +10,9 @@ import { PwaEngagementChannel } from "@bardcast/engagement";
 import type { CoreServices } from "./ports/index.js";
 import type { AntiphonyGateway } from "./ports/antiphony-gateway.js";
 
-function fakeGateway(): AntiphonyGateway {
+type ReplyInput = Parameters<AntiphonyGateway["createReply"]>[0];
+
+function fakeGateway(replies: ReplyInput[] = []): AntiphonyGateway {
   return {
     async ensureSpace() {},
     async createPrompt(input) {
@@ -25,16 +27,17 @@ function fakeGateway(): AntiphonyGateway {
     async listReplies() {
       return [];
     },
-    async createReply() {
+    async createReply(input) {
+      replies.push(input);
       return "at://dev.antiphony.audio.post/r1";
     },
   };
 }
 
-function mockServices(): CoreServices {
+function mockServices(replies: ReplyInput[] = []): CoreServices {
   return {
     store: new InMemoryStore(),
-    antiphony: fakeGateway(),
+    antiphony: fakeGateway(replies),
     narrative: new StubNarrativeWriter(),
     voice: new StubVoiceCloner(),
     audio: new StubAudioRenderer(),
@@ -137,7 +140,8 @@ describe("Orchestrator HTTP App", () => {
   });
 
   it("validates request bodies and gates chapter generation by readiness", async () => {
-    const svc = mockServices();
+    const replies: ReplyInput[] = [];
+    const svc = mockServices(replies);
     const app = createApp(svc);
 
     const dmDid = "did:example:dm";
@@ -207,5 +211,23 @@ describe("Orchestrator HTTP App", () => {
     const replyBody = (await replyRes.json()) as { success: boolean; replyUri: string };
     expect(replyBody.success).toBe(true);
     expect(replyBody.replyUri).toBe("at://dev.antiphony.audio.post/r1");
+    // The reply names the CID stored when the prompt was published.
+    expect(replies).toHaveLength(1);
+    expect(replies[0]).toMatchObject({ promptUri: "at://dev.antiphony.audio.post/p1", promptCid: "bafyp1" });
+
+    // A reply to a prompt this campaign never published has no CID to name: 404, nothing sent.
+    const strayRes = await app.request(`/api/campaigns/${campaignId}/characters/char.sam/reply`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "X-Acting-Did": "did:example:player-sam",
+      },
+      body: JSON.stringify({
+        promptUri: "at://dev.antiphony.audio.post/unknown",
+        audioBase64: Buffer.from("fake-audio-bytes").toString("base64"),
+      }),
+    });
+    expect(strayRes.status).toBe(404);
+    expect(replies).toHaveLength(1);
   });
 });

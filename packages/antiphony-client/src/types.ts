@@ -1,4 +1,4 @@
-import { BlobRefSchema, EMBED_NSID } from "@antiphony/shared";
+import { BlobRefSchema, EMBED_NSID, SpaceKeySchema, SpacePolicySchema, SpaceViewSchema } from "@antiphony/shared";
 import { httpsUrl } from "@antiphony/shared/types/url";
 import { z } from "zod";
 
@@ -6,13 +6,12 @@ import { z } from "zod";
  * Wire shapes for the slice of the Antiphony (`dev.antiphony.*`) Core API that
  * Bardcast uses: creating spaces, uploading audio, creating posts (a post with
  * no `reply` is a prompt, a post with one is a reply), and reading a prompt's
- * replies. Mirrors apps/core-api/openapi.json (contract 0.8.0) in the antiphony
- * repo. The space shapes are declared here rather than imported, until
- * `@antiphony/shared` 0.9.0 (which exports them) is published.
+ * replies. Mirrors apps/core-api/openapi.json (contract 0.9.0) in the antiphony
+ * repo.
  *
- * The canonical codecs (`BlobRefSchema`, the NSID constants) come from
- * `@antiphony/shared`; the request/response envelopes below are Bardcast's view
- * of the endpoints it actually calls.
+ * The canonical codecs (`BlobRefSchema`, the space schemas, the NSID constants)
+ * come from `@antiphony/shared`; the request/response envelopes below are
+ * Bardcast's view of the endpoints it actually calls.
  */
 
 /** Every Antiphony JSON response wraps its payload in this envelope. */
@@ -30,31 +29,26 @@ export type BlobRef = z.infer<typeof BlobRefSchema>;
 // --- Spaces (antiphony specs/spaces.md) --------------------------------------
 
 /** One of the tenant's spaces, by type (an NSID) and key (record-key syntax; a DID is valid). */
-export const SpaceKey = z.object({
-  type: z.string().regex(/^[a-zA-Z][a-zA-Z0-9.-]*\.[a-zA-Z][a-zA-Z0-9]*$/, "Must be an NSID"),
-  skey: z.string().min(1).max(512).regex(/^[A-Za-z0-9._:~-]+$/, "Must be a record key"),
-});
-export type SpaceKey = z.infer<typeof SpaceKey>;
+export const SpaceKey = SpaceKeySchema;
+export type SpaceKey = z.infer<typeof SpaceKeySchema>;
 
 /** Who may read, and who may write, a space. */
-export const SpacePolicy = z.enum(["public", "member-list", "managing-app"]);
-export type SpacePolicy = z.infer<typeof SpacePolicy>;
+export const SpacePolicy = SpacePolicySchema;
+export type SpacePolicy = z.infer<typeof SpacePolicySchema>;
 
 /** `PUT /api/v1/spaces/{type}/{skey}` result (inside `data`). */
-export const SpaceView = SpaceKey.extend({
-  uri: z.string(),
-  readPolicy: SpacePolicy,
-  writePolicy: SpacePolicy,
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-export type SpaceView = z.infer<typeof SpaceView>;
+export const SpaceView = SpaceViewSchema;
+export type SpaceView = z.infer<typeof SpaceViewSchema>;
 
 /**
  * The space a post lives in, read off its at:// uri
- * (`at://{appDid}/space/{type}/{skey}/{author}/{collection}/{rkey}`), or null
- * for a flat post. A reply goes in its parent's space, so this is how a reply
- * knows where its audio must be uploaded.
+ * (`at://{appDid}/space/{type}/{skey}/{authorSegment}/{collection}/{rkey}`), or
+ * null for a flat post. A reply goes in its parent's space, so this is how a
+ * reply knows where its audio must be uploaded.
+ *
+ * Only the type and key are read. The author segment is Bardcast's own DID for
+ * every post since Antiphony 0.9.0 (D8), and some earlier posts' carry the
+ * acting player's: neither names the player. That is the `authorDid` facet.
  */
 export function spaceOfUri(uri: string): SpaceKey | null {
   const parts = uri.replace(/^at:\/\//, "").split("/");
@@ -134,8 +128,9 @@ export const RepliesPage = z.object({ items: z.array(AudioPostView), nextCursor:
 
 /** A prompt (a post with no reply), as the loop consumes it. */
 export interface AntiphonyPrompt {
-  /** at:// uri (authority is the Antiphony app DID). */
+  /** at:// uri (authority, and in a space the author segment, is Bardcast's app DID). */
   uri: string;
+  /** The stored record's CID. Keep it with `uri`: every reply must name it. */
   cid: string;
   /** Storage id (rkey) — the id the replies endpoint is keyed on; = last uri segment. */
   postId: string;
@@ -150,7 +145,10 @@ export interface AntiphonyReply {
   cid: string;
   /** at:// uri of the prompt this answers. */
   promptUri: string;
-  /** The authoring player: Antiphony's authorId (Bardcast asserts the DID). */
+  /**
+   * The authoring player: Antiphony's authorId (Bardcast asserts the DID). Never
+   * read it off `uri`: in a space its author segment is Bardcast's DID.
+   */
   author: string;
   authorDid?: string;
   audioUrl?: string;

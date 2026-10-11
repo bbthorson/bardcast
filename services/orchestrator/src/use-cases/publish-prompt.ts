@@ -35,6 +35,8 @@ export async function publishPrompt(svc: CoreServices, input: PublishPromptInput
     audience: input.audience.map((id) => `at://${id}`),
     intent: input.intent ?? "story",
     antiphonyPromptUri: vp.uri,
+    // Kept with the uri: a reply must name the prompt's real CID.
+    antiphonyPromptCid: vp.cid,
     createdAt: svc.clock().toISOString(),
   };
   await svc.store.putPrompt(input.promptId, prompt);
