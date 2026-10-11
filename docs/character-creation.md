@@ -224,6 +224,9 @@ So each player gets a **private space** under Bardcast's DID:
   narrator's questions are prompts in the space and the answers are replies, so they inherit it.
 - **Bardcast keeps the raw audio.** What travels with the player is what's in their own repo: the
   profile, the sheet versions and the voice profile.
+- **Bardcast's DID is the author segment** of every recording in the space, and the player is the
+  `authorDid` facet (decided 2026-10-11, Antiphony D8; see
+  [`integration-with-core.md`](integration-with-core.md)).
 
 ## Prerequisites (true today)
 

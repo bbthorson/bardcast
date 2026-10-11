@@ -3,8 +3,10 @@
 **Status:** decided 2026-09-24, revised 2026-10-07 (the sheet became the
 player's; see [`character-creation.md`](character-creation.md)). Each Bardcast campaign becomes an atproto
 **space** under Bardcast's own DID, keyed by `skey` (see Antiphony's
-`specs/atproto-authority-model.md`, Decision 2). This doc says which character
-records live in the player's repo and which live in the campaign's space.
+`specs/atproto-authority-model.md`, D1, D6 and D8). Inside a space, Bardcast's DID is
+also the author segment of every record; the player is credited through the `authorDid`
+facet ([`integration-with-core.md`](integration-with-core.md)). This doc says which
+character records live in the player's repo and which live in the campaign's space.
 
 ## The problem
 

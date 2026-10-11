@@ -1,118 +1,72 @@
-# Bardcast ↔ Core Engine: identity & visibility
+# Bardcast ↔ Antiphony: identity, ownership and visibility
 
-How Bardcast relates to the underlying call/response engine (**Antiphony**).
+How Bardcast relates to the call/response engine (**Antiphony**). Updated 2026-10-11, after a
+design review across Antiphony, Vox Pop and Bardcast. The platform side is in Antiphony's
+[`specs/atproto-authority-model.md`](https://github.com/bbthorson/antiphony/blob/main/specs/atproto-authority-model.md)
+(D1, D2, D6, D8) and
+[`specs/cross-repo-design.md`](https://github.com/bbthorson/antiphony/blob/main/specs/cross-repo-design.md).
 
-> **Update 2026-07-11 — the engine shipped this.** The requirements below
-> (2026-06-24) are now satisfied by Antiphony's **v0.2.0 "core-surface trim"**,
-> and its auth model is simpler than the DID-token bridge first sketched here.
-> The [current model](#current-model-antiphony-v020) section is authoritative;
-> the original requirements are kept for provenance.
+## Calling Antiphony
 
-## Current model (Antiphony v0.2.0)
+Antiphony is a **headless** store for AT-Protocol-shaped audio posts. It holds no user data and
+does no user sign-in: AT-Proto OAuth is Bardcast's job (`@bbthorson/atproto-cf-auth`).
 
-Antiphony is a **headless** store for AT-Protocol-shaped audio posts. It holds no
-user data — profiles live in the calling app (Bardcast, the BFF).
+- **One credential: an app service token.** Bardcast authenticates with
+  `Authorization: Bearer <service-token>`, which also establishes its tenancy (`originAppId`).
+- **The acting player is asserted per request.** Writes carry `X-Antiphony-Acting-Actor` and
+  `X-Antiphony-Acting-Actor-Did`, both the player's DID. Antiphony stamps it on the post as
+  `authorId` / `authorDid`. This is how every post is tied to its player.
+- **One post record.** `dev.antiphony.audio.post`: no `reply` makes it a prompt, a `reply`
+  (root and parent StrongRefs) makes it a reply. Audio is uploaded first
+  (`POST /api/v1/audio/upload`), then referenced as a `dev.antiphony.embed.audio`.
+- **One way in.** Bardcast reaches Antiphony only through `packages/antiphony-client`, behind the
+  `AntiphonyGateway` port. The client imports the canonical codecs and NSIDs from
+  `@antiphony/shared`.
 
-- **One credential: an app service token.** Every caller is an application that
-  authenticates with `Authorization: Bearer <service-token>`. The token
-  identifies the app and establishes its tenancy (`originAppId`). Antiphony
-  verifies **no** end-user identity tokens — so the earlier `tokenForPlayer`
-  DID→bearer bridge (R3) is **obsolete** on the engine path.
-- **The acting player is asserted per request.** Writes (and viewer-scoped
-  reads) carry `X-Antiphony-Acting-Actor: <id>` and optional
-  `X-Antiphony-Acting-Actor-Did: <did>`. Bardcast asserts the player's **DID**;
-  Antiphony stamps it onto the post's `authorDid`. **This is how every post is
-  tied to its player.** Bardcast reaches all of this via `@bardcast/antiphony-client`
-  behind the `AntiphonyGateway` port (the gateway's `actingDid`).
-- **One post record.** `dev.antiphony.audio.post` — a post with no `reply` is a
-  prompt, a post with a `reply` (root+parent StrongRef) is a reply. Audio is a
-  `dev.antiphony.embed.audio` blob uploaded first (`POST /api/v1/audio/upload`,
-  multipart `file`) then referenced on the post.
+## Who keeps what
 
-### Domain setup (one-time)
+| Records | `at://` authority | Author segment (in a space) | The player is |
+| :--- | :--- | :--- | :--- |
+| Campaign prompts and replies (Antiphony posts) | Bardcast's DID, in the campaign's space | Bardcast's DID | the `authorDid` facet |
+| Bardcast's own campaign records: seats, actions, state events, chapters | Bardcast's DID, in the campaign's space | Bardcast's DID | named inside the record where relevant |
+| Character-creation recordings | Bardcast's DID, in the player's private space | Bardcast's DID | the `authorDid` facet |
+| The character: profile, sheet versions, voice profile | the player's own DID, in their own repo | — | the owner |
 
-1. **Register Bardcast as an app** in the Antiphony deployment's
-   `ANTIPHONY_APP_TOKENS` (`appId:token`). The token becomes
-   `ANTIPHONY_SERVICE_TOKEN`; the `appId` is Bardcast's `originAppId` (tenancy).
-2. Tenancy scoping (R2) is automatic: posts are isolated by `originAppId`, so
-   Bardcast content never appears in another app's surfaces.
+**Why the player's DID is never in a space URI** (decided 2026-10-11, Antiphony D8). In a space,
+each author's records come with a commit signed by that author's key, and readers find them by
+resolving the author's DID. A player's DID resolves to their own PDS, which doesn't hold these
+records, and Antiphony must never hold a player's key. With Bardcast's DID in the author segment,
+other atproto apps find the records at Antiphony and can verify them. The player is still
+credited on every post, through a facet that can be corrected without rewriting anything.
 
-### Contract package
+This matches who keeps what: campaign recordings belong to the campaign, and creation recordings
+stay with Bardcast. What is portable for a player is their character, in their own repo.
 
-`@bardcast/antiphony-client` imports the canonical blob codec (`BlobRefSchema`)
-and NSID constants from `@antiphony/shared` (≥ 0.4.0, which types the blob `ref`
-as the AT-Proto `{ $link }` object the deployed engine uses). The request/response
-envelopes the client validates are Bardcast's local view of the endpoints it
-actually calls, mirroring the engine's `openapi.json`.
+## Visibility
 
----
+Every recording goes into a space (`packages/domain/src/spaces.ts`): a campaign's prompts and
+replies in `campaignSpace(campaignId)`, a player's creation recordings in `playerSpace(did)`.
+Bardcast creates each space with `managing-app` read and write policies: it is the managing app,
+and decides who hears what. Audio in a space plays only from signed links that expire within the
+hour, so a playback URL is used at once and never stored.
 
-## Original requirements (2026-06-24)
+Bardcast content never appears in another app's surfaces: posts are isolated by `originAppId`.
 
-The below captures decisions made 2026-06-24. Some items are **requirements on
-the engine's data model**, flagged `[ENGINE]` — they belong in the engine repo,
-noted here so Bardcast's assumptions are explicit. See the update above for how
-the engine now satisfies them.
+## Setup (one-time per deployment)
 
-## The engine is not the app
+1. **Register Bardcast as an app** in the Antiphony deployment's `ANTIPHONY_APP_TOKENS`
+   (`appId:token`). The token is Bardcast's `ANTIPHONY_SERVICE_TOKEN`.
+2. **Pin Bardcast's DID** in `ANTIPHONY_APP_DIDS`. Its DID document must name Antiphony as space
+   host (`#atproto_space_host`). Bardcast is not yet a tenant in production.
+3. **The deployment needs `ANTIPHONY_PLAYBACK_SECRET`**, or creating a space fails and so does
+   publishing a prompt (see `docs/hosting.md`).
 
-`vox-pop-core` is a generic audio call/response engine. **VoxPop** is one product
-built on it; **Bardcast** is another. Conflating the engine with the VoxPop app
-causes the confusion this doc resolves.
+## Open
 
-**Open decision — rename the engine.** Consider giving the engine a neutral name
-to delineate it from the VoxPop application — e.g. **Antiphony** (liturgical
-call-and-response; on-the-nose and distinctive) or **Echo** (simpler, but heavily
-overloaded as a product name). Blast radius is in the *engine* repo, not Bardcast:
-package scope (`@vox-pop/*`), the lexicon NSID root (`com.voxpop.*`), the docs
-domain. Bardcast only references the engine via `@bardcast/antiphony-client` + the
-`AntiphonyGateway` port, so a rename here is a one-package change.
+- **Hosting Bardcast's own campaign records** for third-party readers. Today they live in
+  Bardcast's state (D1 database). When another atproto app needs to read a campaign, Bardcast
+  serves them as the repo host for its own DID in that space (Antiphony's cross-repo design,
+  Phase 3).
 
-## Identity: two distinct layers
-
-These were being conflated. They are separate:
-
-1. **Auth identity — Bardcast's own.** Players authenticate via AT-Protocol OAuth
-   (their DID). Bardcast does **not** use any VoxPop identity: no VoxPop login, no
-   VoxPop profile, no VoxPop inbox, no VoxPop public page. This is the
-   `AtprotoIdentityProvider`, built on the shared `@bbthorson/atproto-cf-auth` package.
-
-2. **Core data principal — a headless backing user.** The engine still needs a
-   *user record* to own prompt/reply data (prompts and replies belong to someone
-   in the engine's model). A Bardcast player's DID maps to such a record. But that
-   record is **headless**: it exists only to own data, and is never surfaced as a
-   VoxPop user.
-
-So "don't use vox-pop identity" = don't use its *auth/profile/inbox/public*
-surfaces. It does **not** mean "no user row in the engine" — the data model needs
-one. The token seam (`IdentityProvider.tokenForPlayer`) bridges these: DID →
-bearer accepted by a Bardcast-controlled engine deployment running a DID-trusting
-auth adapter, which resolves the DID to its headless core user.
-
-### `[ENGINE]` R1 — headless / app-scoped users
-The engine needs a user that owns data but has **no inbox and no public-profile
-projection**. Whether modeled as a flag on the user, an "app/origin" attribute, or
-membership in a non-public organization is an engine decision. Bardcast requires:
-such a user can create prompts and receive replies, but never appears in VoxPop's
-public/user-facing surfaces.
-
-## Visibility: Bardcast prompts render only in Bardcast
-
-`[ENGINE]` **R2 — prompt visibility scoping.** Prompts created by Bardcast must
-**not** render in any VoxPop surface — not public pages, not feeds, not inbox.
-They are visible only within Bardcast (the DM/player clients reading via
-`AntiphonyGateway`).
-
-Likely mechanism (engine's call): scope Bardcast prompts to an app/organization
-and have the engine's public **FeedService** + public projections **exclude**
-prompts outside the public scope. The engine already has `OrganizationService` and
-`FeedService` — the requirement is that public projections are opt-in by scope,
-not default-all.
-
-## Summary of engine requirements
-
-| # | Requirement | Why |
-|---|---|---|
-| R1 | Headless / app-scoped users (no inbox, no public profile) | Bardcast players own data but aren't VoxPop users |
-| R2 | Prompt visibility scoping; public projections exclude non-public scope | Bardcast prompts render only in Bardcast |
-| R3 | DID-trusting auth adapter on the Bardcast deployment | Bridge Bardcast's AT-Proto DID → headless core user (the `DidAuthAdapter` `auth-port.ts` already anticipates) |
+The engine's original requirements from 2026-06-24 (headless users, prompt visibility scoping, a
+DID-trusting auth adapter) were met by Antiphony v0.2.0 and are no longer tracked here.
