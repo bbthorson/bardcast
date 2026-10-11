@@ -1,0 +1,48 @@
+name: CI
+
+# Every PR and every push to main: install, typecheck, test, build.
+#
+# Bardcast had no CI before 2026-10-11. Cloudflare Workers Builds deployed main
+# straight from the dashboard with no typecheck or tests in front of it, so a
+# commit that broke the build or the suite still shipped. deploy.yml now deploys
+# only after this workflow is green on main.
+#
+# No `paths-ignore`: a docs-only commit still runs the whole job. It is short,
+# and a skipped run on main would also skip the deploy that waits on it.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: typecheck · test · build
+    runs-on: ubuntu-latest
+    # A ceiling on a hung run (a registry stall hangs rather than fails), not a
+    # budget. The job takes about two minutes.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Node comes from .nvmrc. `.npmrc` sets engine-strict, so the version
+      # there must satisfy package.json's `engines.node`.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # Builds apps/web, apps/player and apps/dm. apps/web/dist is what the
+      # Worker serves as static assets (wrangler.jsonc), so a broken build here
+      # is a broken deploy.
+      - run: npm run build

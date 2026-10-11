@@ -1,0 +1,89 @@
+name: Deploy
+
+# Deploys the `bardcast` Worker (the web front door plus the orchestrator API,
+# one origin; see docs/hosting.md) after CI is green on main.
+#
+# ── REQUIRED one-time steps, or this deploys twice or not at all ─────────────
+# 1. Turn off the Git trigger for the `bardcast` Worker in Cloudflare Workers
+#    Builds. Until then both Workers Builds and this workflow deploy main, and
+#    Workers Builds still does it without running the tests.
+# 2. Add the repo secret CLOUDFLARE_API_TOKEN (Workers Scripts: Edit) and the
+#    repo variable CLOUDFLARE_ACCOUNT_ID. Without the token the deploy job fails
+#    red rather than reporting success.
+# 3. Optional: the repo variable BARDCAST_URL (e.g. https://bardcast.example),
+#    which turns on the smoke check after each deploy.
+#
+# Worker secrets (SESSION_SECRET, ANTIPHONY_SERVICE_TOKEN, ...) stay where they
+# are, set with `wrangler secret put`; `wrangler deploy` doesn't touch them.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Only a GREEN main. `workflow_run` fires on completion whatever the
+    # outcome, so the conclusion is checked, not assumed.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    name: build · deploy · smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+    steps:
+      # The commit CI ran on, not `github.sha`: on `workflow_run` that is the
+      # tip of main when this was queued, which may be a newer, unverified
+      # commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # The Worker serves apps/web/dist as its static assets.
+      - run: npm run build
+
+      - name: Deploy
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+      # The orchestrator's health route. It carries no commit, so this proves
+      # the Worker is up and routing /healthz to the API, not which commit is
+      # live.
+      - name: Smoke check
+        env:
+          BARDCAST_URL: ${{ vars.BARDCAST_URL }}
+        run: |
+          if [ -z "$BARDCAST_URL" ]; then
+            echo "::notice::BARDCAST_URL is not set; skipping the smoke check."
+            exit 0
+          fi
+          for attempt in 1 2 3 4 5; do
+            BODY="$(curl -fsS "$BARDCAST_URL/healthz" || true)"
+            if echo "$BODY" | grep -q '"service":"bardcast-orchestrator"'; then
+              echo "Healthy: $BODY"
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "::error::$BARDCAST_URL/healthz did not answer as the orchestrator after deploy."
+          exit 1
