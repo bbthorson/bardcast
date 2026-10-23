@@ -24,7 +24,8 @@
   },
   "devDependencies": {
     "@bbthorson/pinakes": "0.9.1",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "wrangler": "4.149.0"
   },
   "engines": {
     "node": ">=22.22.2"
