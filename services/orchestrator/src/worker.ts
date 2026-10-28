@@ -23,6 +23,10 @@ export interface Env {
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_AI_TOKEN?: string;
   DECISION_MODEL?: string;
+  /** Send text-to-speech through this Cloudflare AI Gateway (needs CLOUDFLARE_ACCOUNT_ID). */
+  AI_GATEWAY_ID?: string;
+  /** Only for an authenticated gateway. */
+  AI_GATEWAY_TOKEN?: string;
 }
 
 let migrated: Promise<void> | undefined;
@@ -53,6 +57,8 @@ function appFor(origin: string, env: Env): Hono {
       ...(env.CLOUDFLARE_ACCOUNT_ID !== undefined ? { cloudflareAccountId: env.CLOUDFLARE_ACCOUNT_ID } : {}),
       ...(env.CLOUDFLARE_AI_TOKEN !== undefined ? { cloudflareAiToken: env.CLOUDFLARE_AI_TOKEN } : {}),
       ...(env.DECISION_MODEL !== undefined ? { decisionModel: env.DECISION_MODEL } : {}),
+      ...(env.AI_GATEWAY_ID !== undefined ? { aiGatewayId: env.AI_GATEWAY_ID } : {}),
+      ...(env.AI_GATEWAY_TOKEN !== undefined ? { aiGatewayToken: env.AI_GATEWAY_TOKEN } : {}),
     });
     app = createApp(svc);
     apps.set(origin, app);

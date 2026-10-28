@@ -78,6 +78,23 @@ Both audio ports target **ElevenLabs**, one provider covering two roles:
 ElevenLabs requires consent/verification for voice clones, which makes the existing
 `VoiceProfile.consent` field a real gate.
 
+**Through Cloudflare AI Gateway** (decided 2026-10-28). Set `AI_GATEWAY_ID` (with
+`CLOUDFLARE_ACCOUNT_ID`) and text-to-speech goes to
+`gateway.ai.cloudflare.com/v1/{account}/{gateway}/elevenlabs/...` instead of
+`api.elevenlabs.io`. That gets us logs, spend next to Workers AI (Clef), rate limits, retries
+and caching. Caching suits the narrator's fixed lines: the session-zero opener and name question
+are the same text every time. `AI_GATEWAY_TOKEN` is only for an authenticated gateway.
+
+- **We still use our own ElevenLabs key and account.** The gateway passes the call through, so
+  the players' cloned voices work. We don't use the ElevenLabs models in the Workers AI catalog.
+  When Cloudflare bills for one of those, it runs on Cloudflare's ElevenLabs account, where our
+  clones don't exist. It isn't confirmed whether the catalog models take a custom voice ID with
+  our own key.
+- **Voice cloning goes straight to ElevenLabs.** It uploads the players' raw recordings, which
+  shouldn't sit in gateway logs.
+- **The gateway does log what it renders,** which is chapter and narrator text. If that's
+  unwanted, turn logging off on the gateway.
+
 ## What deploy setup is automatable
 
 Can be authored in-repo: `wrangler` configs for each Worker, R2 buckets, Queues,

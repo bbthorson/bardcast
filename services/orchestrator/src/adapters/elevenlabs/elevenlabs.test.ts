@@ -100,6 +100,31 @@ describe("ElevenLabs Adapters", () => {
   });
 
   describe("ElevenLabsAudioRenderer", () => {
+    it("goes through a Cloudflare AI Gateway when one is configured", async () => {
+      const calls: Array<{ url: string; headers: Record<string, string> }> = [];
+      const mockFetch: typeof fetch = async (input, init) => {
+        calls.push({ url: String(input), headers: init?.headers as Record<string, string> });
+        return new Response(new Uint8Array([0xff, 0xfb]), { status: 200, headers: { "content-type": "audio/mpeg" } });
+      };
+      const renderer = new ElevenLabsAudioRenderer({
+        apiKey: "xi_key",
+        defaultNarratorVoiceId: "narrator_1",
+        gateway: { accountId: "acct", gatewayId: "bardcast", token: "aig_token" },
+        fetchImpl: mockFetch,
+      });
+
+      await renderer.renderLine({ text: "Who are you when nobody's watching?" });
+      await renderer.render({ transcript: "", script: [{ speaker: "char.wren", text: "Judged." }], voices: { "char.wren": "cloned_wren" } });
+
+      expect(calls.map((c) => c.url)).toEqual([
+        "https://gateway.ai.cloudflare.com/v1/acct/bardcast/elevenlabs/v1/text-to-speech/narrator_1",
+        // A player's cloned voice goes through the gateway too: same key, same account.
+        "https://gateway.ai.cloudflare.com/v1/acct/bardcast/elevenlabs/v1/text-to-speech/cloned_wren",
+      ]);
+      expect(calls[0]!.headers["xi-api-key"]).toBe("xi_key");
+      expect(calls[0]!.headers["cf-aig-authorization"]).toBe("Bearer aig_token");
+    });
+
     it("speaks one line in the narrator voice and hands back the bytes", async () => {
       const urls: string[] = [];
       const mockFetch: typeof fetch = async (input) => {

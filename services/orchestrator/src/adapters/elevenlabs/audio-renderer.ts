@@ -6,6 +6,8 @@ import type {
   RenderLineInput,
 } from "../../ports/audio-renderer.js";
 
+import { aiGatewayBaseUrl, aiGatewayHeaders, type AiGatewayConfig } from "../ai-gateway.js";
+
 export interface AudioStorageAdapter {
   storeAudio(key: string, buffer: Uint8Array, contentType: string): Promise<string>;
 }
@@ -13,6 +15,12 @@ export interface AudioStorageAdapter {
 export interface ElevenLabsAudioRendererConfig {
   apiKey: string;
   baseUrl?: string;
+  /**
+   * Send text-to-speech through a Cloudflare AI Gateway instead of straight to
+   * ElevenLabs. Same key, same voices (cloned ones included): the gateway only
+   * passes the call through. Takes precedence over `baseUrl`.
+   */
+  gateway?: AiGatewayConfig;
   defaultNarratorVoiceId?: string;
   modelId?: string;
   storage?: AudioStorageAdapter;
@@ -34,7 +42,9 @@ export class ElevenLabsAudioRenderer implements AudioRenderer {
   private readonly modelId: string;
 
   constructor(private readonly config: ElevenLabsAudioRendererConfig) {
-    this.baseUrl = (config.baseUrl ?? "https://api.elevenlabs.io").replace(/\/+$/, "");
+    this.baseUrl = (
+      config.gateway ? aiGatewayBaseUrl(config.gateway, "elevenlabs") : (config.baseUrl ?? "https://api.elevenlabs.io")
+    ).replace(/\/+$/, "");
     this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
     // Default narrator voice: Rachel (calm, clear fantasy storytelling)
     this.defaultNarratorVoiceId = config.defaultNarratorVoiceId ?? "21m00Tcm4TlvDq8ikWAM";
@@ -115,6 +125,7 @@ export class ElevenLabsAudioRenderer implements AudioRenderer {
         "xi-api-key": this.config.apiKey,
         "content-type": "application/json",
         accept: "audio/mpeg",
+        ...aiGatewayHeaders(this.config.gateway),
       },
       body: JSON.stringify({
         text,

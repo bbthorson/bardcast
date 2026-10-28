@@ -28,6 +28,7 @@ export * from "./elevenlabs/voice-cloner.js";
 export * from "./elevenlabs/audio-renderer.js";
 export * from "./workers-ai-decision-model.js";
 export * from "./stub-decision-model.js";
+export * from "./ai-gateway.js";
 
 export interface BuildServicesConfig {
   /** Base URL of the (Bardcast-controlled) Antiphony deployment. */
@@ -54,6 +55,14 @@ export interface BuildServicesConfig {
   cloudflareAiToken?: string;
   /** Workers AI model id for decisions; defaults to Clef-flash. */
   decisionModel?: string;
+  /**
+   * A Cloudflare AI Gateway (in `cloudflareAccountId`) to send text-to-speech
+   * through. Voice cloning still goes straight to ElevenLabs: it uploads the
+   * players' raw recordings, which shouldn't sit in gateway logs.
+   */
+  aiGatewayId?: string;
+  /** Only for an authenticated gateway. */
+  aiGatewayToken?: string;
   /** PostgreSQL connection string. If provided, activates PostgresStore and persistent OAuth stores. */
   databaseUrl?: string;
   /**
@@ -120,10 +129,23 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
     ? new ElevenLabsVoiceCloner({ apiKey: config.elevenLabsApiKey })
     : new StubVoiceCloner();
 
+  if (config.aiGatewayId && !config.cloudflareAccountId) {
+    throw new Error("AI_GATEWAY_ID needs CLOUDFLARE_ACCOUNT_ID: a gateway lives in an account");
+  }
+  const gateway =
+    config.aiGatewayId && config.cloudflareAccountId
+      ? {
+          accountId: config.cloudflareAccountId,
+          gatewayId: config.aiGatewayId,
+          ...(config.aiGatewayToken ? { token: config.aiGatewayToken } : {}),
+        }
+      : undefined;
+
   const audio = config.elevenLabsApiKey
     ? new ElevenLabsAudioRenderer({
         apiKey: config.elevenLabsApiKey,
         ...(config.defaultNarratorVoiceId ? { defaultNarratorVoiceId: config.defaultNarratorVoiceId } : {}),
+        ...(gateway ? { gateway } : {}),
       })
     : new StubAudioRenderer();
 
