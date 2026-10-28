@@ -85,6 +85,8 @@ ElevenLabs requires consent/verification for voice clones, which makes the exist
   instead of `api.elevenlabs.io`.
 - **Clef (the `DecisionModel`)** goes to the gateway's `workers-ai/{model}` route instead of the
   Workers AI REST API. It uses the same `CLOUDFLARE_AI_TOKEN`.
+- **Claude (the `NarrativeWriter`)** goes to the gateway's `anthropic` route, with our own
+  `ANTHROPIC_API_KEY`.
 
 That puts all AI spend in one place, with logs, rate limits, retries and caching. Caching suits the narrator's fixed lines: the session-zero opener and name question
 are the same text every time. `AI_GATEWAY_TOKEN` is only for an authenticated gateway.
@@ -97,7 +99,7 @@ are the same text every time. `AI_GATEWAY_TOKEN` is only for an authenticated ga
 - **Voice cloning goes straight to ElevenLabs.** It uploads the players' raw recordings, which
   shouldn't sit in gateway logs.
 - **The gateway logs requests by default.** For text-to-speech that's chapter and narrator text.
-  For Clef it's the players' own words: the transcripts of their replies, including session zero,
+  For Clef and Claude it's the players' own words: the transcripts of their replies, including session zero,
   whose recordings are otherwise kept private in their space. Turn logging off on the gateway, or
   set a short retention, before real players use it.
 

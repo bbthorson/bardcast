@@ -51,7 +51,9 @@
   //   ANTIPHONY_SERVICE_TOKEN  optional; Antiphony calls fail without it
   //   ELEVENLABS_API_KEY       optional; stubs voice and audio without it
   //   CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_AI_TOKEN  optional; stubs trait inference without them
-  //   AI_GATEWAY_ID            optional; sends ElevenLabs text-to-speech and Clef through that AI Gateway
+  //   ANTHROPIC_API_KEY        optional; Claude writes session zero's questions and card (stubbed without it)
+  //   NARRATIVE_MODEL          optional; defaults to claude-opus-5-5
+  //   AI_GATEWAY_ID            optional; sends ElevenLabs text-to-speech, Clef and Claude through that AI Gateway
   //                            (needs CLOUDFLARE_ACCOUNT_ID; not a secret, can go in "vars")
   //   AI_GATEWAY_TOKEN         optional; only for an authenticated gateway
 }

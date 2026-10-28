@@ -377,8 +377,11 @@ what's left.
      `AntiphonyGateway.createPrompt`; and creations in all three `Store` adapters.
 
    Still to do here:
-   - **A real `NarrativeWriter`.** The stub's questions only name the two candidates, and its card
-     is a template. The chapter writer is a stub too.
+   - ~~**A real `NarrativeWriter`.**~~ *Built 2026-10-28* on Claude
+     (`adapters/anthropic/narrative-writer.ts`). It writes the questions and the card with
+     structured outputs, in the narrator's voice from `docs/brand.md`. The player's words are
+     marked as theirs, never instructions. A quote that isn't word for word theirs is still replaced
+     by `proposeCharacter`. Chapters stay on the stub until the story engine lands (ROADMAP M5).
    - **Starting equipment and the origin feat.** Class and background starting kits come from
      `@bardcast/srd` but aren't put on the first sheet yet.
    - **The creation recordings as voice samples.** Once the player consents, they should train the

@@ -23,7 +23,11 @@ export interface Env {
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_AI_TOKEN?: string;
   DECISION_MODEL?: string;
-  /** Send text-to-speech and Clef through this Cloudflare AI Gateway (needs CLOUDFLARE_ACCOUNT_ID). */
+  /** Claude, for the NarrativeWriter. Without it the writer is a stub. */
+  ANTHROPIC_API_KEY?: string;
+  /** Defaults to Claude Opus 5.5. */
+  NARRATIVE_MODEL?: string;
+  /** Send text-to-speech, Clef and Claude through this Cloudflare AI Gateway (needs CLOUDFLARE_ACCOUNT_ID). */
   AI_GATEWAY_ID?: string;
   /** Only for an authenticated gateway. */
   AI_GATEWAY_TOKEN?: string;
@@ -58,6 +62,8 @@ function appFor(origin: string, env: Env): Hono {
       ...(env.CLOUDFLARE_AI_TOKEN !== undefined ? { cloudflareAiToken: env.CLOUDFLARE_AI_TOKEN } : {}),
       ...(env.DECISION_MODEL !== undefined ? { decisionModel: env.DECISION_MODEL } : {}),
       ...(env.AI_GATEWAY_ID !== undefined ? { aiGatewayId: env.AI_GATEWAY_ID } : {}),
+      ...(env.ANTHROPIC_API_KEY !== undefined ? { anthropicApiKey: env.ANTHROPIC_API_KEY } : {}),
+      ...(env.NARRATIVE_MODEL !== undefined ? { narrativeModel: env.NARRATIVE_MODEL } : {}),
       ...(env.AI_GATEWAY_TOKEN !== undefined ? { aiGatewayToken: env.AI_GATEWAY_TOKEN } : {}),
     });
     app = createApp(svc);

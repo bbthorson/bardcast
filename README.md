@@ -68,7 +68,7 @@ and the seams are visible; real implementations slot in without touching the use
 | Port | What it abstracts | First adapter |
 | --- | --- | --- |
 | `AntiphonyGateway` | audio prompts + replies | `packages/antiphony-client` |
-| `NarrativeWriter` | canon + characters → chapter script | LLM (stub) |
+| `NarrativeWriter` | session zero's questions and reveal card; canon + characters → chapter script | Claude for session zero (with `ANTHROPIC_API_KEY`; stub otherwise); chapters stub until M5 |
 | `VoiceCloner` | player audio → voice model | ElevenLabs (with `ELEVENLABS_API_KEY`; stub otherwise) |
 | `AudioRenderer` | chapter script + voices → audio; one narrator line | ElevenLabs (with `ELEVENLABS_API_KEY`; stub otherwise), through a Cloudflare AI Gateway when `AI_GATEWAY_ID` is set (Clef too) |
 | `IdentityProvider` | AT-Proto OAuth → player DID | atproto (**live**) |
@@ -104,7 +104,7 @@ Design decisions live in [`docs/`](./docs):
 voice adapters, trait inference on Workers AI, Bardcast's own **AT-Proto identity**, and the first
 **campaign canon** seed (Gawain, OKF). The **`apps/web` front door** runs on Cloudflare: the home page,
 the `/your-data` page, sign-in, campaigns, invites and voice consent. Still stubbed (marked `TODO(bardcast)`):
-the LLM `NarrativeWriter`, character creation, writing records to players' repos, the Bluesky
+chapter writing, character-creation screens, writing records to players' repos, the Bluesky
 channel. The milestone-by-milestone path to the MVP is tracked in [`ROADMAP.md`](./ROADMAP.md). See
 [`CLAUDE.md`](./CLAUDE.md) for contributor orientation.
 

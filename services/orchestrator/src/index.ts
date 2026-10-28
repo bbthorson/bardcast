@@ -30,6 +30,8 @@ const cloudflareAccountId = process.env["CLOUDFLARE_ACCOUNT_ID"];
 const cloudflareAiToken = process.env["CLOUDFLARE_AI_TOKEN"];
 const decisionModel = process.env["DECISION_MODEL"];
 const aiGatewayId = process.env["AI_GATEWAY_ID"];
+const anthropicApiKey = process.env["ANTHROPIC_API_KEY"];
+const narrativeModel = process.env["NARRATIVE_MODEL"];
 const aiGatewayToken = process.env["AI_GATEWAY_TOKEN"];
 
 const svc = buildServices({
@@ -46,6 +48,8 @@ const svc = buildServices({
   ...(cloudflareAiToken !== undefined ? { cloudflareAiToken } : {}),
   ...(decisionModel !== undefined ? { decisionModel } : {}),
   ...(aiGatewayId !== undefined ? { aiGatewayId } : {}),
+  ...(anthropicApiKey !== undefined ? { anthropicApiKey } : {}),
+  ...(narrativeModel !== undefined ? { narrativeModel } : {}),
   ...(aiGatewayToken !== undefined ? { aiGatewayToken } : {}),
 });
 

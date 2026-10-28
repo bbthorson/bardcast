@@ -88,8 +88,10 @@ The player makes and owns their characters; a campaign seats them. Design and de
 - [x] Character creation, session-zero use-cases: the Bardcast narrator talks with the player one
       attribute at a time until Clef reads it as settled or the player picks; each follow-up is
       written and voiced for that player (`use-cases/creation.ts`, `/api/creations`).
-- [ ] A real `NarrativeWriter` for session zero's questions and the reveal card (the stub's are
-      templates); starting kits and the origin feat on the first sheet.
+- [x] A real `NarrativeWriter` for session zero: Claude writes the narrator's follow-up questions
+      and the reveal card (`adapters/anthropic/narrative-writer.ts`, with `ANTHROPIC_API_KEY`).
+      Chapters stay on the stub until M5.
+- [ ] Starting kits and the origin feat on the first sheet.
 - [ ] Character creation screens: session zero (reuse the recorder), the reveal card, the seal
       press, the invite flow's character picker.
 - [ ] The You tab lists a player's characters; the web app stops keying a joined character by the
