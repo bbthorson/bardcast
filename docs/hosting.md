@@ -79,10 +79,14 @@ ElevenLabs requires consent/verification for voice clones, which makes the exist
 `VoiceProfile.consent` field a real gate.
 
 **Through Cloudflare AI Gateway** (decided 2026-10-28). Set `AI_GATEWAY_ID` (with
-`CLOUDFLARE_ACCOUNT_ID`) and text-to-speech goes to
-`gateway.ai.cloudflare.com/v1/{account}/{gateway}/elevenlabs/...` instead of
-`api.elevenlabs.io`. That gets us logs, spend next to Workers AI (Clef), rate limits, retries
-and caching. Caching suits the narrator's fixed lines: the session-zero opener and name question
+`CLOUDFLARE_ACCOUNT_ID`) and two kinds of call go through the gateway:
+
+- **Text-to-speech** goes to `gateway.ai.cloudflare.com/v1/{account}/{gateway}/elevenlabs/...`
+  instead of `api.elevenlabs.io`.
+- **Clef (the `DecisionModel`)** goes to the gateway's `workers-ai/{model}` route instead of the
+  Workers AI REST API. It uses the same `CLOUDFLARE_AI_TOKEN`.
+
+That puts all AI spend in one place, with logs, rate limits, retries and caching. Caching suits the narrator's fixed lines: the session-zero opener and name question
 are the same text every time. `AI_GATEWAY_TOKEN` is only for an authenticated gateway.
 
 - **We still use our own ElevenLabs key and account.** The gateway passes the call through, so
@@ -92,8 +96,10 @@ are the same text every time. `AI_GATEWAY_TOKEN` is only for an authenticated ga
   our own key.
 - **Voice cloning goes straight to ElevenLabs.** It uploads the players' raw recordings, which
   shouldn't sit in gateway logs.
-- **The gateway does log what it renders,** which is chapter and narrator text. If that's
-  unwanted, turn logging off on the gateway.
+- **The gateway logs requests by default.** For text-to-speech that's chapter and narrator text.
+  For Clef it's the players' own words: the transcripts of their replies, including session zero,
+  whose recordings are otherwise kept private in their space. Turn logging off on the gateway, or
+  set a short retention, before real players use it.
 
 ## What deploy setup is automatable
 

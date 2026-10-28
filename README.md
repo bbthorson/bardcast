@@ -70,7 +70,7 @@ and the seams are visible; real implementations slot in without touching the use
 | `AntiphonyGateway` | audio prompts + replies | `packages/antiphony-client` |
 | `NarrativeWriter` | canon + characters → chapter script | LLM (stub) |
 | `VoiceCloner` | player audio → voice model | ElevenLabs (with `ELEVENLABS_API_KEY`; stub otherwise) |
-| `AudioRenderer` | chapter script + voices → audio; one narrator line | ElevenLabs (with `ELEVENLABS_API_KEY`; stub otherwise), through a Cloudflare AI Gateway when `AI_GATEWAY_ID` is set |
+| `AudioRenderer` | chapter script + voices → audio; one narrator line | ElevenLabs (with `ELEVENLABS_API_KEY`; stub otherwise), through a Cloudflare AI Gateway when `AI_GATEWAY_ID` is set (Clef too) |
 | `IdentityProvider` | AT-Proto OAuth → player DID | atproto (**live**) |
 | `EngagementChannel` | deliver prompts / collect replies | PWA (live-ish), Bluesky (stub) |
 | `DecisionModel` | pick among listed options (trait inference) | Clef on Workers AI (stub without credentials) |

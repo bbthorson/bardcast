@@ -57,8 +57,9 @@ export interface BuildServicesConfig {
   decisionModel?: string;
   /**
    * A Cloudflare AI Gateway (in `cloudflareAccountId`) to send text-to-speech
-   * through. Voice cloning still goes straight to ElevenLabs: it uploads the
-   * players' raw recordings, which shouldn't sit in gateway logs.
+   * and decisions (Clef) through. Voice cloning still goes straight to
+   * ElevenLabs: it uploads the players' raw recordings, which shouldn't sit in
+   * gateway logs.
    */
   aiGatewayId?: string;
   /** Only for an authenticated gateway. */
@@ -155,6 +156,7 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
           accountId: config.cloudflareAccountId,
           apiToken: config.cloudflareAiToken,
           ...(config.decisionModel ? { model: config.decisionModel } : {}),
+          ...(gateway ? { gateway } : {}),
         })
       : new StubDecisionModel();
 

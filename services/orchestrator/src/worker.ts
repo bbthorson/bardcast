@@ -23,7 +23,7 @@ export interface Env {
   CLOUDFLARE_ACCOUNT_ID?: string;
   CLOUDFLARE_AI_TOKEN?: string;
   DECISION_MODEL?: string;
-  /** Send text-to-speech through this Cloudflare AI Gateway (needs CLOUDFLARE_ACCOUNT_ID). */
+  /** Send text-to-speech and Clef through this Cloudflare AI Gateway (needs CLOUDFLARE_ACCOUNT_ID). */
   AI_GATEWAY_ID?: string;
   /** Only for an authenticated gateway. */
   AI_GATEWAY_TOKEN?: string;
