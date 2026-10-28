@@ -85,8 +85,10 @@ The player makes and owns their characters; a campaign seats them. Design and de
 - [x] **SRD 5.2 data** (`packages/srd`): generated from a pinned 5e-bits commit, validated,
       spot-checked, attributed (CC-BY-4.0).
 - [ ] AC and attack math from equipped gear (SRD armor and weapons).
-- [ ] Character creation: session-zero use-cases (Bardcast narrator asks, Clef suggests, the player
-      confirms), then the screens (reveal card, seal press, invite flow's character picker).
+- [ ] Character creation: session-zero use-cases (the Bardcast narrator talks with the player one
+      attribute at a time until Clef reads it as settled or the player picks; each follow-up is
+      written and voiced for that player), then the screens (reveal card, seal press, invite flow's
+      character picker).
 - [ ] The You tab lists a player's characters; the web app stops keying a joined character by the
       player's DID (profiles are keyed by `tid` now).
 - [x] Update the authority table in Antiphony's `specs/atproto-authority-model.md`: D2 says sheets
