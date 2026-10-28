@@ -9,6 +9,22 @@ export interface RenderChapterInput {
   narratorVoiceRef?: string | undefined;
 }
 
+export interface RenderLineInput {
+  text: string;
+  /** Voice/model to speak it in. Defaults to the adapter's narrator voice. */
+  voiceRef?: string | undefined;
+}
+
+/**
+ * One spoken line, as audio bytes. Not stored by the renderer: the caller
+ * uploads it where it belongs (a narrator question goes into the player's
+ * space with its prompt).
+ */
+export interface RenderedLine {
+  audio: Blob;
+  durationSeconds?: number;
+}
+
 export interface RenderedAudio {
   /** Blob ref / URL to the finished chapter audio. */
   audioRef: string;
@@ -21,4 +37,6 @@ export interface RenderedAudio {
  */
 export interface AudioRenderer {
   render(input: RenderChapterInput): Promise<RenderedAudio>;
+  /** Speak one line, e.g. a narrator question in session zero. */
+  renderLine(input: RenderLineInput): Promise<RenderedLine>;
 }

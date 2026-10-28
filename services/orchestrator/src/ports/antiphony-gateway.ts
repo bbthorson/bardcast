@@ -21,8 +21,18 @@ export interface AntiphonyGateway {
    * so it is safe to call before every write.
    */
   ensureSpace(space: SpaceKey): Promise<void>;
-  /** Publish a prompt into `space`. Its replies land in the same space. */
-  createPrompt(input: { title: string; scene?: string; actingDid: `did:${string}`; space: SpaceKey }): Promise<AntiphonyPrompt>;
+  /**
+   * Publish a prompt into `space`. Its replies land in the same space. `audio`,
+   * when given, is the prompt spoken aloud (the narrator's voiced question in
+   * session zero), uploaded into the same space.
+   */
+  createPrompt(input: {
+    title: string;
+    scene?: string;
+    audio?: Blob;
+    actingDid: `did:${string}`;
+    space: SpaceKey;
+  }): Promise<AntiphonyPrompt>;
   listReplies(promptUri: AtUri): Promise<AntiphonyReply[]>;
   /**
    * Reply to a prompt. The reply, and its audio, go in the prompt's space.

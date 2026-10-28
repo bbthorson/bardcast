@@ -6,11 +6,12 @@ import type {
   CharacterProfile,
   CampaignSeat,
   CharacterSheet,
+  Creation,
   Prompt,
   StrongRef,
   VoiceProfile,
 } from "@bardcast/domain";
-import type { CampaignInvite, SheetVersion, Store } from "../ports/store.js";
+import type { CampaignInvite, SheetVersion, Store, StoredCreation } from "../ports/store.js";
 
 /**
  * In-memory Store — the default adapter for local dev and tests. Swap for a
@@ -28,6 +29,7 @@ export class InMemoryStore implements Store {
   private chapters = new Map<string, Chapter>();
   private prompts = new Map<string, Prompt>();
   private invites = new Map<string, CampaignInvite>();
+  private creations = new Map<string, Creation>();
 
   async getCampaign(id: string) {
     return this.campaigns.get(id) ?? null;
@@ -113,6 +115,18 @@ export class InMemoryStore implements Store {
   }
   async putVoice(characterId: string, voice: VoiceProfile) {
     this.voices.set(characterId, voice);
+  }
+  async getCreation(id: string) {
+    return this.creations.get(id) ?? null;
+  }
+  async putCreation(id: string, creation: Creation) {
+    this.creations.set(id, creation);
+  }
+  async listCreations(playerDid: string): Promise<StoredCreation[]> {
+    return [...this.creations.entries()]
+      .filter(([, c]) => c.player === playerDid)
+      .sort(([ia, a], [ib, b]) => b.createdAt.localeCompare(a.createdAt) || ib.localeCompare(ia))
+      .map(([id, creation]) => ({ id, creation }));
   }
   async listChapters(campaignId: string) {
     return [...this.chapters.values()]

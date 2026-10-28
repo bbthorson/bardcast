@@ -100,6 +100,23 @@ describe("ElevenLabs Adapters", () => {
   });
 
   describe("ElevenLabsAudioRenderer", () => {
+    it("speaks one line in the narrator voice and hands back the bytes", async () => {
+      const urls: string[] = [];
+      const mockFetch: typeof fetch = async (input) => {
+        urls.push(String(input));
+        return new Response(new Uint8Array([0xff, 0xfb, 0x90, 0x64]), { status: 200, headers: { "content-type": "audio/mpeg" } });
+      };
+      const renderer = new ElevenLabsAudioRenderer({ apiKey: "k", defaultNarratorVoiceId: "narrator_1", fetchImpl: mockFetch });
+
+      const line = await renderer.renderLine({ text: "  What do people call you?  " });
+      expect(urls).toEqual(["https://api.elevenlabs.io/v1/text-to-speech/narrator_1"]);
+      expect(line.audio.type).toBe("audio/mpeg");
+      expect(line.audio.size).toBe(4);
+
+      await renderer.renderLine({ text: "Again.", voiceRef: "other_voice" });
+      expect(urls.at(-1)).toBe("https://api.elevenlabs.io/v1/text-to-speech/other_voice");
+    });
+
     it("renders multi-voice dialogue and stitches audio chunks into audioRef", async () => {
       const calls: Array<{ url: string; body: any; headers: any }> = [];
 

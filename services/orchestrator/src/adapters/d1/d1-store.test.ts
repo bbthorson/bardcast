@@ -185,6 +185,26 @@ describe("D1Store (node:sqlite stand-in)", () => {
     expect(voice?.modelRef).toBe("elevenlabs-voice-id-456");
   });
 
+  it("keeps a player's creations, newest first, and updates them in place", async () => {
+    const creation = (createdAt: string, player = "did:plc:wren") => ({
+      player,
+      status: "talking" as const,
+      turns: [],
+      settled: {},
+      name: {},
+      createdAt,
+      updatedAt: createdAt,
+    });
+    await store.putCreation("creation.a", creation("2026-10-28T00:00:00.000Z"));
+    await store.putCreation("creation.b", creation("2026-10-28T01:00:00.000Z"));
+    await store.putCreation("creation.c", creation("2026-10-28T02:00:00.000Z", "did:plc:other"));
+    await store.putCreation("creation.a", { ...creation("2026-10-28T00:00:00.000Z"), status: "ready" });
+
+    expect((await store.getCreation("creation.a"))?.status).toBe("ready");
+    expect(await store.getCreation("creation.missing")).toBeNull();
+    expect((await store.listCreations("did:plc:wren")).map((c) => c.id)).toEqual(["creation.b", "creation.a"]);
+  });
+
   it("persists chapters and prompts", async () => {
     const campaignId = "camp.chapters";
     const now = new Date().toISOString();

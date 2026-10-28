@@ -12,3 +12,19 @@ export {
   type BringProgressHomeInput,
 } from "./sheets.js";
 export { suggestPrompts, type PromptSuggestion } from "./suggest-prompts.js";
+export {
+  advanceCreation,
+  answerCreation,
+  confirmCharacter,
+  confirmName,
+  CreationError,
+  getCreation,
+  listCreations,
+  pickAttribute,
+  proposeCharacter,
+  reviseLine,
+  startCreation,
+  type AnswerCreationInput,
+  type ConfirmCharacterInput,
+  type CreationView,
+} from "./creation.js";

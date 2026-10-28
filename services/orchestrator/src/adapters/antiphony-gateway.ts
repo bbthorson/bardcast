@@ -25,13 +25,19 @@ export class ClientAntiphonyGateway implements AntiphonyGateway {
   async createPrompt(input: {
     title: string;
     scene?: string;
+    audio?: Blob;
     actingDid: `did:${string}`;
     space: SpaceKey;
   }): Promise<AntiphonyPrompt> {
     await this.ensureSpace(input.space);
     // The DM's scene text becomes the post body; the prompt is a post with no reply.
     return this.client.createPrompt(
-      { title: input.title, ...(input.scene !== undefined ? { text: input.scene } : {}), space: input.space },
+      {
+        title: input.title,
+        ...(input.scene !== undefined ? { text: input.scene } : {}),
+        ...(input.audio ? { audio: { blob: input.audio, filename: "prompt.mp3" } } : {}),
+        space: input.space,
+      },
       input.actingDid,
     );
   }

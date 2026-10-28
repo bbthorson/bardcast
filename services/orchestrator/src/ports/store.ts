@@ -6,6 +6,7 @@ import type {
   CharacterProfile,
   CampaignSeat,
   CharacterSheet,
+  Creation,
   Prompt,
   StrongRef,
   VoiceProfile,
@@ -14,6 +15,11 @@ import type {
 export interface SheetVersion {
   ref: StrongRef;
   sheet: CharacterSheet;
+}
+
+export interface StoredCreation {
+  id: string;
+  creation: Creation;
 }
 
 export interface CampaignInvite {
@@ -70,6 +76,12 @@ export interface Store {
   putBehavior(characterId: string, behavior: BehaviorModel): Promise<void>;
   getVoice(characterId: string): Promise<VoiceProfile | null>;
   putVoice(characterId: string, voice: VoiceProfile): Promise<void>;
+
+  // character creation (session zero). App state, never projected to records.
+  getCreation(id: string): Promise<Creation | null>;
+  putCreation(id: string, creation: Creation): Promise<void>;
+  /** A player's creations, newest first. */
+  listCreations(playerDid: string): Promise<StoredCreation[]>;
 
   // chapters and prompts
   listChapters(campaignId: string): Promise<Chapter[]>;

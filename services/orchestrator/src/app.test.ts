@@ -230,4 +230,38 @@ describe("Orchestrator HTTP App", () => {
     expect(strayRes.status).toBe(404);
     expect(replies).toHaveLength(1);
   });
+
+  it("runs session zero for the signed-in player only", async () => {
+    const app = createApp(mockServices());
+    const alice = { "X-Acting-Did": "did:plc:alice", "content-type": "application/json" };
+
+    expect((await app.request("/api/creations", { method: "POST" })).status).toBe(401);
+
+    const started = await app.request("/api/creations", { method: "POST", headers: alice });
+    expect(started.status).toBe(201);
+    const { id, creation } = (await started.json()) as { id: string; creation: { turns: Array<{ kind: string }> } };
+    expect(creation.turns[0]!.kind).toBe("opener");
+
+    const answered = await app.request(`/api/creations/${id}/answer`, {
+      method: "POST",
+      headers: alice,
+      body: JSON.stringify({ text: "Nobody you'd notice." }),
+    });
+    expect(answered.status).toBe(200);
+    const after = (await answered.json()) as { creation: { turns: Array<{ kind: string; reply?: unknown }> } };
+    expect(after.creation.turns.map((t) => t.kind)).toEqual(["opener", "name"]);
+
+    const mallory = { "X-Acting-Did": "did:plc:mallory" };
+    expect((await app.request(`/api/creations/${id}`, { headers: mallory })).status).toBe(403);
+    expect((await app.request(`/api/creations/${id}/propose`, { method: "POST", headers: alice })).status).toBe(409);
+    const badPick = await app.request(`/api/creations/${id}/pick`, {
+      method: "POST",
+      headers: alice,
+      body: JSON.stringify({ attribute: "class", value: "astronaut" }),
+    });
+    expect(badPick.status).toBe(400);
+
+    const list = (await (await app.request("/api/creations", { headers: alice })).json()) as { creations: unknown[] };
+    expect(list.creations).toHaveLength(1);
+  });
 });

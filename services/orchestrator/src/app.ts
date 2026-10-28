@@ -1,7 +1,18 @@
 import type { CoreServices } from "./ports/index.js";
 import {
+  advanceCreation,
+  answerCreation,
   checkReadiness,
+  confirmCharacter,
+  confirmName,
+  CreationError,
   currentSheet,
+  getCreation,
+  listCreations,
+  pickAttribute,
+  proposeCharacter,
+  reviseLine,
+  startCreation,
   generateChapter,
   ingestReplies,
   NotReadyError,
@@ -11,7 +22,7 @@ import {
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
-import type { Campaign, Player } from "@bardcast/domain";
+import { AbilityScores, BackgroundIncreases, type Campaign, type Player } from "@bardcast/domain";
 import { AtprotoIdentityProvider } from "./adapters/atproto/identity-provider.js";
 
 const CreateCampaignSchema = z.object({
@@ -43,6 +54,23 @@ const GenerateChapterSchema = z.object({
 const JoinCampaignSchema = z.object({
   code: z.string().min(1).max(64),
 });
+
+const PickAttributeSchema = z.object({ attribute: z.string().min(1).max(40), value: z.string().min(1).max(60) });
+const ConfirmNameSchema = z.object({ name: z.string().min(1).max(120) });
+const ReviseLineSchema = z.object({
+  line: z.discriminatedUnion("field", [
+    z.object({ field: z.literal("concept") }),
+    z.object({ field: z.literal("quote") }),
+    z.object({ field: z.literal("quirk"), index: z.number().int().min(0) }),
+    z.object({ field: z.literal("drive"), index: z.number().int().min(0) }),
+  ]),
+});
+const ConfirmCharacterSchema = z.object({
+  abilities: AbilityScores,
+  backgroundIncreases: BackgroundIncreases,
+});
+
+const CREATION_ERROR_STATUS = { not_found: 404, forbidden: 403, conflict: 409, invalid: 400 } as const;
 
 async function resolvePlayer(c: Context, svc: CoreServices): Promise<Player | null> {
   const session = await svc.identity.resolveSession(c.req.raw.headers);
@@ -380,6 +408,92 @@ export function createApp(svc: CoreServices): Hono {
       throw err;
     }
   });
+
+  // --- Character creation: session zero (docs/character-creation.md) ---------
+  // Every route acts as the signed-in player, on their own creations only.
+
+  const asPlayer =
+    (handler: (c: Context, did: `did:${string}`) => Promise<Response>) =>
+    async (c: Context): Promise<Response> => {
+      const player = await resolvePlayer(c, svc);
+      if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+      try {
+        return await handler(c, player.did as `did:${string}`);
+      } catch (err) {
+        if (err instanceof CreationError) {
+          return c.json({ error: err.code, message: err.message }, CREATION_ERROR_STATUS[err.code]);
+        }
+        throw err;
+      }
+    };
+
+  const parseBody = async <T>(c: Context, schema: z.ZodType<T>) => schema.safeParse(await c.req.json().catch(() => null));
+
+  app.get("/api/creations", asPlayer(async (c, did) => c.json({ creations: await listCreations(svc, { did }) })));
+
+  app.post("/api/creations", asPlayer(async (c, did) => c.json(await startCreation(svc, { did }), 201)));
+
+  app.get("/api/creations/:id", asPlayer(async (c, did) => c.json(await getCreation(svc, { id: c.req.param("id")!, did }))));
+
+  // The answer to the current prompt: multipart `audio` (and optional `text`), or JSON { text } as the typed fallback.
+  app.post(
+    "/api/creations/:id/answer",
+    asPlayer(async (c, did) => {
+      let audio: Blob | undefined;
+      let text: string | undefined;
+      if ((c.req.header("content-type") || "").includes("multipart/form-data")) {
+        const form = await c.req.formData();
+        const file = form.get("audio");
+        if (file instanceof Blob) audio = file;
+        text = (form.get("text") as string | null) || undefined;
+      } else {
+        const body = (await c.req.json().catch(() => null)) as { text?: unknown } | null;
+        if (typeof body?.text === "string") text = body.text;
+      }
+      return c.json(await answerCreation(svc, { id: c.req.param("id")!, did, ...(audio ? { audio } : {}), ...(text ? { text } : {}) }));
+    }),
+  );
+
+  // Move on without the player: picks up a transcript Antiphony finished, or retries a failed step.
+  app.post("/api/creations/:id/advance", asPlayer(async (c, did) => c.json(await advanceCreation(svc, { id: c.req.param("id")!, did }))));
+
+  app.post(
+    "/api/creations/:id/pick",
+    asPlayer(async (c, did) => {
+      const parsed = await parseBody(c, PickAttributeSchema);
+      if (!parsed.success) return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+      return c.json(await pickAttribute(svc, { id: c.req.param("id")!, did, ...parsed.data }));
+    }),
+  );
+
+  app.post(
+    "/api/creations/:id/name",
+    asPlayer(async (c, did) => {
+      const parsed = await parseBody(c, ConfirmNameSchema);
+      if (!parsed.success) return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+      return c.json(await confirmName(svc, { id: c.req.param("id")!, did, name: parsed.data.name }));
+    }),
+  );
+
+  app.post("/api/creations/:id/propose", asPlayer(async (c, did) => c.json(await proposeCharacter(svc, { id: c.req.param("id")!, did }))));
+
+  app.post(
+    "/api/creations/:id/revise",
+    asPlayer(async (c, did) => {
+      const parsed = await parseBody(c, ReviseLineSchema);
+      if (!parsed.success) return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+      return c.json(await reviseLine(svc, { id: c.req.param("id")!, did, line: parsed.data.line }));
+    }),
+  );
+
+  app.post(
+    "/api/creations/:id/confirm",
+    asPlayer(async (c, did) => {
+      const parsed = await parseBody(c, ConfirmCharacterSchema);
+      if (!parsed.success) return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+      return c.json(await confirmCharacter(svc, { id: c.req.param("id")!, did, ...parsed.data }), 201);
+    }),
+  );
 
   // --- Step 5: Suggest prompts -----------------------------------------------
   app.get("/api/campaigns/:campaignId/suggested-prompts", async (c) => {

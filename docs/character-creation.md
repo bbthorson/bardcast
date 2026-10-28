@@ -202,8 +202,12 @@ Player:    "Judged. Out loud, in front of everyone."
 2. Clef (the `DecisionModel`) reads **the whole conversation so far**, not just the latest reply,
    and gives probabilities for every attribute that's still open. One answer can settle several:
    "I'm a dwarf, obviously" settles species while we're asking about class.
-3. Bardcast picks what to ask next: the **least-settled open attribute**, and its top two
-   candidates. This choice is code, from Clef's numbers, so nothing else decides where the
+3. Bardcast picks what to ask next, and the top two candidates to ask about. It stays on the
+   current attribute until that's settled or the player picks. Then it moves to the
+   **least-settled** of species, class and background. Once those are settled, it moves to the
+   personality axis **closest to settling**: only `MIN_PERSONALITY_TRAITS` (3) are needed, and the
+   rest stay unasked unless the answers settle them anyway. This choice is code (`nextStep` in
+   `packages/domain/src/creation.ts`), from Clef's numbers, so nothing else decides where the
    character goes.
 4. The `NarrativeWriter` writes one question, in the narrator's voice, that would tell those two
    candidates apart, and picks up the player's own details ("the orphanage"). It only phrases the
@@ -227,9 +231,9 @@ clearly say, and the player chooses everything else. Nothing is set without the 
 |---|---|
 | Species, class, background | Clef, over the SRD 5.2 options in `@bardcast/srd` |
 | Personality traits | Clef, over the closed vocabulary in `traits.ts`. Several get settled, not just one |
-| Name | Asked straight out ("What do people call you?") and read back to confirm. Never inferred |
+| Name | Asked straight out, right after the opener, so later questions can use it. The player confirms or corrects what was heard. Never inferred |
 | Concept, drives, quirks, the quote | Not settled one at a time. The `NarrativeWriter` writes them for the reveal card from the whole conversation; the quote is the player's own words |
-| Ability scores | Not asked about. After the rest is settled, Clef suggests where each standard-array score goes and the player places them (decision 8) |
+| Ability scores | Not asked about. After the rest is settled, Clef rates how much the character leans on each ability, and the standard array is suggested in that order. The player places the scores and picks their background's +2/+1 or +1/+1/+1 (decision 8) |
 
 **The opener.** The first prompt is a big question, "Who are you when nobody's watching?", read
 against every attribute like any other reply. It's a strong place to start, not a fixed step; the
@@ -239,6 +243,11 @@ opener can change without changing the flow.
 after the prompt or a week after, so a turn can wait on transcription, Clef, the writer and the
 voice render without anyone noticing. The conversation is saved after every turn, and the You tab
 shows a half-made character with "Pick up where you left off."
+
+A spoken answer goes to Antiphony as a reply, and Antiphony transcribes it. If the transcript
+isn't ready yet, the turn waits. `advanceCreation` picks it up later and carries on. It's also how
+a failed step (the writer, the voice render, Antiphony) is retried, since every step saves first.
+A typed answer skips transcription.
 
 **Where the conversation lives.** Today Antiphony has prompts and replies to prompts, not replies to
 replies. So each narrator turn is a **new prompt** in `playerSpace(did)`, and Bardcast's `Store`
@@ -314,7 +323,7 @@ So each player gets a **private space** under Bardcast's DID:
 
 ## Build order
 
-Steps 1 and 2 are built. Step 1 still lacks two things: the profile-key change in the web app
+Steps 1, 2 and 4 are built. Step 1 still lacks two things: the profile-key change in the web app
 (the lexicon says `tid`, but the app still keys a joined character by the player's DID), and the
 NSID swap, which waits on a domain. Antiphony's spec records the model (D2, D6). `ROADMAP.md` (M3b) tracks
 what's left.
@@ -348,8 +357,9 @@ what's left.
 3. **AC and attacks.** Armor class and attack and damage bonuses from equipped items, read from
    `@bardcast/srd` (armor category, Dex cap, shield, weapon damage and properties), with the
    +1 to +3 bonus on top.
-4. **Creation use-cases**, against the `Store` and the ports, with fakes in tests (see
-   [Session zero](#session-zero-out-loud)):
+4. **Creation use-cases.** *Built 2026-10-28* (`packages/domain/src/creation.ts`,
+   `services/orchestrator/src/use-cases/creation.ts`, routes under `/api/creations`), against the
+   `Store` and the ports, with fakes in tests (see [Session zero](#session-zero-out-loud)):
    - a saved **creation** with its turns: prompt, the reply, the attribute being asked about,
      and Clef's read after the reply;
    - `startCreation`: makes sure the player's space exists (`AntiphonyGateway.ensureSpace`, already
@@ -361,8 +371,21 @@ what's left.
      Clef's suggested ability-score placement;
    - `reviseLine` (re-asks one line) and `confirmCharacter` (writes the profile and the first
      sheet version through `sheets.ts`);
-   - port additions: a `NarrativeWriter` method that writes one narrator question, and an
-     `AudioRenderer` method that renders one line (today it only renders whole chapters).
+   - `confirmName` and `advanceCreation` (fetches a pending transcript, retries a failed step);
+   - port additions: `NarrativeWriter.writeQuestion`, `writeCard` and `reviseCardLine`;
+     `AudioRenderer.renderLine` (ElevenLabs, in the narrator voice); an optional `audio` on
+     `AntiphonyGateway.createPrompt`; and creations in all three `Store` adapters.
+
+   Still to do here:
+   - **A real `NarrativeWriter`.** The stub's questions only name the two candidates, and its card
+     is a template. The chapter writer is a stub too.
+   - **Starting equipment and the origin feat.** Class and background starting kits come from
+     `@bardcast/srd` but aren't put on the first sheet yet.
+   - **The creation recordings as voice samples.** Once the player consents, they should train the
+     clone (see "Pressing the seal").
+   - **Who a narrator prompt is attributed to.** It's posted with the player's DID as the acting
+     actor, because it's the only DID the conversation has. Bardcast's DID is the author segment
+     either way. Revisit if Antiphony gets a way to say "the app itself".
 5. **Screens.** Session zero (reuse the recorder), the reveal card with front and back, the seal
    press, and the invite flow's character picker.
 6. **Projection.** Write profile, sheet and seat records once repo scopes land.

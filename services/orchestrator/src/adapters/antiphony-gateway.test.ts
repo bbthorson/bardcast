@@ -217,6 +217,16 @@ describe("Antiphony gateway", () => {
     expect(captured.findIndex((c) => c.method === "PUT")).toBeLessThan(captured.findIndex((c) => c.path === "/api/v1/posts"));
   });
 
+  it("uploads a voiced prompt's audio into the same space and embeds it", async () => {
+    captured.length = 0;
+    const audio = new Blob([new Uint8Array([0xff, 0xfb])], { type: "audio/mpeg" });
+    await gateway().createPrompt({ title: "Who are you when nobody's watching?", audio, actingDid: "did:example:alice", space: SPACE });
+
+    expect(captured.find((c) => c.path === "/api/v1/audio/upload")!.form).toEqual({ spaceType: SPACE.type, skey: SPACE.skey });
+    const body = JSON.parse(captured.find((c) => c.path === "/api/v1/posts")!.body) as { embed?: { $type: string } };
+    expect(body.embed?.$type).toBe("dev.antiphony.embed.audio");
+  });
+
   it("puts a player's own space under their DID", async () => {
     captured.length = 0;
     await gateway().ensureSpace({ type: "game.bardcast.space.player", skey: "did:plc:alice" });

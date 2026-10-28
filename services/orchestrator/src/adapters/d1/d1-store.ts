@@ -6,11 +6,12 @@ import type {
   CharacterProfile,
   CampaignSeat,
   CharacterSheet,
+  Creation,
   Prompt,
   StrongRef,
   VoiceProfile,
 } from "@bardcast/domain";
-import type { CampaignInvite, SheetVersion, Store } from "../../ports/store.js";
+import type { CampaignInvite, SheetVersion, Store, StoredCreation } from "../../ports/store.js";
 import { parseJson, type D1Database } from "./d1.js";
 
 type DataRow = { data: string };
@@ -210,6 +211,33 @@ export class D1Store implements Store {
       JSON.stringify(voice),
       voice.createdAt,
     );
+  }
+
+  async getCreation(id: string): Promise<Creation | null> {
+    return this.one<Creation>("SELECT data FROM creations WHERE id = ?1", id);
+  }
+
+  async putCreation(id: string, creation: Creation): Promise<void> {
+    await this.exec(
+      `INSERT INTO creations (id, player_did, data, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)
+       ON CONFLICT (id) DO UPDATE SET data = ?3, updated_at = ?5`,
+      id,
+      creation.player,
+      JSON.stringify(creation),
+      creation.createdAt,
+      creation.updatedAt,
+    );
+  }
+
+  async listCreations(playerDid: string): Promise<StoredCreation[]> {
+    const { results } = await this.db
+      .prepare("SELECT id, data FROM creations WHERE player_did = ?1 ORDER BY created_at DESC, id DESC")
+      .bind(playerDid)
+      .all<{ id: string; data: string }>();
+    return results.flatMap((r) => {
+      const creation = parseJson<Creation>(r.data);
+      return creation ? [{ id: r.id, creation }] : [];
+    });
   }
 
   async listChapters(campaignId: string): Promise<Chapter[]> {

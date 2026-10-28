@@ -66,6 +66,18 @@ CREATE TABLE IF NOT EXISTS voice_profiles (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Characters being made in session zero (docs/character-creation.md). App
+-- state only: confirming one writes a profile and a sheet version.
+CREATE TABLE IF NOT EXISTS creations (
+    id VARCHAR(128) PRIMARY KEY,
+    player_did VARCHAR(256) NOT NULL,
+    data JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_creations_player_did ON creations (player_did);
+
 CREATE TABLE IF NOT EXISTS chapters (
     id VARCHAR(128) PRIMARY KEY,
     campaign_id VARCHAR(128) NOT NULL,
