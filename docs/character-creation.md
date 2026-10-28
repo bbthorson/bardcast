@@ -400,10 +400,15 @@ what's left.
    - **The name and the reveal.** The player confirms the name the narrator heard. The card has
      "not quite" on every line of its front. On its back the player places the standard array and
      picks the background's increases.
+   - **The invite flow's character picker** (built 2026-10-28). An invite code shows the table, its
+     starting level and the DM's guidance, then "Who are you bringing?". The player picks one of
+     their characters, or makes someone new for this table and takes the seat when they're saved.
+     `takeSeat` (`use-cases/seats.ts`) branches the seat from that character's current sheet, one
+     seat per player per table. The party still lists players; which character each one brought
+     is read off their seat (`partyOf`), so a table's party shows characters by their own ids.
    - **Still to do:** pressing the seal from the player's voice (the "Lend them your voice" step
-     goes to the existing consent screen, whose voice hook is still a local stub), and the invite
-     flow's character picker. The picker needs joining to take a character id and branch a seat from
-     that character's sheet, instead of keying by the player's DID.
+     goes to the existing consent screen, whose voice hook is still a local stub), and the table's
+     starting kit on a new seat.
 6. **Projection.** Write profile, sheet and seat records once repo scopes land.
 
 ## Navigation

@@ -29,3 +29,4 @@ export {
   type ConfirmCharacterInput,
   type CreationView,
 } from "./creation.js";
+export { charactersOf, partyOf, SeatError, seatOf, takeSeat, type PartyMember } from "./seats.js";

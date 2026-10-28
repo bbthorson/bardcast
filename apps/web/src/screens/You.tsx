@@ -41,7 +41,7 @@ export function You({
   makeError: string | null;
   onMakeCharacter: () => void;
   onOpenCreation: (id: string) => void;
-  onOpenCharacter: (campaignId: string) => void;
+  onOpenCharacter: (campaignId: string, characterId: string | null) => void;
   onManageVoice: () => void;
   onOpenData: () => void;
   onSignOut: () => void;
@@ -94,7 +94,7 @@ export function You({
       {playing.length > 0 ? (
         <section style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {playing.map((t) => (
-            <button key={t.id} onClick={() => onOpenCharacter(t.id)} style={rowButton}>
+            <button key={t.id} onClick={() => onOpenCharacter(t.id, t.myCharacterId)} style={rowButton}>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: "block", fontFamily: font.display, fontSize: 18 }}>Sheet at {t.campaign.title}</span>
                 <span style={styles.meta}>traits, behaviour and voice for this table</span>

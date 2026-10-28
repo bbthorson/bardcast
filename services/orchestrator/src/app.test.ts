@@ -9,6 +9,7 @@ import { StubAudioRenderer } from "./adapters/stub-audio-renderer.js";
 import { PwaEngagementChannel } from "@bardcast/engagement";
 import type { CoreServices } from "./ports/index.js";
 import type { AntiphonyGateway } from "./ports/antiphony-gateway.js";
+import { writeSheetVersion } from "./use-cases/sheets.js";
 
 type ReplyInput = Parameters<AntiphonyGateway["createReply"]>[0];
 
@@ -266,5 +267,60 @@ describe("Orchestrator HTTP App", () => {
 
     const list = (await (await app.request("/api/creations", { headers: alice })).json()) as { creations: unknown[] };
     expect(list.creations).toHaveLength(1);
+  });
+
+  it("previews an invite, then seats the character the player brings", async () => {
+    const svc = mockServices();
+    const app = createApp(svc);
+    const T = "2026-10-28T00:00:00Z";
+    await svc.store.putCampaign("campaign.thornwood", {
+      title: "Thornwood",
+      dm: "did:plc:dm",
+      party: [],
+      startingLevel: 1,
+      characterGuidance: "Bring someone with a debt.",
+      createdAt: T,
+    });
+    await svc.store.createInvite("ABC123", "campaign.thornwood", "did:plc:dm");
+    await svc.store.putCharacter("char.wren", { player: "did:plc:alice", displayName: "Wren", drives: [], createdAt: T });
+    await writeSheetVersion(svc, "char.wren", {
+      character: "at://did:plc:alice/game.bardcast.character.profile/wren",
+      class: "paladin",
+      abilities: { strength: 15, dexterity: 10, constitution: 14, intelligence: 8, wisdom: 12, charisma: 13 },
+      features: [],
+      advancements: [],
+      traits: [],
+      quirks: [],
+      equipment: [],
+      createdAt: T,
+    });
+    const alice = { "X-Acting-Did": "did:plc:alice", "content-type": "application/json" };
+
+    const preview = await app.request("/api/invites/abc123", { headers: alice });
+    expect(await preview.json()).toEqual({
+      campaignId: "campaign.thornwood",
+      title: "Thornwood",
+      startingLevel: 1,
+      characterGuidance: "Bring someone with a debt.",
+    });
+
+    const joined = await app.request("/api/campaigns/join", {
+      method: "POST",
+      headers: alice,
+      body: JSON.stringify({ code: "ABC123", characterId: "char.wren" }),
+    });
+    expect(joined.status).toBe(200);
+    expect(await joined.json()).toMatchObject({ campaignId: "campaign.thornwood", characterId: "char.wren" });
+
+    const detail = (await (await app.request("/api/campaigns/campaign.thornwood")).json()) as { party: unknown[] };
+    expect(detail.party).toMatchObject([{ player: "did:plc:alice", id: "char.wren", profile: { displayName: "Wren" } }]);
+
+    const mallory = { "X-Acting-Did": "did:plc:mallory", "content-type": "application/json" };
+    const stolen = await app.request("/api/campaigns/join", {
+      method: "POST",
+      headers: mallory,
+      body: JSON.stringify({ code: "ABC123", characterId: "char.wren" }),
+    });
+    expect(stolen.status).toBe(403);
   });
 });

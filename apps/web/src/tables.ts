@@ -16,6 +16,8 @@ export interface Table extends CampaignSummary {
   chapters: Chapter[];
   /** Null when the orchestrator couldn't say. */
   readiness: PartyReadiness | null;
+  /** The signed-in player's character at this table, if they've brought one. */
+  myCharacterId: string | null;
 }
 
 /**
@@ -33,14 +35,20 @@ export function useTables(did: string): { tables: Table[]; loading: boolean } {
       const list = await fetchUserCampaigns(did);
       const withPrompts = await Promise.all(
         list.map(async (t): Promise<Table> => {
-          const characterIds = t.campaign.party.map((uri) => uri.replace(/^at:\/\//, ""));
-          const [prompts, detail, readiness] = await Promise.all([
-            fetchCampaignPrompts(t.id),
-            fetchCampaignDetail(t.id),
-            characterIds.length > 0 ? fetchPartyReadiness(t.id, characterIds) : Promise.resolve(null),
-          ]);
+          const [prompts, detail] = await Promise.all([fetchCampaignPrompts(t.id), fetchCampaignDetail(t.id)]);
+          // The party's characters, as seated: a player who brought one is keyed by it, not their DID.
+          const characterIds = detail?.party.map((p) => p.id) ?? t.campaign.party.map((uri) => uri.replace(/^at:\/\//, ""));
+          const readiness = characterIds.length > 0 ? await fetchPartyReadiness(t.id, characterIds) : null;
+          const mine = detail?.party.find((p) => p.player === did);
           prompts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-          return { ...t, isDm: t.campaign.dm === did, prompts, chapters: detail?.chapters ?? [], readiness };
+          return {
+            ...t,
+            isDm: t.campaign.dm === did,
+            prompts,
+            chapters: detail?.chapters ?? [],
+            readiness,
+            myCharacterId: mine && mine.id !== did ? mine.id : null,
+          };
         }),
       );
       if (!cancelled) {
@@ -76,7 +84,10 @@ export function whereYouAre(t: Table): string {
   return `${told > 0 ? `${told} told · ` : ""}Ch. ${next}: ${gathering}`;
 }
 
-/** A player's character at a table is keyed by their DID (see JoinInvite). */
-export function promptIsFor(prompt: Prompt, did: string): boolean {
-  return prompt.audience.length === 0 || prompt.audience.some((uri) => uri.includes(did));
+/** Whether a prompt asks the player: everyone, or them by DID or by the character they brought. */
+export function promptIsFor(prompt: Prompt, did: string, characterId?: string | null): boolean {
+  return (
+    prompt.audience.length === 0 ||
+    prompt.audience.some((uri) => uri.includes(did) || (characterId ? uri === `at://${characterId}` : false))
+  );
 }

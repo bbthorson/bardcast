@@ -27,6 +27,7 @@ const path = {
   you: "/you",
   create: "/campaigns/new",
   join: "/join",
+  joinWith: (code: string) => `/join?code=${encodeURIComponent(code)}`,
   voice: "/voice",
   /** Public: what lives in your account vs the campaign's space. Reachable signed in or out. */
   data: "/your-data",
@@ -34,7 +35,8 @@ const path = {
   character: (campaignId: string, id: string) =>
     `/campaigns/${encodeURIComponent(campaignId)}/characters/${encodeURIComponent(id)}`,
   /** Session zero for one character, made or being made. */
-  creation: (id: string) => `/characters/${encodeURIComponent(id)}`,
+  creation: (id: string, invite?: string) =>
+    `/characters/${encodeURIComponent(id)}${invite ? `?invite=${encodeURIComponent(invite)}` : ""}`,
 } as const;
 
 // Segments are URI-encoded: a character joined by invite is keyed by its player's DID (did:plc:…).
@@ -148,6 +150,8 @@ function SignedIn({
     }
   }, [player.did, navigate, session.simulated]);
 
+  const query = new URLSearchParams(window.location.search);
+
   const signOut = () => {
     navigate(path.home);
     session.signOut();
@@ -185,8 +189,10 @@ function SignedIn({
           id={routeCreationId}
           hue={35}
           voiceConsent={Boolean(voice.profile?.consent)}
+          inviteCode={query.get("invite") ?? undefined}
           onBack={() => navigate(path.you)}
           onVoice={() => navigate(path.voice)}
+          onSeated={(campaignId) => navigate(path.campaign(campaignId))}
         />
       ) : routeCharacterId ? (
         <CharacterSheet
@@ -207,7 +213,16 @@ function SignedIn({
       ) : router.path === path.create ? (
         <CreateCampaign player={player} onBack={back} />
       ) : router.path === path.join ? (
-        <JoinInvite player={player} onBack={back} />
+        <JoinInvite
+          player={player}
+          initialCode={query.get("code") ?? undefined}
+          onBack={back}
+          onMakeNew={async (code) => {
+            const { id } = await creations.start(player.did);
+            navigate(path.creation(id, code));
+          }}
+          onOpenCampaign={(id) => navigate(path.campaign(id))}
+        />
       ) : router.path === path.data ? (
         <YourData signedIn onBack={back} onOpenLogin={() => undefined} />
       ) : router.path === path.voice ? (
@@ -231,7 +246,7 @@ function SignedIn({
           makeError={makeError}
           onMakeCharacter={makeCharacter}
           onOpenCreation={(id) => navigate(path.creation(id))}
-          onOpenCharacter={(campId) => navigate(path.character(campId, player.did))}
+          onOpenCharacter={(campId, characterId) => navigate(path.character(campId, characterId ?? player.did))}
           onManageVoice={() => navigate(path.voice)}
           onOpenData={() => navigate(path.data)}
           onSignOut={signOut}

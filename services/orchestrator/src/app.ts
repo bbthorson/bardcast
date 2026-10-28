@@ -2,6 +2,7 @@ import type { CoreServices } from "./ports/index.js";
 import {
   advanceCreation,
   answerCreation,
+  charactersOf,
   checkReadiness,
   confirmCharacter,
   confirmName,
@@ -17,6 +18,9 @@ import {
   generateChapter,
   ingestReplies,
   NotReadyError,
+  partyOf,
+  SeatError,
+  takeSeat,
   publishPrompt,
   suggestPrompts,
 } from "./use-cases/index.js";
@@ -54,7 +58,13 @@ const GenerateChapterSchema = z.object({
 
 const JoinCampaignSchema = z.object({
   code: z.string().min(1).max(64),
+  /** The character to bring. Without it the player joins the party and picks one later. */
+  characterId: z.string().min(1).max(128).optional(),
 });
+
+const TakeSeatSchema = z.object({ characterId: z.string().min(1).max(128) });
+
+const SEAT_ERROR_STATUS = { not_found: 404, forbidden: 403, conflict: 409 } as const;
 
 const PickAttributeSchema = z.object({ attribute: z.string().min(1).max(40), value: z.string().min(1).max(60) });
 const ConfirmNameSchema = z.object({ name: z.string().min(1).max(120) });
@@ -161,15 +171,10 @@ export function createApp(svc: CoreServices): Hono {
     }
 
     const chapters = await svc.store.listChapters(campaignId);
-    const partyProfiles = await Promise.all(
-      campaign.party.map(async (atUri) => {
-        const charId = atUri.replace(/^at:\/\//, "");
-        const profile = await svc.store.getCharacter(charId);
-        return { id: charId, profile };
-      }),
-    );
+    // Each player and the character they brought (found through their seat).
+    const party = (await partyOf(svc, campaignId)).map(({ player, id, profile }) => ({ player, id, profile }));
 
-    return c.json({ id: campaignId, campaign, chapters, party: partyProfiles });
+    return c.json({ id: campaignId, campaign, chapters, party });
   });
 
   // Generate an invite code for a campaign
@@ -217,6 +222,20 @@ export function createApp(svc: CoreServices): Hono {
       return c.json({ error: "not_found", message: "Campaign associated with invite no longer exists." }, 404);
     }
 
+    if (parsed.data.characterId) {
+      try {
+        const seated = await takeSeat(svc, {
+          campaignId: invite.campaignId,
+          did: player.did as `did:${string}`,
+          characterId: parsed.data.characterId,
+        });
+        return c.json({ campaignId: invite.campaignId, campaign: await svc.store.getCampaign(invite.campaignId), ...seated });
+      } catch (err) {
+        if (err instanceof SeatError) return c.json({ error: err.code, message: err.message }, SEAT_ERROR_STATUS[err.code]);
+        throw err;
+      }
+    }
+
     const playerUri = `at://${player.did}` as const;
     if (!campaign.party.includes(playerUri as any)) {
       campaign.party.push(playerUri as any);
@@ -224,6 +243,47 @@ export function createApp(svc: CoreServices): Hono {
     }
 
     return c.json({ campaignId: invite.campaignId, campaign });
+  });
+
+  // What an invite leads to, so a player can choose who to bring before joining.
+  app.get("/api/invites/:code", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const invite = await svc.store.getInvite(c.req.param("code").trim().toUpperCase());
+    const campaign = invite ? await svc.store.getCampaign(invite.campaignId) : null;
+    if (!invite || !campaign) return c.json({ error: "invalid_invite", message: "Invite code not found." }, 404);
+    return c.json({
+      campaignId: invite.campaignId,
+      title: campaign.title,
+      startingLevel: campaign.startingLevel ?? 1,
+      ...(campaign.characterGuidance ? { characterGuidance: campaign.characterGuidance } : {}),
+    });
+  });
+
+  // Bring a character to a table you're already at (joined before choosing one).
+  app.post("/api/campaigns/:campaignId/seat", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const parsed = TakeSeatSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+    const campaignId = c.req.param("campaignId");
+    const campaign = await svc.store.getCampaign(campaignId);
+    if (!campaign?.party.includes(`at://${player.did}` as never)) {
+      return c.json({ error: "forbidden", message: "Join this table with an invite first." }, 403);
+    }
+    try {
+      return c.json(await takeSeat(svc, { campaignId, did: player.did as `did:${string}`, characterId: parsed.data.characterId }), 201);
+    } catch (err) {
+      if (err instanceof SeatError) return c.json({ error: err.code, message: err.message }, SEAT_ERROR_STATUS[err.code]);
+      throw err;
+    }
+  });
+
+  // The signed-in player's characters that can take a seat.
+  app.get("/api/characters", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    return c.json({ characters: await charactersOf(svc, player.did) });
   });
 
   // Character detail within a campaign (profile + owned sheet + this campaign's seat + behavior + voice)

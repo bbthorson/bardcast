@@ -2,6 +2,7 @@ import { useAudioRecorder } from "@antiphony/capture-kit";
 import { color, font, voiceColor } from "@bardcast/brand";
 import { isPersonality, optionLabel, type CreationAttribute, type CreationTurn } from "@bardcast/domain";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { joinCampaignApi } from "../api.js";
 import { creations, type CreationView } from "../creations.js";
 import { Dot, HexKey, PlayGlyph, styles } from "../ui.js";
 import { RevealCard } from "./RevealCard.js";
@@ -22,16 +23,21 @@ export function SessionZero({
   id,
   hue,
   voiceConsent,
+  inviteCode,
   onBack,
   onVoice,
+  onSeated,
 }: {
   did: string;
   id: string;
   /** The player's voice hue: their words are drawn in it. */
   hue: number;
   voiceConsent: boolean;
+  /** Made for a table: once saved, they take their seat there. */
+  inviteCode?: string | undefined;
   onBack: () => void;
   onVoice: () => void;
+  onSeated: (campaignId: string) => void;
 }) {
   const [view, setView] = useState<CreationView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +114,11 @@ export function SessionZero({
         )}
 
         {creation.status === "confirmed" ? (
-          <Sealed name={name ?? "They"} voiceConsent={voiceConsent} onVoice={onVoice} onDone={onBack} />
+          inviteCode && creation.character ? (
+            <TakeSeat did={did} name={name ?? "them"} code={inviteCode} characterId={creation.character} onSeated={onSeated} />
+          ) : (
+            <Sealed name={name ?? "They"} voiceConsent={voiceConsent} onVoice={onVoice} onDone={onBack} />
+          )
         ) : creation.status === "ready" ? (
           creation.card ? (
             <RevealCard
@@ -397,6 +407,44 @@ function Sealed({ name, voiceConsent, onVoice, onDone }: { name: string; voiceCo
           </>
         )}
       </div>
+    </article>
+  );
+}
+
+/** Made for a table: saved, and now they sit down at it. */
+function TakeSeat({
+  did,
+  name,
+  code,
+  characterId,
+  onSeated,
+}: {
+  did: string;
+  name: string;
+  code: string;
+  characterId: string;
+  onSeated: (campaignId: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function sit() {
+    setBusy(true);
+    setError(null);
+    try {
+      onSeated((await joinCampaignApi(code, did, characterId)).campaignId);
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
+  }
+  return (
+    <article style={styles.card}>
+      <h2 style={styles.h2}>{name} is yours.</h2>
+      <p style={{ ...styles.muted, marginTop: 0 }}>Your table is waiting. They'll sit down at the table's level, and come home with what they earn.</p>
+      <button style={{ ...styles.candle, marginTop: 8 }} disabled={busy} onClick={sit}>
+        {busy ? "Taking the seat…" : `Bring ${name} to the table`}
+      </button>
+      {error && <p style={{ ...styles.meta, color: color.hearthSoft }}>{error}</p>}
     </article>
   );
 }
