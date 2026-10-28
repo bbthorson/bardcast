@@ -24,6 +24,7 @@ import {
   CreationError,
   pickAttribute,
   proposeCharacter,
+  questionAudio,
   reviseLine,
   startCreation,
 } from "./creation.js";
@@ -51,6 +52,9 @@ class FakeAntiphony implements AntiphonyGateway {
     return this.replies
       .filter((r) => r.promptUri === promptUri)
       .map((r) => ({ ...r, ...(this.transcripts.has(r.uri) ? { transcript: this.transcripts.get(r.uri)! } : {}) }));
+  }
+  async playbackUrl(uri: string) {
+    return this.prompts.some((p) => p.uri === uri) ? `https://antiphony.test/signed/${encodeURIComponent(uri)}` : undefined;
   }
   async createReply(input: Parameters<AntiphonyGateway["createReply"]>[0]) {
     const uri = `${input.promptUri}-reply`;
@@ -235,6 +239,16 @@ describe("session zero", () => {
     v = await advanceCreation(svc, { id, did: ALICE });
     expect(v.creation.turns[0]!.reply!.transcript).toBe("Nobody you'd notice.");
     expect(lastPrompt(svc).title).toBe("And what do people call you?");
+  });
+
+  it("hands the player a fresh link to hear a question, never storing it", async () => {
+    const svc = services();
+    const { id, creation } = await startCreation(svc, { did: ALICE });
+    const url = await questionAudio(svc, { id, did: ALICE, turn: 0 });
+    expect(url).toBe(`https://antiphony.test/signed/${encodeURIComponent(svc.antiphony.prompts[0]!.uri)}`);
+    expect(JSON.stringify(creation)).not.toContain("antiphony.test/signed");
+    await expect(questionAudio(svc, { id, did: ALICE, turn: 5 })).rejects.toMatchObject({ code: "not_found" });
+    await expect(questionAudio(svc, { id, did: "did:plc:mallory", turn: 0 })).rejects.toMatchObject({ code: "forbidden" });
   });
 
   it("is the player's alone", async () => {

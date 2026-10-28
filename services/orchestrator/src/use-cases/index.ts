@@ -22,6 +22,7 @@ export {
   listCreations,
   pickAttribute,
   proposeCharacter,
+  questionAudio,
   reviseLine,
   startCreation,
   type AnswerCreationInput,

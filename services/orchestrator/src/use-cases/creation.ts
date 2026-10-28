@@ -119,6 +119,20 @@ export async function listCreations(svc: CoreServices, input: { did: string }): 
   return (await svc.store.listCreations(input.did)).map(({ id, creation }) => view(id, creation));
 }
 
+/**
+ * A fresh link to hear the narrator ask one of the creation's questions. Used
+ * by the player's screen at once, never stored (it expires within the hour).
+ */
+export async function questionAudio(
+  svc: CoreServices,
+  input: { id: string; did: string; turn: number },
+): Promise<string | undefined> {
+  const creation = await load(svc, input.id, input.did);
+  const turn = creation.turns[input.turn];
+  if (!turn) throw new CreationError(`no question ${input.turn}`, "not_found");
+  return svc.antiphony.playbackUrl(turn.prompt.uri);
+}
+
 export interface AnswerCreationInput {
   id: string;
   did: PlayerDid;

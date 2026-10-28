@@ -139,6 +139,7 @@ async function mockFetch(input: string | URL | { toString(): string }, init: Req
           text: "Firelight catches an old mark.",
           createdAt: "2026-07-01T00:00:00Z",
         },
+        embed: { url: "https://cdn.example/p1.mp3?sig=fresh" },
       }),
       { status: 200, headers: { "content-type": "application/json" } },
     );
@@ -225,6 +226,13 @@ describe("Antiphony gateway", () => {
     expect(captured.find((c) => c.path === "/api/v1/audio/upload")!.form).toEqual({ spaceType: SPACE.type, skey: SPACE.skey });
     const body = JSON.parse(captured.find((c) => c.path === "/api/v1/posts")!.body) as { embed?: { $type: string } };
     expect(body.embed?.$type).toBe("dev.antiphony.embed.audio");
+  });
+
+  it("reads a fresh playback link off the post, for playing at once", async () => {
+    captured.length = 0;
+    const url = await gateway().playbackUrl(postUri("p1", SPACE) as `at://${string}`);
+    expect(url).toBe("https://cdn.example/p1.mp3?sig=fresh");
+    expect(captured[0]).toMatchObject({ path: "/api/v1/posts/p1", method: "GET" });
   });
 
   it("puts a player's own space under their DID", async () => {

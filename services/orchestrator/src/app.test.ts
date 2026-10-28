@@ -27,6 +27,9 @@ function fakeGateway(replies: ReplyInput[] = []): AntiphonyGateway {
     async listReplies() {
       return [];
     },
+    async playbackUrl() {
+      return undefined;
+    },
     async createReply(input) {
       replies.push(input);
       return "at://dev.antiphony.audio.post/r1";

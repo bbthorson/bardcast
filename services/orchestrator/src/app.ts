@@ -11,6 +11,7 @@ import {
   listCreations,
   pickAttribute,
   proposeCharacter,
+  questionAudio,
   reviseLine,
   startCreation,
   generateChapter,
@@ -451,6 +452,17 @@ export function createApp(svc: CoreServices): Hono {
         if (typeof body?.text === "string") text = body.text;
       }
       return c.json(await answerCreation(svc, { id: c.req.param("id")!, did, ...(audio ? { audio } : {}), ...(text ? { text } : {}) }));
+    }),
+  );
+
+  // A fresh link to hear the narrator ask question `turn`. Signed and short-lived: play it, don't keep it.
+  app.get(
+    "/api/creations/:id/turns/:turn/audio",
+    asPlayer(async (c, did) => {
+      const turn = Number(c.req.param("turn"));
+      if (!Number.isInteger(turn) || turn < 0) return c.json({ error: "validation_failed", message: "turn must be an index" }, 400);
+      const url = await questionAudio(svc, { id: c.req.param("id")!, did, turn });
+      return url ? c.json({ url }) : c.json({ error: "not_found", message: "that question has no audio" }, 404);
     }),
   );
 

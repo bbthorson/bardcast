@@ -1,5 +1,5 @@
 import type { AtUri, SpaceKey } from "@bardcast/domain";
-import { AntiphonyClient, type AntiphonyPrompt, type AntiphonyReply } from "@bardcast/antiphony-client";
+import { AntiphonyClient, postIdFromUri, type AntiphonyPrompt, type AntiphonyReply } from "@bardcast/antiphony-client";
 import type { AntiphonyGateway } from "../ports/antiphony-gateway.js";
 
 /**
@@ -44,6 +44,10 @@ export class ClientAntiphonyGateway implements AntiphonyGateway {
 
   async listReplies(promptUri: AtUri): Promise<AntiphonyReply[]> {
     return this.client.listReplies({ prompt: promptUri });
+  }
+
+  async playbackUrl(postUri: AtUri): Promise<string | undefined> {
+    return (await this.client.getPost(postIdFromUri(postUri))).embed?.url;
   }
 
   async createReply(input: {

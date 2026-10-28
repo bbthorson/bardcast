@@ -389,8 +389,21 @@ what's left.
    - **Who a narrator prompt is attributed to.** It's posted with the player's DID as the acting
      actor, because it's the only DID the conversation has. Bardcast's DID is the author segment
      either way. Revisit if Antiphony gets a way to say "the app itself".
-5. **Screens.** Session zero (reuse the recorder), the reveal card with front and back, the seal
-   press, and the invite flow's character picker.
+5. **Screens.** *Session zero and the reveal built 2026-10-28* in `apps/web`
+   (`screens/SessionZero.tsx`, `screens/RevealCard.tsx`, at `/characters/:id`):
+   - **Session zero.** The You tab has "Make a character", and lists characters made and half made
+     ("pick up where you left off").
+   - **Answering.** Each question has a play key that fetches a fresh link to the narrator's voice
+     (`GET /api/creations/:id/turns/:n/audio`; never stored). The player answers out loud with the
+     shared recorder (`@antiphony/capture-kit`) or types instead. A choose question also has tap
+     buttons, and the screen checks back while an answer is being transcribed and read.
+   - **The name and the reveal.** The player confirms the name the narrator heard. The card has
+     "not quite" on every line of its front. On its back the player places the standard array and
+     picks the background's increases.
+   - **Still to do:** pressing the seal from the player's voice (the "Lend them your voice" step
+     goes to the existing consent screen, whose voice hook is still a local stub), and the invite
+     flow's character picker. The picker needs joining to take a character id and branch a seat from
+     that character's sheet, instead of keying by the player's DID.
 6. **Projection.** Write profile, sheet and seat records once repo scopes land.
 
 ## Navigation

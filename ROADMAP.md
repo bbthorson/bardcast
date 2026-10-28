@@ -92,10 +92,13 @@ The player makes and owns their characters; a campaign seats them. Design and de
       and the reveal card (`adapters/anthropic/narrative-writer.ts`, with `ANTHROPIC_API_KEY`).
       Chapters stay on the stub until M5.
 - [ ] Starting kits and the origin feat on the first sheet.
-- [ ] Character creation screens: session zero (reuse the recorder), the reveal card, the seal
-      press, the invite flow's character picker.
-- [ ] The You tab lists a player's characters; the web app stops keying a joined character by the
-      player's DID (profiles are keyed by `tid` now).
+- [x] Character creation screens: session zero (record or type, hear the narrator, tap to pick,
+      confirm the name) and the reveal card (front with "not quite", back with score placement and
+      background increases), from the You tab.
+- [ ] The seal press from the player's voice, and the invite flow's character picker (joining by
+      character id, branching a seat from that character's sheet).
+- [ ] The web app stops keying a joined character by the player's DID (profiles are keyed by `tid`
+      now). The You tab already lists the characters made in session zero.
 - [x] Update the authority table in Antiphony's `specs/atproto-authority-model.md`: D2 says sheets
       are the player's; D6 records the character model.
 - [x] Decide where character-creation recordings live: a private space per player under Bardcast's
