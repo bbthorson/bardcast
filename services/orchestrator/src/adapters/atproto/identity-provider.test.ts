@@ -118,3 +118,4 @@ describe("AT-Proto sign-in on the HTTP app", () => {
     expect(meta["redirect_uris"]).toEqual([`${ORIGIN}/atproto/callback`]);
   });
 });
+

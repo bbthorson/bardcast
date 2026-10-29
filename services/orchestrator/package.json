@@ -18,7 +18,7 @@
     "@bardcast/antiphony-client": "*",
     "@bardcast/domain": "*",
     "@bardcast/engagement": "*",
-    "@bbthorson/atproto-cf-auth": "^0.1.0",
+    "@bbthorson/atproto-cf-auth": "^0.2.1",
     "@hono/node-server": "^1.13.7",
     "@neondatabase/serverless": "1.1.0",
     "@types/pg": "8.23.1",

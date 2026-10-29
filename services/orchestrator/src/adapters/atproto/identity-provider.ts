@@ -65,3 +65,4 @@ export class AtprotoIdentityProvider implements IdentityProvider {
     return app;
   }
 }
+

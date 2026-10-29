@@ -42,6 +42,9 @@ the package Brad's Bluesky apps share. Its README covers how it works. In Bardca
   and a `d1Store` on the `DB` binding (one `bsky_auth` table, created on first use).
   Everything stored is sealed under the `SESSION_SECRET` Worker secret. Without that
   secret, the API answers `503 server_not_configured`. Changing it signs everyone out.
+- **Workers.** Workers refuse `redirect: "error"`, which AT-Proto's identity lookups ask for.
+  The package (0.2.1 and later) resolves handles and DIDs without it; before that every sign-in
+  failed with "We couldn't find that handle".
 - **Browser.** `apps/web/src/session.ts` uses the package's headless client, and reads a
   failed sign-in back from `?auth_error=`.
 - **One origin.** The web app and the orchestrator share an origin, so the `bsky_sid`
