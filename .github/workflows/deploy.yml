@@ -8,8 +8,9 @@ name: Deploy
 #    Builds. Until then both Workers Builds and this workflow deploy main, and
 #    Workers Builds still does it without running the tests.
 # 2. Add the repo secret CLOUDFLARE_API_TOKEN (Workers Scripts: Edit) and the
-#    repo variable CLOUDFLARE_ACCOUNT_ID. Without the token the deploy job fails
-#    red rather than reporting success.
+#    repo variable CLOUDFLARE_ACCOUNT_ID. Without them the deploy job fails
+#    red at its first step, naming whichever is missing, rather than reporting
+#    success.
 # 3. Optional: the repo variable BARDCAST_URL (e.g. https://bardcast.example),
 #    which turns on the smoke check after each deploy.
 #
@@ -43,6 +44,26 @@ jobs:
     environment:
       name: production
     steps:
+      # Before checkout and the build, so a missing credential fails in seconds
+      # and says which one, instead of after a full build with wrangler's
+      # generic "set CLOUDFLARE_API_TOKEN" error. Every deploy run from
+      # 2026-10-11 to 2026-10-29 failed that way with both unset.
+      - name: Check Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=0
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::The CLOUDFLARE_API_TOKEN secret is not set. Add it under Settings > Secrets and variables > Actions > Secrets (a Cloudflare API token with Workers Scripts: Edit)."
+            missing=1
+          fi
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::The CLOUDFLARE_ACCOUNT_ID variable is not set. Add it under Settings > Secrets and variables > Actions > Variables."
+            missing=1
+          fi
+          exit "$missing"
+
       # The commit CI ran on, not `github.sha`: on `workflow_run` that is the
       # tip of main when this was queued, which may be a newer, unverified
       # commit.
