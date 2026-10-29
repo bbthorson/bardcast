@@ -14,7 +14,7 @@
     "@bardcast/brand": "*",
     "@bardcast/domain": "*",
     "@bardcast/srd": "*",
-    "@bbthorson/atproto-cf-auth": "0.1.0",
+    "@bbthorson/atproto-cf-auth": "0.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "@antiphony/capture-kit": "^0.1.0"

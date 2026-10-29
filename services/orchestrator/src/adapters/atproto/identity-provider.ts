@@ -1,4 +1,3 @@
-import { AtprotoDohHandleResolver } from "@atproto-labs/handle-resolver";
 import type { Player } from "@bardcast/domain";
 import { createBlueskyAuth, type AuthStore, type BlueskyAuth } from "@bbthorson/atproto-cf-auth/server";
 import { Hono } from "hono";
@@ -37,10 +36,6 @@ export class AtprotoIdentityProvider implements IdentityProvider {
       secret: config.secret,
       basePath: "/atproto",
       redirectTo: "/",
-      handleResolver: new AtprotoDohHandleResolver({
-        dohEndpoint: "https://cloudflare-dns.com/dns-query",
-        fetch: edgeFetch,
-      }),
     });
   }
 
@@ -71,19 +66,3 @@ export class AtprotoIdentityProvider implements IdentityProvider {
   }
 }
 
-/**
- * `fetch` for handle resolution on Workers. The well-known resolver asks for
- * `redirect: "error"`, which Workers refuse outright, so without this every
- * handle without a DNS record (all of `*.bsky.social`) fails to resolve and
- * sign-in says "We couldn't find that handle". Same behaviour: a redirect is
- * an error.
- */
-export const edgeFetch: typeof fetch = async (input, init) => {
-  if (init?.redirect !== "error") return fetch(input, init);
-  const res = await fetch(input, { ...init, redirect: "manual" });
-  if (res.status >= 300 && res.status < 400) {
-    await res.body?.cancel();
-    throw new TypeError(`Refused redirect from ${String(input)}`);
-  }
-  return res;
-};
