@@ -10,7 +10,8 @@ import { StubAudioRenderer } from "../stub-audio-renderer.js";
 import { StubDecisionModel } from "../stub-decision-model.js";
 import { StubNarrativeWriter } from "../stub-narrative-writer.js";
 import { StubVoiceCloner } from "../stub-voice-cloner.js";
-import { AtprotoIdentityProvider } from "./identity-provider.js";
+import { AtprotoDohHandleResolver } from "@atproto-labs/handle-resolver";
+import { AtprotoIdentityProvider, edgeFetch } from "./identity-provider.js";
 
 const ORIGIN = "https://bardcast.example";
 
@@ -116,5 +117,42 @@ describe("AT-Proto sign-in on the HTTP app", () => {
     const meta = (await (await app.request(`${ORIGIN}/atproto/client-metadata.json`)).json()) as Record<string, unknown>;
     expect(meta["client_id"]).toBe(`${ORIGIN}/atproto/client-metadata.json`);
     expect(meta["redirect_uris"]).toEqual([`${ORIGIN}/atproto/callback`]);
+  });
+});
+
+/** Behaves like fetch on Workers: `redirect: "error"` is refused before any request. */
+function workersFetch(routes: Record<string, () => Response>) {
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    if (init?.redirect === "error") {
+      throw new TypeError('Invalid redirect value, must be one of "follow" or "manual"');
+    }
+    const url = new URL(String(input));
+    const route = routes[url.origin + url.pathname];
+    if (!route) throw new TypeError(`unexpected fetch ${url}`);
+    return route();
+  });
+}
+
+describe("handle resolution on Workers", () => {
+  const ALICE = "did:plc:ewvi7nxzyoun6zhxrhs64oiz";
+  const resolver = () =>
+    new AtprotoDohHandleResolver({ dohEndpoint: "https://cloudflare-dns.com/dns-query", fetch: edgeFetch });
+  const noTxtRecord = () => Response.json({ Status: 0, Answer: [] }, { headers: { "content-type": "application/dns-json" } });
+
+  it("resolves a bsky.social handle through its well-known DID", async () => {
+    workersFetch({
+      "https://cloudflare-dns.com/dns-query": noTxtRecord,
+      "https://alice.bsky.social/.well-known/atproto-did": () => new Response(`${ALICE}\n`),
+    });
+    expect(await resolver().resolve("alice.bsky.social")).toBe(ALICE);
+  });
+
+  it("still treats a redirected well-known lookup as unresolved", async () => {
+    workersFetch({
+      "https://cloudflare-dns.com/dns-query": noTxtRecord,
+      "https://alice.bsky.social/.well-known/atproto-did": () =>
+        new Response(null, { status: 302, headers: { location: "https://elsewhere.example/" } }),
+    });
+    expect(await resolver().resolve("alice.bsky.social")).toBeNull();
   });
 });
