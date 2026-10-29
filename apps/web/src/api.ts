@@ -31,7 +31,8 @@ export interface CampaignDetail {
   id: string;
   campaign: Campaign;
   chapters: Chapter[];
-  party: Array<{ id: string; profile: CharacterProfile | null }>;
+  /** Each player, and their character at this table (keyed by their DID if they haven't brought one). */
+  party: Array<{ player: string; id: string; profile: CharacterProfile | null }>;
 }
 
 export interface CharacterDetailResponse {
@@ -98,23 +99,57 @@ export async function createInviteApi(
   return (await res.json()) as { code: string };
 }
 
+export interface InvitePreview {
+  campaignId: string;
+  title: string;
+  startingLevel: number;
+  /** The DM's note to players choosing who to bring. */
+  characterGuidance?: string;
+}
+
+/** Where an invite leads, before joining. Null when the code isn't one. */
+export async function fetchInvite(code: string, actingDid?: string): Promise<InvitePreview | null> {
+  const headers: Record<string, string> = {};
+  if (actingDid) headers["X-Acting-Did"] = actingDid;
+  const res = await fetch(`${ORCHESTRATOR}/api/invites/${encodeURIComponent(code)}`, { headers, credentials: "include" });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Couldn't reach the table just now.");
+  return (await res.json()) as InvitePreview;
+}
+
+export interface MyCharacter {
+  id: string;
+  profile: CharacterProfile;
+  level: number;
+}
+
+/** The signed-in player's characters that can take a seat. */
+export async function fetchMyCharacters(actingDid?: string): Promise<MyCharacter[]> {
+  const headers: Record<string, string> = {};
+  if (actingDid) headers["X-Acting-Did"] = actingDid;
+  const res = await fetch(`${ORCHESTRATOR}/api/characters`, { headers, credentials: "include" });
+  if (!res.ok) throw new Error("Couldn't find your characters just now.");
+  return ((await res.json()) as { characters: MyCharacter[] }).characters;
+}
+
 export async function joinCampaignApi(
   code: string,
   actingDid?: string,
-): Promise<{ campaignId: string; campaign: Campaign }> {
+  characterId?: string,
+): Promise<{ campaignId: string; campaign: Campaign; characterId?: string }> {
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (actingDid) headers["X-Acting-Did"] = actingDid;
   const res = await fetch(`${ORCHESTRATOR}/api/campaigns/join`, {
     method: "POST",
     headers,
     credentials: "include",
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, ...(characterId ? { characterId } : {}) }),
   });
   if (!res.ok) {
     const err = ((await res.json().catch(() => ({}))) as { message?: string }) || {};
     throw new Error(err.message || "Failed to join campaign");
   }
-  return (await res.json()) as { campaignId: string; campaign: Campaign };
+  return (await res.json()) as { campaignId: string; campaign: Campaign; characterId?: string };
 }
 
 export async function fetchCampaignDetail(campaignId: string): Promise<CampaignDetail | null> {

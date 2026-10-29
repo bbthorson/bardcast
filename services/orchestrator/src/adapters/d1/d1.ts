@@ -83,6 +83,14 @@ export const D1_SCHEMA: readonly string[] = [
     data TEXT NOT NULL,
     created_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS creations (
+    id TEXT PRIMARY KEY,
+    player_did TEXT NOT NULL,
+    data TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_creations_player_did ON creations (player_did)`,
   `CREATE TABLE IF NOT EXISTS chapters (
     id TEXT PRIMARY KEY,
     campaign_id TEXT NOT NULL,

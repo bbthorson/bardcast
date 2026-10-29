@@ -31,7 +31,7 @@ export function upNextActions(
 
   for (const t of tables) {
     if (t.isDm) continue;
-    const prompt = t.prompts.find((p) => promptIsFor(p, player.did));
+    const prompt = t.prompts.find((p) => promptIsFor(p, player.did, t.myCharacterId));
     if (prompt) {
       actions.push({
         key: `answer:${t.id}`,

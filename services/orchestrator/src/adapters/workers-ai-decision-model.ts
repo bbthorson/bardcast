@@ -1,3 +1,4 @@
+import { aiGatewayBaseUrl, aiGatewayHeaders, type AiGatewayConfig } from "./ai-gateway.js";
 import type {
   DecideInput,
   DecideResult,
@@ -16,6 +17,12 @@ export interface WorkersAiDecisionModelConfig {
    */
   model?: string;
   baseUrl?: string;
+  /**
+   * Send decisions through a Cloudflare AI Gateway (its `workers-ai` route)
+   * instead of the REST API. Same token, same response envelope. Takes
+   * precedence over `baseUrl`.
+   */
+  gateway?: AiGatewayConfig;
   fetchImpl?: typeof fetch;
 }
 
@@ -24,7 +31,8 @@ export const DEFAULT_DECISION_MODEL = "@cf/cloudflare/clef-flash";
 /**
  * DecisionModel over the Workers AI REST API. The orchestrator is a Node
  * service, so there is no `env.AI` binding; this calls
- * `POST /accounts/:id/ai/run/:model` with a bearer token instead.
+ * `POST /accounts/:id/ai/run/:model` with a bearer token instead, or the same
+ * model through an AI Gateway when one is configured.
  */
 export class WorkersAiDecisionModel implements DecisionModel {
   private readonly baseUrl: string;
@@ -43,13 +51,17 @@ export class WorkersAiDecisionModel implements DecisionModel {
     const clef = /^@cf\/cloudflare\/(clef(?:-flash)?)$/.exec(this.model);
     if (clef) body["model"] = clef[1];
 
+    const url = this.config.gateway
+      ? `${aiGatewayBaseUrl(this.config.gateway, "workers-ai")}/${this.model}`
+      : `${this.baseUrl}/accounts/${this.config.accountId}/ai/run/${this.model}`;
     const res = await this.fetchImpl(
-      `${this.baseUrl}/accounts/${this.config.accountId}/ai/run/${this.model}`,
+      url,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${this.config.apiToken}`,
           "Content-Type": "application/json",
+          ...aiGatewayHeaders(this.config.gateway),
         },
         body: JSON.stringify(body),
       },

@@ -78,6 +78,31 @@ Both audio ports target **ElevenLabs**, one provider covering two roles:
 ElevenLabs requires consent/verification for voice clones, which makes the existing
 `VoiceProfile.consent` field a real gate.
 
+**Through Cloudflare AI Gateway** (decided 2026-10-28). Set `AI_GATEWAY_ID` (with
+`CLOUDFLARE_ACCOUNT_ID`) and two kinds of call go through the gateway:
+
+- **Text-to-speech** goes to `gateway.ai.cloudflare.com/v1/{account}/{gateway}/elevenlabs/...`
+  instead of `api.elevenlabs.io`.
+- **Clef (the `DecisionModel`)** goes to the gateway's `workers-ai/{model}` route instead of the
+  Workers AI REST API. It uses the same `CLOUDFLARE_AI_TOKEN`.
+- **Claude (the `NarrativeWriter`)** goes to the gateway's `anthropic` route, with our own
+  `ANTHROPIC_API_KEY`.
+
+That puts all AI spend in one place, with logs, rate limits, retries and caching. Caching suits the narrator's fixed lines: the session-zero opener and name question
+are the same text every time. `AI_GATEWAY_TOKEN` is only for an authenticated gateway.
+
+- **We still use our own ElevenLabs key and account.** The gateway passes the call through, so
+  the players' cloned voices work. We don't use the ElevenLabs models in the Workers AI catalog.
+  When Cloudflare bills for one of those, it runs on Cloudflare's ElevenLabs account, where our
+  clones don't exist. It isn't confirmed whether the catalog models take a custom voice ID with
+  our own key.
+- **Voice cloning goes straight to ElevenLabs.** It uploads the players' raw recordings, which
+  shouldn't sit in gateway logs.
+- **The gateway logs requests by default.** For text-to-speech that's chapter and narrator text.
+  For Clef and Claude it's the players' own words: the transcripts of their replies, including session zero,
+  whose recordings are otherwise kept private in their space. Turn logging off on the gateway, or
+  set a short retention, before real players use it.
+
 ## What deploy setup is automatable
 
 Can be authored in-repo: `wrangler` configs for each Worker, R2 buckets, Queues,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { seal } from "@bardcast/brand";
 import { useSession } from "./session.js";
 import { useRouter } from "./router.js";
@@ -16,6 +16,8 @@ import { VoiceClone } from "./screens/VoiceClone.js";
 import { YourData } from "./screens/YourData.js";
 import { CampaignProgress } from "./screens/CampaignProgress.js";
 import { CharacterSheet } from "./screens/CharacterSheet.js";
+import { SessionZero } from "./screens/SessionZero.js";
+import { creations, type CreationView } from "./creations.js";
 import { campaign, characters, party } from "./fixtures/gawain.js";
 
 /** Routes for the signed-in views. Home ("/") is Up next, the middle tab. */
@@ -25,21 +27,26 @@ const path = {
   you: "/you",
   create: "/campaigns/new",
   join: "/join",
+  joinWith: (code: string) => `/join?code=${encodeURIComponent(code)}`,
   voice: "/voice",
   /** Public: what lives in your account vs the campaign's space. Reachable signed in or out. */
   data: "/your-data",
   campaign: (id: string = campaign.id) => `/campaigns/${encodeURIComponent(id)}`,
   character: (campaignId: string, id: string) =>
     `/campaigns/${encodeURIComponent(campaignId)}/characters/${encodeURIComponent(id)}`,
+  /** Session zero for one character, made or being made. */
+  creation: (id: string, invite?: string) =>
+    `/characters/${encodeURIComponent(id)}${invite ? `?invite=${encodeURIComponent(invite)}` : ""}`,
 } as const;
 
 // Segments are URI-encoded: a character joined by invite is keyed by its player's DID (did:plc:…).
 const CAMPAIGN_ROUTE = /^\/campaigns\/([^/]+)$/;
 const CHARACTER_ROUTE = /^\/campaigns\/([^/]+)\/characters\/([^/]+)$/;
+const CREATION_ROUTE = /^\/characters\/([^/]+)$/;
 
 /** Which bottom-nav tab a path belongs to. */
 function tabFor(p: string): NavTab {
-  if (p === path.you || p === path.voice || p === path.data || CHARACTER_ROUTE.test(p)) return "you";
+  if (p === path.you || p === path.voice || p === path.data || CHARACTER_ROUTE.test(p) || CREATION_ROUTE.test(p)) return "you";
   if (p.startsWith("/campaigns") || p === path.join) return "campaigns";
   return "next";
 }
@@ -122,6 +129,29 @@ function SignedIn({
     openCampaign: (id) => navigate(path.campaign(id)),
     voice: () => navigate(path.voice),
   });
+  // Characters made (and being made) in session zero, for the You tab.
+  const [myCharacters, setMyCharacters] = useState<CreationView[] | null>(null);
+  const [making, setMaking] = useState(false);
+  const [makeError, setMakeError] = useState<string | null>(null);
+  useEffect(() => {
+    if (router.path !== path.you) return;
+    creations.list(player.did).then(setMyCharacters, () => setMyCharacters([]));
+  }, [router.path, player.did]);
+  const makeCharacter = useCallback(async () => {
+    setMaking(true);
+    setMakeError(null);
+    try {
+      const { id } = await creations.start(player.did);
+      navigate(path.creation(id));
+    } catch (err) {
+      setMakeError(session.simulated ? "Making a character needs the real table, not the demo." : (err as Error).message);
+    } finally {
+      setMaking(false);
+    }
+  }, [player.did, navigate, session.simulated]);
+
+  const query = new URLSearchParams(window.location.search);
+
   const signOut = () => {
     navigate(path.home);
     session.signOut();
@@ -132,6 +162,8 @@ function SignedIn({
   const routeCharacterId = segment(charMatch?.[2]);
   // The Sir Gawain fixture fills gaps only for the sample table, never for a real campaign.
   const charIsSample = routeCharCampaignId === campaign.id;
+
+  const routeCreationId = segment(CREATION_ROUTE.exec(router.path)?.[1]);
 
   const campMatch = CAMPAIGN_ROUTE.exec(router.path);
   const routeCampaignId = segment(campMatch?.[1]);
@@ -150,7 +182,19 @@ function SignedIn({
         }
       />
 
-      {routeCharacterId ? (
+      {routeCreationId ? (
+        <SessionZero
+          key={routeCreationId}
+          did={player.did}
+          id={routeCreationId}
+          hue={35}
+          voiceConsent={Boolean(voice.profile?.consent)}
+          inviteCode={query.get("invite") ?? undefined}
+          onBack={() => navigate(path.you)}
+          onVoice={() => navigate(path.voice)}
+          onSeated={(campaignId) => navigate(path.campaign(campaignId))}
+        />
+      ) : routeCharacterId ? (
         <CharacterSheet
           characterId={routeCharacterId}
           campaignId={routeCharCampaignId}
@@ -169,7 +213,16 @@ function SignedIn({
       ) : router.path === path.create ? (
         <CreateCampaign player={player} onBack={back} />
       ) : router.path === path.join ? (
-        <JoinInvite player={player} onBack={back} />
+        <JoinInvite
+          player={player}
+          initialCode={query.get("code") ?? undefined}
+          onBack={back}
+          onMakeNew={async (code) => {
+            const { id } = await creations.start(player.did);
+            navigate(path.creation(id, code));
+          }}
+          onOpenCampaign={(id) => navigate(path.campaign(id))}
+        />
       ) : router.path === path.data ? (
         <YourData signedIn onBack={back} onOpenLogin={() => undefined} />
       ) : router.path === path.voice ? (
@@ -188,7 +241,12 @@ function SignedIn({
           tables={tables}
           voice={voice.profile}
           simulated={session.simulated}
-          onOpenCharacter={(campId) => navigate(path.character(campId, player.did))}
+          characters={myCharacters}
+          making={making}
+          makeError={makeError}
+          onMakeCharacter={makeCharacter}
+          onOpenCreation={(id) => navigate(path.creation(id))}
+          onOpenCharacter={(campId, characterId) => navigate(path.character(campId, characterId ?? player.did))}
           onManageVoice={() => navigate(path.voice)}
           onOpenData={() => navigate(path.data)}
           onSignOut={signOut}

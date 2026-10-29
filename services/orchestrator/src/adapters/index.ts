@@ -18,6 +18,7 @@ import type { D1Database } from "./d1/d1.js";
 import { d1Store, memoryStore } from "@bbthorson/atproto-cf-auth/server";
 import { ElevenLabsVoiceCloner } from "./elevenlabs/voice-cloner.js";
 import { ElevenLabsAudioRenderer } from "./elevenlabs/audio-renderer.js";
+import { ClaudeNarrativeWriter } from "./anthropic/narrative-writer.js";
 
 export * from "./postgres/client.js";
 export * from "./postgres/postgres-store.js";
@@ -28,6 +29,8 @@ export * from "./elevenlabs/voice-cloner.js";
 export * from "./elevenlabs/audio-renderer.js";
 export * from "./workers-ai-decision-model.js";
 export * from "./stub-decision-model.js";
+export * from "./ai-gateway.js";
+export * from "./anthropic/narrative-writer.js";
 
 export interface BuildServicesConfig {
   /** Base URL of the (Bardcast-controlled) Antiphony deployment. */
@@ -45,6 +48,10 @@ export interface BuildServicesConfig {
   antiphonyServiceToken?: string;
   /** @deprecated use antiphonyServiceToken */
   voxPopServiceToken?: string;
+  /** Anthropic API key for the NarrativeWriter (Claude). Without it, the writer is a stub. */
+  anthropicApiKey?: string;
+  /** Claude model for the NarrativeWriter; defaults to Claude Opus 5.5. */
+  narrativeModel?: string;
   /** ElevenLabs API key for voice cloning and multi-voice audio synthesis. */
   elevenLabsApiKey?: string;
   /** Default ElevenLabs voice ID for DM narration. */
@@ -54,6 +61,15 @@ export interface BuildServicesConfig {
   cloudflareAiToken?: string;
   /** Workers AI model id for decisions; defaults to Clef-flash. */
   decisionModel?: string;
+  /**
+   * A Cloudflare AI Gateway (in `cloudflareAccountId`) to send text-to-speech,
+   * decisions (Clef) and the NarrativeWriter (Claude) through. Voice cloning still goes straight to
+   * ElevenLabs: it uploads the players' raw recordings, which shouldn't sit in
+   * gateway logs.
+   */
+  aiGatewayId?: string;
+  /** Only for an authenticated gateway. */
+  aiGatewayToken?: string;
   /** PostgreSQL connection string. If provided, activates PostgresStore and persistent OAuth stores. */
   databaseUrl?: string;
   /**
@@ -120,10 +136,23 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
     ? new ElevenLabsVoiceCloner({ apiKey: config.elevenLabsApiKey })
     : new StubVoiceCloner();
 
+  if (config.aiGatewayId && !config.cloudflareAccountId) {
+    throw new Error("AI_GATEWAY_ID needs CLOUDFLARE_ACCOUNT_ID: a gateway lives in an account");
+  }
+  const gateway =
+    config.aiGatewayId && config.cloudflareAccountId
+      ? {
+          accountId: config.cloudflareAccountId,
+          gatewayId: config.aiGatewayId,
+          ...(config.aiGatewayToken ? { token: config.aiGatewayToken } : {}),
+        }
+      : undefined;
+
   const audio = config.elevenLabsApiKey
     ? new ElevenLabsAudioRenderer({
         apiKey: config.elevenLabsApiKey,
         ...(config.defaultNarratorVoiceId ? { defaultNarratorVoiceId: config.defaultNarratorVoiceId } : {}),
+        ...(gateway ? { gateway } : {}),
       })
     : new StubAudioRenderer();
 
@@ -133,13 +162,20 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
           accountId: config.cloudflareAccountId,
           apiToken: config.cloudflareAiToken,
           ...(config.decisionModel ? { model: config.decisionModel } : {}),
+          ...(gateway ? { gateway } : {}),
         })
       : new StubDecisionModel();
 
   return {
     store,
     antiphony: new ClientAntiphonyGateway(antiphony),
-    narrative: new StubNarrativeWriter(),
+    narrative: config.anthropicApiKey
+      ? new ClaudeNarrativeWriter({
+          apiKey: config.anthropicApiKey,
+          ...(config.narrativeModel ? { model: config.narrativeModel } : {}),
+          ...(gateway ? { gateway } : {}),
+        })
+      : new StubNarrativeWriter(),
     voice,
     audio,
     identity,

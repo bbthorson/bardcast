@@ -1,5 +1,5 @@
 import type { AtUri, SpaceKey } from "@bardcast/domain";
-import { AntiphonyClient, type AntiphonyPrompt, type AntiphonyReply } from "@bardcast/antiphony-client";
+import { AntiphonyClient, postIdFromUri, type AntiphonyPrompt, type AntiphonyReply } from "@bardcast/antiphony-client";
 import type { AntiphonyGateway } from "../ports/antiphony-gateway.js";
 
 /**
@@ -25,19 +25,29 @@ export class ClientAntiphonyGateway implements AntiphonyGateway {
   async createPrompt(input: {
     title: string;
     scene?: string;
+    audio?: Blob;
     actingDid: `did:${string}`;
     space: SpaceKey;
   }): Promise<AntiphonyPrompt> {
     await this.ensureSpace(input.space);
     // The DM's scene text becomes the post body; the prompt is a post with no reply.
     return this.client.createPrompt(
-      { title: input.title, ...(input.scene !== undefined ? { text: input.scene } : {}), space: input.space },
+      {
+        title: input.title,
+        ...(input.scene !== undefined ? { text: input.scene } : {}),
+        ...(input.audio ? { audio: { blob: input.audio, filename: "prompt.mp3" } } : {}),
+        space: input.space,
+      },
       input.actingDid,
     );
   }
 
   async listReplies(promptUri: AtUri): Promise<AntiphonyReply[]> {
     return this.client.listReplies({ prompt: promptUri });
+  }
+
+  async playbackUrl(postUri: AtUri): Promise<string | undefined> {
+    return (await this.client.getPost(postIdFromUri(postUri))).embed?.url;
   }
 
   async createReply(input: {

@@ -1,6 +1,6 @@
 # Building a character
 
-**Status: decided 2026-10-07.** The record model and the SRD data are built; character creation
+**Status: decided 2026-10-07; session zero revised 2026-10-28.** The record model and the SRD data are built; character creation
 isn't yet (see [Build order](#build-order)). Revises the split in
 [`character-model.md`](character-model.md): the character sheet moves from the campaign's space into
 the player's own repo, and a campaign holds a **seat** that branches from it.
@@ -35,6 +35,12 @@ the player's own repo, and a campaign holds a **seat** that branches from it.
 11. **A campaign sets a gear policy.** "Starting gear only" (the default) hands everyone the table's
     starting kit; "bring your gear" lets them carry their own equipment in.
 12. **SRD 5.2** (the 2024 rules), not 5.1.
+13. **Session zero is a conversation, one attribute at a time** (decided 2026-10-28). The narrator
+    keeps asking about an attribute until the player's answers settle it, or the player picks.
+    Every follow-up is written and voiced for that player. There's no fixed script. See
+    [Session zero](#session-zero-out-loud).
+14. **Creation takes as long as the player takes.** They can answer in one sitting or across days, and
+    a half-finished character waits on the You tab.
 
 ## The record model
 
@@ -174,17 +180,87 @@ The join flow asks for them, and the DM can suggest picks.
 And from an invite: "Bring a character" lists the player's characters and offers "Make a new one".
 If the campaign has guidance, it shows in the DM's hand (Kalam).
 
-**Session zero, out loud.** The Bardcast narrator asks five to seven questions, one at a time,
-answered by voice (with a text fallback). Example questions:
+### Session zero, out loud
 
-- "Who are you when nobody's watching?"
-- "What did you leave behind?"
-- "What would make you draw steel?"
-- "Say something the way they'd say it."
+*Decided 2026-10-28; replaces "five to seven questions".* The Bardcast narrator talks with the
+player, one voice prompt at a time, and the player answers out loud (with a text fallback). It isn't
+a questionnaire. The narrator stays on an attribute, following up on what the player said, until
+that attribute is settled.
 
-Each answer is recorded, transcribed, and read by the `DecisionModel` (Clef), which picks from
-options we list: a class leaning, background, species, and personality traits from the closed
-vocabulary in `traits.ts`. It never writes text.
+```
+Narrator:  "What would make you draw steel?"
+Player:    "If someone hurt the kids at the orphanage, I'd... I don't know, I'd find them."
+  Clef →   class: ranger .38, paladin .34, rogue .17 …   not settled
+Narrator:  "When you find them, do you want them judged, or just gone?"
+Player:    "Judged. Out loud, in front of everyone."
+  Clef →   paladin .71, ranger .14 …                     settled: paladin
+```
+
+**Each turn:**
+
+1. The reply is recorded into the player's space and transcribed.
+2. Clef (the `DecisionModel`) reads **the whole conversation so far**, not just the latest reply,
+   and gives probabilities for every attribute that's still open. One answer can settle several:
+   "I'm a dwarf, obviously" settles species while we're asking about class.
+3. Bardcast picks what to ask next, and the top two candidates to ask about. It stays on the
+   current attribute until that's settled or the player picks. Then it moves to the
+   **least-settled** of species, class and background. Once those are settled, it moves to the
+   personality axis **closest to settling**: only `MIN_PERSONALITY_TRAITS` (3) are needed, and the
+   rest stay unasked unless the answers settle them anyway. This choice is code (`nextStep` in
+   `packages/domain/src/creation.ts`), from Clef's numbers, so nothing else decides where the
+   character goes.
+4. The `NarrativeWriter` writes one question, in the narrator's voice, that would tell those two
+   candidates apart, and picks up the player's own details ("the orphanage"). It only phrases the
+   question; it doesn't choose the topic, and it never sets an attribute.
+5. The `AudioRenderer` voices it in the stock narrator voice, and it's posted as the next prompt in
+   the player's space.
+
+**Settled** means the top option has at least `SETTLE_AT` probability and leads the runner-up by at
+least `SETTLE_MARGIN` (to be tuned against real answers; start at 0.65 and 0.3). A settled attribute
+is shown to the player as settled, not hidden. The reveal card is where they change it ("not
+quite").
+
+**The player picks when the answers don't settle it.** After `MAX_TURNS` replies on one attribute
+(start at 3), the narrator names the top two ("Sounds like a paladin, or maybe a ranger. Which is
+it?"), and the player picks out loud or with a tap. So Clef settles only what the player's own words
+clearly say, and the player chooses everything else. Nothing is set without the player.
+
+**What gets settled, and how:**
+
+| Attribute | How |
+|---|---|
+| Species, class, background | Clef, over the SRD 5.2 options in `@bardcast/srd` |
+| Personality traits | Clef, over the closed vocabulary in `traits.ts`. Several get settled, not just one |
+| Name | Asked straight out, right after the opener, so later questions can use it. The player confirms or corrects what was heard. Never inferred |
+| Concept, drives, quirks, the quote | Not settled one at a time. The `NarrativeWriter` writes them for the reveal card from the whole conversation; the quote is the player's own words |
+| Ability scores | Not asked about. After the rest is settled, Clef rates how much the character leans on each ability, and the standard array is suggested in that order. The player places the scores and picks their background's +2/+1 or +1/+1/+1 (decision 8) |
+
+**The opener.** The first prompt is a big question, "Who are you when nobody's watching?", read
+against every attribute like any other reply. It's a strong place to start, not a fixed step; the
+opener can change without changing the flow.
+
+**Pacing.** Creation takes as long as the player takes (decision 14). A reply might come a minute
+after the prompt or a week after, so a turn can wait on transcription, Clef, the writer and the
+voice render without anyone noticing. The conversation is saved after every turn, and the You tab
+shows a half-made character with "Pick up where you left off."
+
+A spoken answer goes to Antiphony as a reply, and Antiphony transcribes it. If the transcript
+isn't ready yet, the turn waits. `advanceCreation` picks it up later and carries on. It's also how
+a failed step (the writer, the voice render, Antiphony) is retried, since every step saves first.
+A typed answer skips transcription.
+
+**Where the conversation lives.** Today Antiphony has prompts and replies to prompts, not replies to
+replies. So each narrator turn is a **new prompt** in `playerSpace(did)`, and Bardcast's `Store`
+keeps the conversation: each turn's prompt, the reply it follows, the attribute it was working on
+and Clef's read after it. If Antiphony adds replies to replies, the conversation can move there and
+the `Store` becomes an index of it; the flow doesn't change. See [Still open](#still-open).
+
+**Why not a script, or a bank of written questions?** A follow-up has to tell apart the two
+candidates *this* player is between, in terms of what *they* said, so it can't be written ahead.
+Because creation has no time limit (decision 14), writing and voicing each question as it's needed
+is fine. Pinakes (which checks our campaign lore) has nothing that writes or voices questions; at
+most it could later give the writer a summary of a campaign's setting when a character is made
+from an invite.
 
 **The reveal.** A vellum card, front side: name, a one-line concept, three quirks, drives, and a
 quote pulled from their answers. Every line has "not quite", which re-asks for that line only.
@@ -247,7 +323,7 @@ So each player gets a **private space** under Bardcast's DID:
 
 ## Build order
 
-Steps 1 and 2 are built. Step 1 still lacks two things: the profile-key change in the web app
+Steps 1, 2 and 4 are built. Step 1 still lacks two things: the profile-key change in the web app
 (the lexicon says `tid`, but the app still keys a joined character by the player's DID), and the
 NSID swap, which waits on a domain. Antiphony's spec records the model (D2, D6). `ROADMAP.md` (M3b) tracks
 what's left.
@@ -281,12 +357,58 @@ what's left.
 3. **AC and attacks.** Armor class and attack and damage bonuses from equipped items, read from
    `@bardcast/srd` (armor category, Dex cap, shield, weapon damage and properties), with the
    +1 to +3 bonus on top.
-4. **Creation use-cases.** `startCreation` (first ensures the player's private space, via a new
-   `AntiphonyGateway.ensureSpace`), `answerCreation`, `proposeCharacter` (`DecisionModel` choices),
-   `reviseLine`, and `confirmCharacter` (writes the profile and sheet). Prose for the card goes
-   through `NarrativeWriter`.
-5. **Screens.** Session zero (reuse the recorder), the reveal card with front and back, the seal
-   press, and the invite flow's character picker.
+4. **Creation use-cases.** *Built 2026-10-28* (`packages/domain/src/creation.ts`,
+   `services/orchestrator/src/use-cases/creation.ts`, routes under `/api/creations`), against the
+   `Store` and the ports, with fakes in tests (see [Session zero](#session-zero-out-loud)):
+   - a saved **creation** with its turns: prompt, the reply, the attribute being asked about,
+     and Clef's read after the reply;
+   - `startCreation`: makes sure the player's space exists (`AntiphonyGateway.ensureSpace`, already
+     built) and posts the opener;
+   - `answerCreation`: takes a reply, asks Clef to re-read the whole conversation, settles what
+     crossed the line, and either asks the next follow-up or, at `MAX_TURNS`, asks the player to pick;
+   - `pickAttribute`: the player's pick when the conversation didn't settle it;
+   - `proposeCharacter`: once the attributes are settled, the card's prose (`NarrativeWriter`) and
+     Clef's suggested ability-score placement;
+   - `reviseLine` (re-asks one line) and `confirmCharacter` (writes the profile and the first
+     sheet version through `sheets.ts`);
+   - `confirmName` and `advanceCreation` (fetches a pending transcript, retries a failed step);
+   - port additions: `NarrativeWriter.writeQuestion`, `writeCard` and `reviseCardLine`;
+     `AudioRenderer.renderLine` (ElevenLabs, in the narrator voice); an optional `audio` on
+     `AntiphonyGateway.createPrompt`; and creations in all three `Store` adapters.
+
+   Still to do here:
+   - ~~**A real `NarrativeWriter`.**~~ *Built 2026-10-28* on Claude
+     (`adapters/anthropic/narrative-writer.ts`). It writes the questions and the card with
+     structured outputs, in the narrator's voice from `docs/brand.md`. The player's words are
+     marked as theirs, never instructions. A quote that isn't word for word theirs is still replaced
+     by `proposeCharacter`. Chapters stay on the stub until the story engine lands (ROADMAP M5).
+   - **Starting equipment and the origin feat.** Class and background starting kits come from
+     `@bardcast/srd` but aren't put on the first sheet yet.
+   - **The creation recordings as voice samples.** Once the player consents, they should train the
+     clone (see "Pressing the seal").
+   - **Who a narrator prompt is attributed to.** It's posted with the player's DID as the acting
+     actor, because it's the only DID the conversation has. Bardcast's DID is the author segment
+     either way. Revisit if Antiphony gets a way to say "the app itself".
+5. **Screens.** *Session zero and the reveal built 2026-10-28* in `apps/web`
+   (`screens/SessionZero.tsx`, `screens/RevealCard.tsx`, at `/characters/:id`):
+   - **Session zero.** The You tab has "Make a character", and lists characters made and half made
+     ("pick up where you left off").
+   - **Answering.** Each question has a play key that fetches a fresh link to the narrator's voice
+     (`GET /api/creations/:id/turns/:n/audio`; never stored). The player answers out loud with the
+     shared recorder (`@antiphony/capture-kit`) or types instead. A choose question also has tap
+     buttons, and the screen checks back while an answer is being transcribed and read.
+   - **The name and the reveal.** The player confirms the name the narrator heard. The card has
+     "not quite" on every line of its front. On its back the player places the standard array and
+     picks the background's increases.
+   - **The invite flow's character picker** (built 2026-10-28). An invite code shows the table, its
+     starting level and the DM's guidance, then "Who are you bringing?". The player picks one of
+     their characters, or makes someone new for this table and takes the seat when they're saved.
+     `takeSeat` (`use-cases/seats.ts`) branches the seat from that character's current sheet, one
+     seat per player per table. The party still lists players; which character each one brought
+     is read off their seat (`partyOf`), so a table's party shows characters by their own ids.
+   - **Still to do:** pressing the seal from the player's voice (the "Lend them your voice" step
+     goes to the existing consent screen, whose voice hook is still a local stub), and the table's
+     starting kit on a new seat.
 6. **Projection.** Write profile, sheet and seat records once repo scopes land.
 
 ## Navigation
@@ -304,4 +426,15 @@ at, with "Make a character" at the end. Voice and account settings stay on You, 
    sheet to become, or not become, the player's own. To decide later.
 
 2. **The narrator's voice.** Pick a stock ElevenLabs voice and give it a short style note in
-   `docs/brand.md`, so it sounds like the friend who runs the game, not a movie trailer.
+   `docs/brand.md`, so it sounds like the friend who runs the game, not a movie trailer. The
+   `NarrativeWriter` writes its follow-ups to that note too.
+
+3. **Replies to replies.** Session zero is a conversation, and so is a table. Antiphony has only
+   prompts and replies to them, so for now each narrator turn is a new prompt and Bardcast's
+   `Store` holds the conversation. If Antiphony adds replies to replies (being worked out alongside
+   VoxPop), one way would follow Bluesky: every reply carries a `root` and a `parent` StrongRef,
+   and lives in, and is readable under the same rules as, its root prompt's space. Then creation's
+   conversation moves into Antiphony.
+
+4. **Tuning.** `SETTLE_AT`, `SETTLE_MARGIN` and `MAX_TURNS` are starting guesses. Set them from real
+   session-zero conversations once there are some.

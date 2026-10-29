@@ -1,4 +1,12 @@
-import type { AudioRenderer, RenderChapterInput, RenderedAudio } from "../../ports/audio-renderer.js";
+import type {
+  AudioRenderer,
+  RenderChapterInput,
+  RenderedAudio,
+  RenderedLine,
+  RenderLineInput,
+} from "../../ports/audio-renderer.js";
+
+import { aiGatewayBaseUrl, aiGatewayHeaders, type AiGatewayConfig } from "../ai-gateway.js";
 
 export interface AudioStorageAdapter {
   storeAudio(key: string, buffer: Uint8Array, contentType: string): Promise<string>;
@@ -7,6 +15,12 @@ export interface AudioStorageAdapter {
 export interface ElevenLabsAudioRendererConfig {
   apiKey: string;
   baseUrl?: string;
+  /**
+   * Send text-to-speech through a Cloudflare AI Gateway instead of straight to
+   * ElevenLabs. Same key, same voices (cloned ones included): the gateway only
+   * passes the call through. Takes precedence over `baseUrl`.
+   */
+  gateway?: AiGatewayConfig;
   defaultNarratorVoiceId?: string;
   modelId?: string;
   storage?: AudioStorageAdapter;
@@ -28,7 +42,9 @@ export class ElevenLabsAudioRenderer implements AudioRenderer {
   private readonly modelId: string;
 
   constructor(private readonly config: ElevenLabsAudioRendererConfig) {
-    this.baseUrl = (config.baseUrl ?? "https://api.elevenlabs.io").replace(/\/+$/, "");
+    this.baseUrl = (
+      config.gateway ? aiGatewayBaseUrl(config.gateway, "elevenlabs") : (config.baseUrl ?? "https://api.elevenlabs.io")
+    ).replace(/\/+$/, "");
     this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
     // Default narrator voice: Rachel (calm, clear fantasy storytelling)
     this.defaultNarratorVoiceId = config.defaultNarratorVoiceId ?? "21m00Tcm4TlvDq8ikWAM";
@@ -59,32 +75,7 @@ export class ElevenLabsAudioRenderer implements AudioRenderer {
         (line.speaker === "narrator" ? input.narratorVoiceRef : undefined) ??
         this.defaultNarratorVoiceId;
 
-      const res = await this.fetchImpl(`${this.baseUrl}/v1/text-to-speech/${voiceId}`, {
-        method: "POST",
-        headers: {
-          "xi-api-key": this.config.apiKey,
-          "content-type": "application/json",
-          accept: "audio/mpeg",
-        },
-        body: JSON.stringify({
-          text: cleanText,
-          model_id: this.modelId,
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-          },
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(
-          `ElevenLabs TTS failed for speaker "${line.speaker}" (${res.status}): ${JSON.stringify(err)}`,
-        );
-      }
-
-      const chunkBuffer = new Uint8Array(await res.arrayBuffer());
-      audioBuffers.push(chunkBuffer);
+      audioBuffers.push(await this.speak(cleanText, voiceId, line.speaker));
       totalEstimatedDuration += Math.max(1, Math.round(cleanText.length / 15));
     }
 
@@ -112,5 +103,44 @@ export class ElevenLabsAudioRenderer implements AudioRenderer {
       audioRef,
       durationSeconds: totalEstimatedDuration,
     };
+  }
+
+  async renderLine(input: RenderLineInput): Promise<RenderedLine> {
+    if (!this.config.apiKey) {
+      throw new Error("ELEVENLABS_API_KEY is not configured.");
+    }
+    const text = input.text.trim();
+    const bytes = await this.speak(text, input.voiceRef ?? this.defaultNarratorVoiceId, "narrator");
+    return {
+      audio: new Blob([bytes], { type: "audio/mpeg" }),
+      durationSeconds: Math.max(1, Math.round(text.length / 15)),
+    };
+  }
+
+  /** One text-to-speech call. */
+  private async speak(text: string, voiceId: string, speaker: string): Promise<Uint8Array> {
+    const res = await this.fetchImpl(`${this.baseUrl}/v1/text-to-speech/${voiceId}`, {
+      method: "POST",
+      headers: {
+        "xi-api-key": this.config.apiKey,
+        "content-type": "application/json",
+        accept: "audio/mpeg",
+        ...aiGatewayHeaders(this.config.gateway),
+      },
+      body: JSON.stringify({
+        text,
+        model_id: this.modelId,
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(`ElevenLabs TTS failed for speaker "${speaker}" (${res.status}): ${JSON.stringify(err)}`);
+    }
+    return new Uint8Array(await res.arrayBuffer());
   }
 }

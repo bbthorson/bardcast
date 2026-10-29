@@ -6,12 +6,13 @@ import type {
   CharacterProfile,
   CampaignSeat,
   CharacterSheet,
+  Creation,
   Prompt,
   StrongRef,
   VoiceProfile,
 } from "@bardcast/domain";
 import type { SqlClient } from "../../ports/sql-client.js";
-import type { CampaignInvite, SheetVersion, Store } from "../../ports/store.js";
+import type { CampaignInvite, SheetVersion, Store, StoredCreation } from "../../ports/store.js";
 
 /**
  * PostgreSQL implementation of the Store port.
@@ -184,6 +185,28 @@ export class PostgresStore implements Store {
        ON CONFLICT (character_id) DO UPDATE SET data = $2::jsonb`,
       [characterId, JSON.stringify(voice), voice.createdAt],
     );
+  }
+
+  async getCreation(id: string): Promise<Creation | null> {
+    const rows = await this.sql.query<{ data: Creation }>("SELECT data FROM creations WHERE id = $1", [id]);
+    return rows[0]?.data ?? null;
+  }
+
+  async putCreation(id: string, creation: Creation): Promise<void> {
+    await this.sql.query(
+      `INSERT INTO creations (id, player_did, data, created_at, updated_at)
+       VALUES ($1, $2, $3::jsonb, $4, $5)
+       ON CONFLICT (id) DO UPDATE SET data = $3::jsonb, updated_at = $5`,
+      [id, creation.player, JSON.stringify(creation), creation.createdAt, creation.updatedAt],
+    );
+  }
+
+  async listCreations(playerDid: string): Promise<StoredCreation[]> {
+    const rows = await this.sql.query<{ id: string; data: Creation }>(
+      "SELECT id, data FROM creations WHERE player_did = $1 ORDER BY created_at DESC, id DESC",
+      [playerDid],
+    );
+    return rows.map((r) => ({ id: r.id, creation: r.data }));
   }
 
   async listChapters(campaignId: string): Promise<Chapter[]> {

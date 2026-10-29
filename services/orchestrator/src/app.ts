@@ -1,17 +1,33 @@
 import type { CoreServices } from "./ports/index.js";
 import {
+  advanceCreation,
+  answerCreation,
+  charactersOf,
   checkReadiness,
+  confirmCharacter,
+  confirmName,
+  CreationError,
   currentSheet,
+  getCreation,
+  listCreations,
+  pickAttribute,
+  proposeCharacter,
+  questionAudio,
+  reviseLine,
+  startCreation,
   generateChapter,
   ingestReplies,
   NotReadyError,
+  partyOf,
+  SeatError,
+  takeSeat,
   publishPrompt,
   suggestPrompts,
 } from "./use-cases/index.js";
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
-import type { Campaign, Player } from "@bardcast/domain";
+import { AbilityScores, BackgroundIncreases, type Campaign, type Player } from "@bardcast/domain";
 import { AtprotoIdentityProvider } from "./adapters/atproto/identity-provider.js";
 
 const CreateCampaignSchema = z.object({
@@ -42,7 +58,30 @@ const GenerateChapterSchema = z.object({
 
 const JoinCampaignSchema = z.object({
   code: z.string().min(1).max(64),
+  /** The character to bring. Without it the player joins the party and picks one later. */
+  characterId: z.string().min(1).max(128).optional(),
 });
+
+const TakeSeatSchema = z.object({ characterId: z.string().min(1).max(128) });
+
+const SEAT_ERROR_STATUS = { not_found: 404, forbidden: 403, conflict: 409 } as const;
+
+const PickAttributeSchema = z.object({ attribute: z.string().min(1).max(40), value: z.string().min(1).max(60) });
+const ConfirmNameSchema = z.object({ name: z.string().min(1).max(120) });
+const ReviseLineSchema = z.object({
+  line: z.discriminatedUnion("field", [
+    z.object({ field: z.literal("concept") }),
+    z.object({ field: z.literal("quote") }),
+    z.object({ field: z.literal("quirk"), index: z.number().int().min(0) }),
+    z.object({ field: z.literal("drive"), index: z.number().int().min(0) }),
+  ]),
+});
+const ConfirmCharacterSchema = z.object({
+  abilities: AbilityScores,
+  backgroundIncreases: BackgroundIncreases,
+});
+
+const CREATION_ERROR_STATUS = { not_found: 404, forbidden: 403, conflict: 409, invalid: 400 } as const;
 
 async function resolvePlayer(c: Context, svc: CoreServices): Promise<Player | null> {
   const session = await svc.identity.resolveSession(c.req.raw.headers);
@@ -132,15 +171,10 @@ export function createApp(svc: CoreServices): Hono {
     }
 
     const chapters = await svc.store.listChapters(campaignId);
-    const partyProfiles = await Promise.all(
-      campaign.party.map(async (atUri) => {
-        const charId = atUri.replace(/^at:\/\//, "");
-        const profile = await svc.store.getCharacter(charId);
-        return { id: charId, profile };
-      }),
-    );
+    // Each player and the character they brought (found through their seat).
+    const party = (await partyOf(svc, campaignId)).map(({ player, id, profile }) => ({ player, id, profile }));
 
-    return c.json({ id: campaignId, campaign, chapters, party: partyProfiles });
+    return c.json({ id: campaignId, campaign, chapters, party });
   });
 
   // Generate an invite code for a campaign
@@ -188,6 +222,20 @@ export function createApp(svc: CoreServices): Hono {
       return c.json({ error: "not_found", message: "Campaign associated with invite no longer exists." }, 404);
     }
 
+    if (parsed.data.characterId) {
+      try {
+        const seated = await takeSeat(svc, {
+          campaignId: invite.campaignId,
+          did: player.did as `did:${string}`,
+          characterId: parsed.data.characterId,
+        });
+        return c.json({ campaignId: invite.campaignId, campaign: await svc.store.getCampaign(invite.campaignId), ...seated });
+      } catch (err) {
+        if (err instanceof SeatError) return c.json({ error: err.code, message: err.message }, SEAT_ERROR_STATUS[err.code]);
+        throw err;
+      }
+    }
+
     const playerUri = `at://${player.did}` as const;
     if (!campaign.party.includes(playerUri as any)) {
       campaign.party.push(playerUri as any);
@@ -195,6 +243,47 @@ export function createApp(svc: CoreServices): Hono {
     }
 
     return c.json({ campaignId: invite.campaignId, campaign });
+  });
+
+  // What an invite leads to, so a player can choose who to bring before joining.
+  app.get("/api/invites/:code", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const invite = await svc.store.getInvite(c.req.param("code").trim().toUpperCase());
+    const campaign = invite ? await svc.store.getCampaign(invite.campaignId) : null;
+    if (!invite || !campaign) return c.json({ error: "invalid_invite", message: "Invite code not found." }, 404);
+    return c.json({
+      campaignId: invite.campaignId,
+      title: campaign.title,
+      startingLevel: campaign.startingLevel ?? 1,
+      ...(campaign.characterGuidance ? { characterGuidance: campaign.characterGuidance } : {}),
+    });
+  });
+
+  // Bring a character to a table you're already at (joined before choosing one).
+  app.post("/api/campaigns/:campaignId/seat", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const parsed = TakeSeatSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+    const campaignId = c.req.param("campaignId");
+    const campaign = await svc.store.getCampaign(campaignId);
+    if (!campaign?.party.includes(`at://${player.did}` as never)) {
+      return c.json({ error: "forbidden", message: "Join this table with an invite first." }, 403);
+    }
+    try {
+      return c.json(await takeSeat(svc, { campaignId, did: player.did as `did:${string}`, characterId: parsed.data.characterId }), 201);
+    } catch (err) {
+      if (err instanceof SeatError) return c.json({ error: err.code, message: err.message }, SEAT_ERROR_STATUS[err.code]);
+      throw err;
+    }
+  });
+
+  // The signed-in player's characters that can take a seat.
+  app.get("/api/characters", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    return c.json({ characters: await charactersOf(svc, player.did) });
   });
 
   // Character detail within a campaign (profile + owned sheet + this campaign's seat + behavior + voice)
@@ -380,6 +469,103 @@ export function createApp(svc: CoreServices): Hono {
       throw err;
     }
   });
+
+  // --- Character creation: session zero (docs/character-creation.md) ---------
+  // Every route acts as the signed-in player, on their own creations only.
+
+  const asPlayer =
+    (handler: (c: Context, did: `did:${string}`) => Promise<Response>) =>
+    async (c: Context): Promise<Response> => {
+      const player = await resolvePlayer(c, svc);
+      if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+      try {
+        return await handler(c, player.did as `did:${string}`);
+      } catch (err) {
+        if (err instanceof CreationError) {
+          return c.json({ error: err.code, message: err.message }, CREATION_ERROR_STATUS[err.code]);
+        }
+        throw err;
+      }
+    };
+
+  const parseBody = async <T>(c: Context, schema: z.ZodType<T>) => schema.safeParse(await c.req.json().catch(() => null));
+
+  app.get("/api/creations", asPlayer(async (c, did) => c.json({ creations: await listCreations(svc, { did }) })));
+
+  app.post("/api/creations", asPlayer(async (c, did) => c.json(await startCreation(svc, { did }), 201)));
+
+  app.get("/api/creations/:id", asPlayer(async (c, did) => c.json(await getCreation(svc, { id: c.req.param("id")!, did }))));
+
+  // The answer to the current prompt: multipart `audio` (and optional `text`), or JSON { text } as the typed fallback.
+  app.post(
+    "/api/creations/:id/answer",
+    asPlayer(async (c, did) => {
+      let audio: Blob | undefined;
+      let text: string | undefined;
+      if ((c.req.header("content-type") || "").includes("multipart/form-data")) {
+        const form = await c.req.formData();
+        const file = form.get("audio");
+        if (file instanceof Blob) audio = file;
+        text = (form.get("text") as string | null) || undefined;
+      } else {
+        const body = (await c.req.json().catch(() => null)) as { text?: unknown } | null;
+        if (typeof body?.text === "string") text = body.text;
+      }
+      return c.json(await answerCreation(svc, { id: c.req.param("id")!, did, ...(audio ? { audio } : {}), ...(text ? { text } : {}) }));
+    }),
+  );
+
+  // A fresh link to hear the narrator ask question `turn`. Signed and short-lived: play it, don't keep it.
+  app.get(
+    "/api/creations/:id/turns/:turn/audio",
+    asPlayer(async (c, did) => {
+      const turn = Number(c.req.param("turn"));
+      if (!Number.isInteger(turn) || turn < 0) return c.json({ error: "validation_failed", message: "turn must be an index" }, 400);
+      const url = await questionAudio(svc, { id: c.req.param("id")!, did, turn });
+      return url ? c.json({ url }) : c.json({ error: "not_found", message: "that question has no audio" }, 404);
+    }),
+  );
+
+  // Move on without the player: picks up a transcript Antiphony finished, or retries a failed step.
+  app.post("/api/creations/:id/advance", asPlayer(async (c, did) => c.json(await advanceCreation(svc, { id: c.req.param("id")!, did }))));
+
+  app.post(
+    "/api/creations/:id/pick",
+    asPlayer(async (c, did) => {
+      const parsed = await parseBody(c, PickAttributeSchema);
+      if (!parsed.success) return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+      return c.json(await pickAttribute(svc, { id: c.req.param("id")!, did, ...parsed.data }));
+    }),
+  );
+
+  app.post(
+    "/api/creations/:id/name",
+    asPlayer(async (c, did) => {
+      const parsed = await parseBody(c, ConfirmNameSchema);
+      if (!parsed.success) return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+      return c.json(await confirmName(svc, { id: c.req.param("id")!, did, name: parsed.data.name }));
+    }),
+  );
+
+  app.post("/api/creations/:id/propose", asPlayer(async (c, did) => c.json(await proposeCharacter(svc, { id: c.req.param("id")!, did }))));
+
+  app.post(
+    "/api/creations/:id/revise",
+    asPlayer(async (c, did) => {
+      const parsed = await parseBody(c, ReviseLineSchema);
+      if (!parsed.success) return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+      return c.json(await reviseLine(svc, { id: c.req.param("id")!, did, line: parsed.data.line }));
+    }),
+  );
+
+  app.post(
+    "/api/creations/:id/confirm",
+    asPlayer(async (c, did) => {
+      const parsed = await parseBody(c, ConfirmCharacterSchema);
+      if (!parsed.success) return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+      return c.json(await confirmCharacter(svc, { id: c.req.param("id")!, did, ...parsed.data }), 201);
+    }),
+  );
 
   // --- Step 5: Suggest prompts -----------------------------------------------
   app.get("/api/campaigns/:campaignId/suggested-prompts", async (c) => {

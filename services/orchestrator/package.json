@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
     "@atproto/common-web": "0.5.14",
     "@atproto/lex-cbor": "0.1.6",
     "@bardcast/antiphony-client": "*",

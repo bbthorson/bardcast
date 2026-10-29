@@ -33,20 +33,21 @@ export {
   weaponProperties,
 };
 
+// Each lookup is marked pure, so a bundler can drop the tables an app never reads.
 function indexer<T extends { index: string }>(entries: readonly T[]): (index: string) => T | undefined {
   const map = new Map(entries.map((e) => [e.index, e]));
   return (index) => map.get(index);
 }
 
-export const getClass = indexer(classes);
-export const getFeature = indexer(features);
-export const getSpecies = indexer(species);
-export const getSpeciesTrait = indexer(speciesTraits);
-export const getBackground = indexer(backgrounds);
-export const getFeat = indexer(feats);
-export const getEquipment = indexer(equipment);
-export const getSkill = indexer(skills);
-export const getCondition = indexer(conditions);
+export const getClass = /*#__PURE__*/ indexer(classes);
+export const getFeature = /*#__PURE__*/ indexer(features);
+export const getSpecies = /*#__PURE__*/ indexer(species);
+export const getSpeciesTrait = /*#__PURE__*/ indexer(speciesTraits);
+export const getBackground = /*#__PURE__*/ indexer(backgrounds);
+export const getFeat = /*#__PURE__*/ indexer(feats);
+export const getEquipment = /*#__PURE__*/ indexer(equipment);
+export const getSkill = /*#__PURE__*/ indexer(skills);
+export const getCondition = /*#__PURE__*/ indexer(conditions);
 
 export function getWeapon(index: string): Weapon | undefined {
   const e: Equipment | undefined = getEquipment(index);

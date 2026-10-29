@@ -85,10 +85,21 @@ The player makes and owns their characters; a campaign seats them. Design and de
 - [x] **SRD 5.2 data** (`packages/srd`): generated from a pinned 5e-bits commit, validated,
       spot-checked, attributed (CC-BY-4.0).
 - [ ] AC and attack math from equipped gear (SRD armor and weapons).
-- [ ] Character creation: session-zero use-cases (Bardcast narrator asks, Clef suggests, the player
-      confirms), then the screens (reveal card, seal press, invite flow's character picker).
-- [ ] The You tab lists a player's characters; the web app stops keying a joined character by the
-      player's DID (profiles are keyed by `tid` now).
+- [x] Character creation, session-zero use-cases: the Bardcast narrator talks with the player one
+      attribute at a time until Clef reads it as settled or the player picks; each follow-up is
+      written and voiced for that player (`use-cases/creation.ts`, `/api/creations`).
+- [x] A real `NarrativeWriter` for session zero: Claude writes the narrator's follow-up questions
+      and the reveal card (`adapters/anthropic/narrative-writer.ts`, with `ANTHROPIC_API_KEY`).
+      Chapters stay on the stub until M5.
+- [ ] Starting kits and the origin feat on the first sheet.
+- [x] Character creation screens: session zero (record or type, hear the narrator, tap to pick,
+      confirm the name) and the reveal card (front with "not quite", back with score placement and
+      background increases), from the You tab.
+- [x] The invite flow's character picker: joining with a character branches a seat from its sheet
+      (`use-cases/seats.ts`); make someone new for a table and take the seat when saved.
+- [ ] The seal press from the player's voice; the table's starting kit on a new seat.
+- [x] The web app stops keying a joined character by the player's DID: a table's party shows the
+      character each player brought. (Players who joined before choosing are still keyed by DID.)
 - [x] Update the authority table in Antiphony's `specs/atproto-authority-model.md`: D2 says sheets
       are the player's; D6 records the character model.
 - [x] Decide where character-creation recordings live: a private space per player under Bardcast's

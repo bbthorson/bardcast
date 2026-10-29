@@ -30,6 +30,25 @@ describe("WorkersAiDecisionModel", () => {
     expect(JSON.parse(calls[0]!.init.body as string)).toEqual({ model: "clef-flash", state: "Checkout is down", questions });
   });
 
+  it("goes through a Cloudflare AI Gateway's workers-ai route when one is configured", async () => {
+    const { fetchImpl, calls } = fakeFetch(Response.json({ success: true, result: { answers } }));
+    const model = new WorkersAiDecisionModel({
+      accountId: "acct",
+      apiToken: "tok",
+      gateway: { accountId: "acct", gatewayId: "bardcast", token: "aig_token" },
+      fetchImpl,
+    });
+
+    const result = await model.decide({ state: "x", questions });
+
+    expect(result.team.choice).toBe("technical");
+    expect(calls[0]!.url).toBe("https://gateway.ai.cloudflare.com/v1/acct/bardcast/workers-ai/@cf/cloudflare/clef-flash");
+    const headers = calls[0]!.init.headers as Record<string, string>;
+    expect(headers["Authorization"]).toBe("Bearer tok");
+    expect(headers["cf-aig-authorization"]).toBe("Bearer aig_token");
+    expect(JSON.parse(calls[0]!.init.body as string)).toMatchObject({ model: "clef-flash" });
+  });
+
   it("swaps to Jev by model id, without a Clef model selector", async () => {
     const { fetchImpl, calls } = fakeFetch(Response.json({ result: { answers } }));
     const model = new WorkersAiDecisionModel({ accountId: "acct", apiToken: "tok", model: "typesafe/jev", fetchImpl });

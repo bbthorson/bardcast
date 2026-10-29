@@ -31,10 +31,11 @@ export function useRouter() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  // `to` may carry a query (`/join?code=…`); routes match on the path alone, and screens read the query.
   const navigate = useCallback((to: string) => {
-    if (to !== window.location.pathname) {
+    if (to !== window.location.pathname + window.location.search) {
       window.history.pushState({ idx: currentIdx() + 1 }, "", to);
-      setPath(to);
+      setPath(to.split("?")[0]!);
     }
   }, []);
 
