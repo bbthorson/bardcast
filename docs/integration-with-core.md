@@ -3,7 +3,7 @@
 How Bardcast relates to the call/response engine (**Antiphony**). Updated 2026-10-11, after a
 design review across Antiphony, Vox Pop and Bardcast. The platform side is in Antiphony's
 [`specs/atproto-authority-model.md`](https://github.com/bbthorson/antiphony/blob/master/specs/atproto-authority-model.md)
-(D1, D2, D6, D8) and
+(D1, D2, D6, D8, replaced in part by `audio-service-and-groups.md`) and
 [`specs/cross-repo-design.md`](https://github.com/bbthorson/antiphony/blob/master/specs/cross-repo-design.md).
 
 ## Calling Antiphony
@@ -25,22 +25,31 @@ does no user sign-in: AT-Proto OAuth is Bardcast's job (`@bbthorson/atproto-cf-a
 
 ## Who keeps what
 
-| Records | `at://` authority | Author segment (in a space) | The player is |
+**Decided 2026-11-01** (Antiphony's [`specs/audio-service-and-groups.md`](https://github.com/bbthorson/antiphony/blob/master/specs/audio-service-and-groups.md)): **members own what they write, and work Bardcast
+generates belongs to the table.** A table (the friends who play together) is an atmospheric group
+with its own DID. Each campaign is a space under the table's DID, keyed by the campaign.
+
+| Records | `at://` authority | Author segment (in a space) | Kept by |
 | :--- | :--- | :--- | :--- |
-| Campaign prompts and replies (Antiphony posts) | Bardcast's DID, in the campaign's space | Bardcast's DID | the `authorDid` facet |
-| Bardcast's own campaign records: seats, actions, state events, chapters | Bardcast's DID, in the campaign's space | Bardcast's DID | named inside the record where relevant |
-| Character-creation recordings | Bardcast's DID, in the player's private space | Bardcast's DID | the `authorDid` facet |
-| The character: profile, sheet versions, voice profile | the player's own DID, in their own repo | — | the owner |
+| A DM's campaign prompts | the table's DID, in the campaign's space | the DM's DID | the DM |
+| A player's campaign replies | the table's DID, in the campaign's space | the player's DID | the player: if they delete one or leave, it goes |
+| Chapters, seats, the action log, state events | the table's DID, in the campaign's space | the table's DID | the table, including after a player leaves |
+| Character-creation recordings | the player's DID, in their personal space | the player's DID | the player |
+| The character: profile, sheet versions, voice profile | the player's own DID, in their own repo | — | the player |
 
-**Why the player's DID is never in a space URI** (decided 2026-10-11, Antiphony D8). In a space,
-each author's records come with a commit signed by that author's key, and readers find them by
-resolving the author's DID. A player's DID resolves to their own PDS, which doesn't hold these
-records, and Antiphony must never hold a player's key. With Bardcast's DID in the author segment,
-other atproto apps find the records at Antiphony and can verify them. The player is still
-credited on every post, through a facet that can be corrected without rewriting anything.
+- **Chapters belong to the table.** Bardcast writes and renders them in the players' cloned voices,
+  and they stay when a player leaves. The join flow must say so before a player takes a seat.
+- **Hosting moves; URIs don't.** Most players' PDSes can't hold space records yet, so their replies
+  and creation recordings are hosted for them (by Antiphony, or Bardcast for its own collections)
+  and served only to Bardcast. Once a player's PDS supports spaces, Bardcast writes the same
+  records there with their OAuth session, and the URI and CID stay the same.
+- **A deleted reply a chapter used** leaves a dangling reference in the action log; the chapter
+  stays.
 
-This matches who keeps what: campaign recordings belong to the campaign, and creation recordings
-stay with Bardcast. What is portable for a player is their character, in their own repo.
+**What the code does today.** It still follows the earlier rule, Antiphony D8. Every recording is
+under Bardcast's DID, with Bardcast's DID as the author segment and the player as the `authorDid`
+facet. The switch to player authorship has to land in Antiphony and here before Bardcast keeps its
+first recording. It's listed in `ROADMAP.md`. Table DIDs wait on choosing a group host.
 
 ## Visibility
 

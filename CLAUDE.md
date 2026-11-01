@@ -44,9 +44,13 @@ kit, not the private repo.
 - **Every recording goes into a space.** A campaign's prompts and replies live in
   `campaignSpace(campaignId)`, a player's creation recordings in `playerSpace(did)`
   (`packages/domain/src/spaces.ts`). Never post audio flat. Audio in a space plays only from
-  signed links that expire within the hour: read one when you need it, never store it. Inside a
-  space, Bardcast's DID is both the authority and the author segment; the player is the
-  `authorDid` facet, never a URI segment (`docs/integration-with-core.md`).
+  signed links that expire within the hour: read one when you need it, never store it.
+- **Members own what they write; the table owns what Bardcast generates.** Decided 2026-11-01
+  (`docs/integration-with-core.md`). A table is an atmospheric group with its own DID, and a
+  campaign is a space under it. A player's replies and creation recordings are authored under the
+  player's DID. Chapters, seats and the action log are the table's. The code still follows the
+  earlier rule (Bardcast's DID as authority and author segment, the player as the `authorDid`
+  facet) until the migration in `ROADMAP.md` lands.
 - **Fantasy time vs. real time.** In-world dates (fantasy calendars) are a plain **string** field. Each
   record's `createdAt` carries a real ISO timestamp for ordering, so a timeline can be scrubbed. Never
   put a 5-digit fantasy year in `createdAt`.

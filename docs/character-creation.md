@@ -304,6 +304,12 @@ So each player gets a **private space** under Bardcast's DID:
   `authorDid` facet (decided 2026-10-11, Antiphony D8; see
   [`integration-with-core.md`](integration-with-core.md)).
 
+**Revised 2026-11-01** (Antiphony's `specs/audio-service-and-groups.md`): the space becomes the
+player's own personal space, under **the player's DID** as both authority and author, and the
+raw audio is the player's, not Bardcast's. Until the player's PDS can hold space records, it's
+hosted for them and served only to Bardcast. Whether Bardcast's narrator prompts can be written
+into a space whose only member is the player is an open protocol question there.
+
 ## Prerequisites (true today)
 
 - **Nothing writes to a player's repo.** Sign-in requests only the default `atproto` scope
@@ -388,7 +394,8 @@ what's left.
      clone (see "Pressing the seal").
    - **Who a narrator prompt is attributed to.** It's posted with the player's DID as the acting
      actor, because it's the only DID the conversation has. Bardcast's DID is the author segment
-     either way. Revisit if Antiphony gets a way to say "the app itself".
+     either way. Revisit if Antiphony gets a way to say "the app itself". *2026-11-01:* revisit
+     with the move to the player's personal space, where the narrator is a second writer.
 5. **Screens.** *Session zero and the reveal built 2026-10-28* in `apps/web`
    (`screens/SessionZero.tsx`, `screens/RevealCard.tsx`, at `/characters/:id`):
    - **Session zero.** The You tab has "Make a character", and lists characters made and half made

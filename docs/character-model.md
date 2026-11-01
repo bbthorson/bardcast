@@ -1,11 +1,11 @@
 # Character model: what is durable, what is per campaign
 
 **Status:** decided 2026-09-24, revised 2026-10-07 (the sheet became the
-player's; see [`character-creation.md`](character-creation.md)). Each Bardcast campaign becomes an atproto
-**space** under Bardcast's own DID, keyed by `skey` (see Antiphony's
-`specs/atproto-authority-model.md`, D1, D6 and D8). Inside a space, Bardcast's DID is
-also the author segment of every record; the player is credited through the `authorDid`
-facet ([`integration-with-core.md`](integration-with-core.md)). This doc says which
+player's; see [`character-creation.md`](character-creation.md)). Each Bardcast campaign is an atproto
+**space**, keyed by `skey`. *Revised 2026-11-01:* the space is under the table's group DID, not
+Bardcast's, and a player's own records in it are authored under the player's DID, while seats,
+the action log and chapters are the table's ([`integration-with-core.md`](integration-with-core.md),
+Antiphony's `specs/audio-service-and-groups.md`). This doc says which
 character records live in the player's repo and which live in the campaign's space.
 
 ## The problem
