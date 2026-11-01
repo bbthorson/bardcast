@@ -128,6 +128,15 @@ The player makes and owns their characters; a campaign seats them. Design and de
       Antiphony 0.9.0 refuses a mismatched CID (`REPLY_CID_MISMATCH`) and mints space URIs with its
       app DID in the author segment; Bardcast reads only the space type/key and the rkey off a URI,
       and the player only from `authorDid`.
+- [ ] **Before the first kept recording: player authorship** (decided 2026-11-01,
+      `docs/integration-with-core.md`; Antiphony's `specs/audio-service-and-groups.md` G5). A
+      DM's prompts and a player's replies are authored under their own DID, and creation
+      recordings go in the player's personal space under their DID. Needs Antiphony's `createPost`
+      to take the author segment from the caller.
+- [ ] **Tables as atmospheric groups** (G4): a group DID per table, campaigns as space keys under
+      it. Waits on choosing a group host.
+- [ ] **Join consent:** the join flow says chapters belong to the table and stay after a player
+      leaves (G3).
 - [ ] **Pick the real NSID root** to replace the placeholder `game.bardcast` (`packages/domain/src/nsid.ts`)
       before the first kept campaign: the space type is sealed into every campaign URI. Listed with
       the other open cross-repo items in Antiphony's `specs/xrpc-surface.md` §7.
