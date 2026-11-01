@@ -1,5 +1,5 @@
 import type { AtUri, SpaceKey } from "@bardcast/domain";
-import type { AntiphonyPrompt, AntiphonyReply } from "@bardcast/antiphony-client";
+import type { AntiphonyPrompt, AntiphonyReply, SpaceAuthor } from "@bardcast/antiphony-client";
 
 /**
  * The loop's view of the Antiphony engine. Wraps @bardcast/antiphony-client so
@@ -9,6 +9,12 @@ import type { AntiphonyPrompt, AntiphonyReply } from "@bardcast/antiphony-client
  * `actingDid` is the player the post is attributed to: Antiphony stamps it onto
  * the record's `authorDid` (via the acting-actor headers). A prompt is authored
  * by the DM; every post is tied to a DID.
+ *
+ * Every post names whose it is (`spaceAuthor`; docs/integration-with-core.md):
+ * `actor` for a member's own record, so the URI carries the acting DID and the
+ * record can later move to their own repo; `authority` for what Bardcast itself
+ * writes, such as the narrator's questions. It's sealed into the URI, so each
+ * call site chooses it explicitly.
  *
  * Every recording lives in a space (antiphony specs/spaces.md): a campaign's
  * prompts and replies in `campaignSpace`, a player's creation recordings in
@@ -32,6 +38,7 @@ export interface AntiphonyGateway {
     audio?: Blob;
     actingDid: `did:${string}`;
     space: SpaceKey;
+    spaceAuthor: SpaceAuthor;
   }): Promise<AntiphonyPrompt>;
   listReplies(promptUri: AtUri): Promise<AntiphonyReply[]>;
   /**
@@ -44,13 +51,15 @@ export interface AntiphonyGateway {
    * Reply to a prompt. The reply, and its audio, go in the prompt's space.
    * `promptCid` is the prompt's real CID (`AntiphonyPrompt.cid`, stored on the
    * Prompt as `antiphonyPromptCid`): it is sealed into the reply, and Antiphony
-   * refuses one that doesn't match (`REPLY_CID_MISMATCH`).
+   * refuses one that doesn't match (`REPLY_CID_MISMATCH`). Returns the reply's
+   * at:// uri.
    */
   createReply(input: {
     promptUri: AtUri;
     promptCid: string;
     audioBlob: Blob;
     actingDid: `did:${string}`;
+    spaceAuthor: SpaceAuthor;
     text?: string;
   }): Promise<string>;
 }

@@ -161,6 +161,8 @@ export async function answerCreation(svc: CoreServices, input: AnswerCreationInp
       promptCid: last.prompt.cid,
       audioBlob: input.audio,
       actingDid: input.did,
+      // The player's answer is their own recording.
+      spaceAuthor: "actor",
       ...(text ? { text } : {}),
     });
   }
@@ -421,10 +423,12 @@ async function speak(
   const prompt = await svc.antiphony.createPrompt({
     title: question,
     audio,
-    // The space is the player's own and Bardcast's DID is its author segment;
-    // the player is the only DID this conversation has.
+    // The narrator's question is Bardcast's, so Bardcast's DID is its author
+    // segment. The player is the acting actor only because they are the only DID
+    // this conversation has.
     actingDid: creation.player as PlayerDid,
     space: playerSpace(creation.player as PlayerDid),
+    spaceAuthor: "authority",
   });
   const turn: CreationTurn = {
     kind: step.kind,

@@ -48,9 +48,9 @@ kit, not the private repo.
 - **Members own what they write; the table owns what Bardcast generates.** Decided 2026-11-01
   (`docs/integration-with-core.md`). A table is an atmospheric group with its own DID, and a
   campaign is a space under it. A player's replies and creation recordings are authored under the
-  player's DID. Chapters, seats and the action log are the table's. The code still follows the
-  earlier rule (Bardcast's DID as authority and author segment, the player as the `authorDid`
-  facet) until the migration in `ROADMAP.md` lands.
+  player's DID. Chapters, seats and the action log are the table's. Every Antiphony post names its
+  author with `spaceAuthor` (`actor` for a member's own record, `authority` for Bardcast's). The
+  authority is still Bardcast's DID until tables get their own (`ROADMAP.md`).
 - **Fantasy time vs. real time.** In-world dates (fantasy calendars) are a plain **string** field. Each
   record's `createdAt` carries a real ISO timestamp for ordering, so a timeline can be scrubbed. Never
   put a 5-digit fantasy year in `createdAt`.

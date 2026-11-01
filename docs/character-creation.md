@@ -393,9 +393,10 @@ what's left.
    - **The creation recordings as voice samples.** Once the player consents, they should train the
      clone (see "Pressing the seal").
    - **Who a narrator prompt is attributed to.** It's posted with the player's DID as the acting
-     actor, because it's the only DID the conversation has. Bardcast's DID is the author segment
-     either way. Revisit if Antiphony gets a way to say "the app itself". *2026-11-01:* revisit
-     with the move to the player's personal space, where the narrator is a second writer.
+     actor, because it's the only DID the conversation has. Bardcast's DID is its author segment
+     (`spaceAuthor: "authority"`), while the player's answers carry the player's DID
+     (`spaceAuthor: "actor"`, 2026-11-01). Revisit with the move to the player's personal space,
+     where the narrator is a second writer.
 5. **Screens.** *Session zero and the reveal built 2026-10-28* in `apps/web`
    (`screens/SessionZero.tsx`, `screens/RevealCard.tsx`, at `/characters/:id`):
    - **Session zero.** The You tab has "Make a character", and lists characters made and half made
