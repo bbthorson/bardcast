@@ -9,6 +9,8 @@ import {
   SpaceView,
   UploadAudioResult,
   spaceOfUri,
+  authorSegmentOfUri,
+  type SpaceAuthor,
   type SpaceKey,
   type SpacePolicy,
   type CreatePostRequest,
@@ -49,6 +51,20 @@ export class AntiphonyError extends Error {
 
 function sameSpace(a: SpaceKey | undefined, b: SpaceKey | undefined): boolean {
   return a?.type === b?.type && a?.skey === b?.skey;
+}
+
+/**
+ * A post created with `spaceAuthor: "actor"` must carry the acting player's DID
+ * in its author segment. An Antiphony older than 0.10.1 ignores the field and
+ * seals Bardcast's DID there instead: refuse that loudly rather than keep it.
+ */
+function assertAuthorSegment(uri: string, spaceAuthor: SpaceAuthor | undefined, actingDid: string): void {
+  if (spaceAuthor !== "actor" || authorSegmentOfUri(uri) === actingDid) return;
+  throw new AntiphonyError(
+    `${uri} doesn't carry ${actingDid} as its author segment: Antiphony must be 0.10.1 or later`,
+    502,
+    "SPACE_AUTHOR_IGNORED",
+  );
 }
 
 /** postId (rkey) is the last segment of a post's at:// uri (see the engine's postIdFromUri). */
@@ -192,9 +208,18 @@ export class AntiphonyClient {
    * Create a prompt: optionally upload the DM's audio first, then create a
    * post with no `reply`, attributed to `actingDid`. Reads the post back to
    * return its at:// uri/cid.
+   *
+   * With `spaceAuthor: "actor"`, the read-back also checks the uri's author
+   * segment is `actingDid` (`assertAuthorSegment`).
    */
   async createPrompt(
-    input: { title: string; text?: string; audio?: { blob: Blob; filename?: string }; space?: SpaceKey },
+    input: {
+      title: string;
+      text?: string;
+      audio?: { blob: Blob; filename?: string };
+      space?: SpaceKey;
+      spaceAuthor?: SpaceAuthor;
+    },
     actingDid: string,
   ): Promise<AntiphonyPrompt> {
     const embed = input.audio
@@ -210,10 +235,12 @@ export class AntiphonyClient {
       title: input.title,
       ...(embed ? { embed: { $type: "dev.antiphony.embed.audio", audio: embed } } : {}),
       ...(input.space ? { space: input.space } : {}),
+      ...(input.spaceAuthor ? { spaceAuthor: input.spaceAuthor } : {}),
     };
     const postId = await this.createPost(body, { actingDid });
 
     const view = await this.getPost(postId);
+    assertAuthorSegment(view.uri, input.spaceAuthor, actingDid);
     return {
       uri: view.uri,
       cid: view.cid,
@@ -228,9 +255,16 @@ export class AntiphonyClient {
    * Post a player's reply to a prompt: upload audio, then create a post whose
    * `reply.root`/`parent` point at the prompt, attributed to `actingDid`. The
    * reply lands in the prompt's space, so its audio is uploaded there too.
+   * Reads the reply back and returns its at:// uri, checking its author
+   * segment as `createPrompt` does.
    */
   async createReply(
-    input: { prompt: { uri: string; cid: string }; audio: { blob: Blob; filename?: string }; text?: string },
+    input: {
+      prompt: { uri: string; cid: string };
+      audio: { blob: Blob; filename?: string };
+      text?: string;
+      spaceAuthor?: SpaceAuthor;
+    },
     actingDid: string,
   ): Promise<string> {
     const space = spaceOfUri(input.prompt.uri);
@@ -240,10 +274,18 @@ export class AntiphonyClient {
       ...(space ? { space } : {}),
     });
     const reply: ReplyRef = { root: input.prompt, parent: input.prompt };
-    return this.createPost(
-      { text: input.text ?? "", embed: { $type: "dev.antiphony.embed.audio", audio: audioRef }, reply },
+    const postId = await this.createPost(
+      {
+        text: input.text ?? "",
+        embed: { $type: "dev.antiphony.embed.audio", audio: audioRef },
+        reply,
+        ...(input.spaceAuthor ? { spaceAuthor: input.spaceAuthor } : {}),
+      },
       { actingDid },
     );
+    const { uri } = await this.getPost(postId);
+    assertAuthorSegment(uri, input.spaceAuthor, actingDid);
+    return uri;
   }
 
   /**

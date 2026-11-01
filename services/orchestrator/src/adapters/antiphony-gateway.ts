@@ -1,5 +1,5 @@
 import type { AtUri, SpaceKey } from "@bardcast/domain";
-import { AntiphonyClient, postIdFromUri, type AntiphonyPrompt, type AntiphonyReply } from "@bardcast/antiphony-client";
+import { AntiphonyClient, postIdFromUri, type AntiphonyPrompt, type AntiphonyReply, type SpaceAuthor } from "@bardcast/antiphony-client";
 import type { AntiphonyGateway } from "../ports/antiphony-gateway.js";
 
 /**
@@ -28,6 +28,7 @@ export class ClientAntiphonyGateway implements AntiphonyGateway {
     audio?: Blob;
     actingDid: `did:${string}`;
     space: SpaceKey;
+    spaceAuthor: SpaceAuthor;
   }): Promise<AntiphonyPrompt> {
     await this.ensureSpace(input.space);
     // The DM's scene text becomes the post body; the prompt is a post with no reply.
@@ -37,6 +38,7 @@ export class ClientAntiphonyGateway implements AntiphonyGateway {
         ...(input.scene !== undefined ? { text: input.scene } : {}),
         ...(input.audio ? { audio: { blob: input.audio, filename: "prompt.mp3" } } : {}),
         space: input.space,
+        spaceAuthor: input.spaceAuthor,
       },
       input.actingDid,
     );
@@ -55,12 +57,14 @@ export class ClientAntiphonyGateway implements AntiphonyGateway {
     promptCid: string;
     audioBlob: Blob;
     actingDid: `did:${string}`;
+    spaceAuthor: SpaceAuthor;
     text?: string;
   }): Promise<string> {
     return this.client.createReply(
       {
         prompt: { uri: input.promptUri, cid: input.promptCid },
         audio: { blob: input.audioBlob },
+        spaceAuthor: input.spaceAuthor,
         ...(input.text !== undefined ? { text: input.text } : {}),
       },
       input.actingDid,

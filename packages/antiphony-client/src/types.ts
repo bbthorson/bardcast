@@ -40,21 +40,32 @@ export type SpacePolicy = z.infer<typeof SpacePolicySchema>;
 export const SpaceView = SpaceViewSchema;
 export type SpaceView = z.infer<typeof SpaceViewSchema>;
 
+/** Whose DID a post carries in its space URI's author segment (Antiphony 0.10.1). */
+export const SpaceAuthor = z.enum(["authority", "actor"]);
+export type SpaceAuthor = z.infer<typeof SpaceAuthor>;
+
 /**
  * The space a post lives in, read off its at:// uri
  * (`at://{appDid}/space/{type}/{skey}/{authorSegment}/{collection}/{rkey}`), or
  * null for a flat post. A reply goes in its parent's space, so this is how a
  * reply knows where its audio must be uploaded.
  *
- * Only the type and key are read. The author segment is Bardcast's own DID for
- * every post since Antiphony 0.9.0 (D8), and some earlier posts' carry the
- * acting player's: neither names the player. That is the `authorDid` facet.
+ * Only the type and key are read. The author segment is the member's own DID
+ * for a member's record (a DM's prompt, a player's reply), and Bardcast's DID
+ * for what Bardcast writes (Antiphony 0.10.1, `spaceAuthor`).
  */
 export function spaceOfUri(uri: string): SpaceKey | null {
   const parts = uri.replace(/^at:\/\//, "").split("/");
   if (parts[1] !== "space" || parts.length < 7) return null;
   const parsed = SpaceKey.safeParse({ type: parts[2], skey: parts[3] });
   return parsed.success ? parsed.data : null;
+}
+
+/** The DID in a space post uri's author segment, or null for a flat or malformed uri. */
+export function authorSegmentOfUri(uri: string): string | null {
+  const parts = uri.replace(/^at:\/\//, "").split("/");
+  if (parts[1] !== "space" || parts.length < 7) return null;
+  return parts[4]?.startsWith("did:") ? parts[4] : null;
 }
 
 /**
@@ -91,6 +102,13 @@ export const CreatePostRequest = z.object({
   langs: z.array(z.string()).optional(),
   /** Place a prompt in a space. A reply inherits its parent's and must not name another. */
   space: SpaceKey.optional(),
+  /**
+   * Whose DID is the post's author segment in its space (Antiphony 0.10.1,
+   * `specs/audio-service-and-groups.md` G5). `authority` (Antiphony's default):
+   * Bardcast's DID, for what Bardcast writes. `actor`: the acting player's own
+   * DID, for a member's own record. Sealed into the URI.
+   */
+  spaceAuthor: SpaceAuthor.optional(),
 });
 export type CreatePostRequest = z.infer<typeof CreatePostRequest>;
 
@@ -128,7 +146,7 @@ export const RepliesPage = z.object({ items: z.array(AudioPostView), nextCursor:
 
 /** A prompt (a post with no reply), as the loop consumes it. */
 export interface AntiphonyPrompt {
-  /** at:// uri (authority, and in a space the author segment, is Bardcast's app DID). */
+  /** at:// uri. The authority is Bardcast's app DID; in a space the author segment is per `spaceAuthor`. */
   uri: string;
   /** The stored record's CID. Keep it with `uri`: every reply must name it. */
   cid: string;
@@ -146,8 +164,9 @@ export interface AntiphonyReply {
   /** at:// uri of the prompt this answers. */
   promptUri: string;
   /**
-   * The authoring player: Antiphony's authorId (Bardcast asserts the DID). Never
-   * read it off `uri`: in a space its author segment is Bardcast's DID.
+   * The authoring player: Antiphony's authorId (Bardcast asserts the DID). Read
+   * it here, not off `uri`: a reply posted by Bardcast carries Bardcast's DID
+   * there.
    */
   author: string;
   authorDid?: string;

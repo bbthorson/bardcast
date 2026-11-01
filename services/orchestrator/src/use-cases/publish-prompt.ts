@@ -26,6 +26,8 @@ export async function publishPrompt(svc: CoreServices, input: PublishPromptInput
     ...(input.scene !== undefined ? { scene: input.scene } : {}),
     actingDid: input.dmDid,
     space: campaignSpace(input.campaignId),
+    // The DM's prompt is the DM's own record at the table.
+    spaceAuthor: "actor",
   });
 
   const prompt: Prompt = {

@@ -424,6 +424,8 @@ export function createApp(svc: CoreServices): Hono {
       promptCid: prompt.antiphonyPromptCid,
       audioBlob,
       actingDid: player.did as any,
+      // A player's reply is their own record at the table.
+      spaceAuthor: "actor",
       ...(text ? { text } : {}),
     });
 

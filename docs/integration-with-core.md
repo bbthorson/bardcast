@@ -46,10 +46,23 @@ with its own DID. Each campaign is a space under the table's DID, keyed by the c
 - **A deleted reply a chapter used** leaves a dangling reference in the action log; the chapter
   stays.
 
-**What the code does today.** It still follows the earlier rule, Antiphony D8. Every recording is
-under Bardcast's DID, with Bardcast's DID as the author segment and the player as the `authorDid`
-facet. The switch to player authorship has to land in Antiphony and here before Bardcast keeps its
-first recording. It's listed in `ROADMAP.md`. Table DIDs wait on choosing a group host.
+**What the code does today.** Player authorship is built (2026-11-01). Each Antiphony post names
+its author segment with `spaceAuthor`, and the `AntiphonyGateway` port makes every call site
+choose:
+
+| Post | `spaceAuthor` | Author segment |
+| :--- | :--- | :--- |
+| A DM's campaign prompt (`use-cases/publish-prompt.ts`) | `actor` | the DM's DID |
+| A player's campaign reply (`app.ts`) | `actor` | the player's DID |
+| A player's answer in character creation (`use-cases/creation.ts`) | `actor` | the player's DID |
+| The narrator's question in character creation | `authority` | Bardcast's DID |
+
+This needs Antiphony 0.10.1. An older one ignores the field and would seal Bardcast's DID in the URI
+instead, so the client reads every member's post back and refuses one without the member's DID
+(`SPACE_AUTHOR_IGNORED`). Not built yet:
+
+- **The authority is still Bardcast's DID** in every URI. Table DIDs wait on choosing a group host.
+- **Creation recordings are still in a space under Bardcast's DID**, not one under the player's.
 
 ## Visibility
 
