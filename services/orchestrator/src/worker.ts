@@ -15,6 +15,12 @@ export interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   /** Seals sign-in sessions in D1. Set with `wrangler secret put SESSION_SECRET`. */
   SESSION_SECRET?: string;
+  /**
+   * ES256 private JWK (JSON, with a `kid`) that makes sign-in a confidential
+   * OAuth client, for longer sessions. Optional. Set with
+   * `wrangler secret put OAUTH_PRIVATE_KEY`; see docs/hosting.md.
+   */
+  OAUTH_PRIVATE_KEY?: string;
   APP_NAME?: string;
   ANTIPHONY_BASE_URL?: string;
   ANTIPHONY_SERVICE_TOKEN?: string;
@@ -53,6 +59,7 @@ function appFor(origin: string, env: Env): Hono {
       antiphonyBaseUrl: env.ANTIPHONY_BASE_URL ?? "https://api.antiphony.dev",
       ...(env.SESSION_SECRET !== undefined ? { sessionSecret: env.SESSION_SECRET } : {}),
       ...(env.APP_NAME !== undefined ? { appName: env.APP_NAME } : {}),
+      ...(env.OAUTH_PRIVATE_KEY !== undefined ? { oauthPrivateKey: env.OAUTH_PRIVATE_KEY } : {}),
       ...(env.ANTIPHONY_SERVICE_TOKEN !== undefined ? { antiphonyServiceToken: env.ANTIPHONY_SERVICE_TOKEN } : {}),
       ...(env.ELEVENLABS_API_KEY !== undefined ? { elevenLabsApiKey: env.ELEVENLABS_API_KEY } : {}),
       ...(env.ELEVENLABS_NARRATOR_VOICE_ID !== undefined

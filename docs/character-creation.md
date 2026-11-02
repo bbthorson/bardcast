@@ -312,15 +312,15 @@ into a space whose only member is the player is an open protocol question there.
 
 ## Prerequisites (true today)
 
-- **Nothing writes to a player's repo.** Sign-in requests only the default `atproto` scope
-  (`@bbthorson/atproto-cf-auth`), which proves identity but can't write records. Pass `scope` to
-  `createBlueskyAuth` to ask for repo permission on `game.bardcast.character.profile`,
-  `game.bardcast.character.sheet` and `game.bardcast.voice.profile`, then write with
-  `new Agent(await auth.getOAuthSession(request))`. **No app password**: this is ordinary AT
-  Protocol OAuth, and the player sees the collections on their provider's consent screen. Two
-  catches. Existing sessions must sign in again to grant the new scope. And scopes name the NSID,
-  so swap the placeholder `game.bardcast.*` (`packages/domain/src/nsid.ts`) *before* players grant
-  it, or they'll have to grant again.
+- **Nothing writes to a player's repo yet, but sign-in now asks for it** (2026-11-02,
+  `services/orchestrator/src/adapters/atproto/scopes.ts`): repo permission on
+  `game.bardcast.character.profile`, `game.bardcast.character.sheet` and
+  `game.bardcast.voice.profile`. Write with `new Agent(await auth.getOAuthSession(request))`, or
+  `auth.restore(did)` outside a request. **No app password**: this is ordinary AT Protocol OAuth,
+  and the player sees the collections on their provider's consent screen. Two catches. Sessions
+  from before the change must sign in again to grant the new scopes. And scopes name the NSID, so
+  swap the placeholder `game.bardcast.*` (`packages/domain/src/nsid.ts`) before players keep their
+  characters, or they'll have to grant again.
 - **There is no projection layer.** No code writes any AT Protocol record yet. Per the
   state-drives-records rule, build creation against the `Store` first, and project to records
   second.

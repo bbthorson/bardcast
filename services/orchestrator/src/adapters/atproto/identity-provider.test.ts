@@ -11,6 +11,7 @@ import { StubDecisionModel } from "../stub-decision-model.js";
 import { StubNarrativeWriter } from "../stub-narrative-writer.js";
 import { StubVoiceCloner } from "../stub-voice-cloner.js";
 import { AtprotoIdentityProvider } from "./identity-provider.js";
+import { BARDCAST_CONDITIONAL_SCOPES, BARDCAST_SCOPE } from "./scopes.js";
 
 const ORIGIN = "https://bardcast.example";
 
@@ -119,3 +120,88 @@ describe("AT-Proto sign-in on the HTTP app", () => {
   });
 });
 
+
+describe("what sign-in asks for", () => {
+  const provider = (over: Partial<ConstructorParameters<typeof AtprotoIdentityProvider>[0]> = {}) =>
+    new AtprotoIdentityProvider({
+      appName: "Bardcast",
+      store: d1Store(sqliteD1()),
+      secret: "test-secret-that-is-at-least-32-characters",
+      origin: ORIGIN,
+      ...over,
+    });
+
+  it("publishes the character's repo scopes and the group scopes", () => {
+    const scope = String(provider().auth.clientMetadata(ORIGIN).scope).split(" ");
+    expect(scope).toEqual(
+      expect.arrayContaining([
+        "atproto",
+        "repo:game.bardcast.character.profile",
+        "repo:game.bardcast.character.sheet",
+        "repo:game.bardcast.voice.profile",
+        "rpc:fyi.opensocial.provisionGroup?aud=*",
+        "rpc:fyi.opensocial.requestJoin?aud=*",
+      ]),
+    );
+    // No space scope under the placeholder root: no PDS could resolve its lexicon.
+    expect(scope.some((s) => s.startsWith("space:game.bardcast"))).toBe(false);
+  });
+
+  it("asks for the group scopes only from a PDS that serves spaces", async () => {
+    // Whether a PDS serves spaces is the package's check (and its tests');
+    // here it's stubbed, to see Bardcast asks for the group scopes on its say.
+    const when = vi.spyOn(BARDCAST_CONDITIONAL_SCOPES[0]!, "when");
+    const authorize = vi.spyOn(OAuthClient.prototype, "authorize").mockResolvedValue(new URL("https://pds.example/oauth"));
+    // `oauthResolver` is an instance field of a class the package doesn't
+    // export, so its prototype is reached through a throwaway client.
+    const resolverProto = Object.getPrototypeOf(
+      new OAuthClient({
+        responseMode: "query",
+        clientMetadata: {
+          client_id: `${ORIGIN}/atproto/client-metadata.json`,
+          redirect_uris: [`${ORIGIN}/atproto/callback`],
+          scope: "atproto",
+          token_endpoint_auth_method: "none",
+          dpop_bound_access_tokens: true,
+        },
+        stateStore: { get: async () => undefined, set: async () => undefined, del: async () => undefined },
+        sessionStore: { get: async () => undefined, set: async () => undefined, del: async () => undefined },
+        runtimeImplementation: { createKey: async () => undefined as never, getRandomValues: () => new Uint8Array(), digest: async () => new Uint8Array() },
+        handleResolver: "https://resolver.invalid",
+      }).oauthResolver,
+    );
+    vi.spyOn(resolverProto, "resolveFromIdentity").mockResolvedValue({
+      identityInfo: { did: "did:plc:alice", handle: "alice.test" },
+      metadata: { issuer: "https://pds.example" },
+      pds: new URL("https://pds.example"),
+    } as never);
+    const login = () =>
+      createApp({ ...servicesWithRealSignIn(), identity: provider() }).request(`${ORIGIN}/atproto/login`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: ORIGIN },
+        body: JSON.stringify({ handle: "alice.test" }),
+      });
+
+    when.mockResolvedValueOnce(false);
+    await login();
+    expect(String(authorize.mock.calls[0]![1]?.scope)).toBe(BARDCAST_SCOPE);
+
+    when.mockResolvedValueOnce(true);
+    await login();
+    expect(String(authorize.mock.calls[1]![1]?.scope)).toContain("rpc:fyi.opensocial.provisionGroup?aud=*");
+    expect(when).toHaveBeenCalledWith(expect.objectContaining({ pds: new URL("https://pds.example") }));
+  });
+
+  it("is a confidential client when given a key, and serves its public half", async () => {
+    const { JoseKey } = await import("@atproto/jwk-jose");
+    const key = JSON.stringify((await JoseKey.generate(["ES256"], "k1")).privateJwk);
+    const auth = provider({ privateKeys: [key] }).auth;
+    expect(auth.clientMetadata(ORIGIN).token_endpoint_auth_method).toBe("private_key_jwt");
+    const jwks = (await (await auth.handle(new Request(`${ORIGIN}/atproto/jwks.json`)))!.json()) as { keys: object[] };
+    expect(jwks.keys[0]).not.toHaveProperty("d");
+  });
+
+  it("restores a session by DID outside a request, with no session stored yet", async () => {
+    expect(await provider().auth.restore("did:plc:alice")).toBeNull();
+  });
+});
