@@ -44,6 +44,8 @@ export interface BuildServicesConfig {
   /** "atproto" = real AT-Proto OAuth identity; "stub" = dev header-based. */
   auth: "stub" | "atproto";
   appName?: string;
+  /** ES256 private JWK (JSON) that makes sign-in a confidential OAuth client. The `OAUTH_PRIVATE_KEY` secret. */
+  oauthPrivateKey?: string;
   /** Bearer Bardcast presents to its own Antiphony deployment. */
   antiphonyServiceToken?: string;
   /** @deprecated use antiphonyServiceToken */
@@ -114,6 +116,8 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
       // there, and a per-process secret only costs a re-login on restart.
       store: config.d1 ? d1Store(config.d1) : memoryStore(),
       secret: config.sessionSecret ?? randomSecret(),
+      origin: config.orchestratorBaseUrl,
+      ...(config.oauthPrivateKey !== undefined ? { privateKeys: [config.oauthPrivateKey] } : {}),
       ...(serviceToken !== undefined ? { antiphonyServiceToken: serviceToken } : {}),
     });
   }

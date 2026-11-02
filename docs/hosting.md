@@ -42,8 +42,26 @@ the package Brad's Bluesky apps share. Its README covers how it works. In Bardca
   and a `d1Store` on the `DB` binding (one `bsky_auth` table, created on first use).
   Everything stored is sealed under the `SESSION_SECRET` Worker secret. Without that
   secret, the API answers `503 server_not_configured`. Changing it signs everyone out.
+- **What it asks for** (`services/orchestrator/src/adapters/atproto/scopes.ts`):
+  - **At every sign-in:** `atproto`, plus `repo:` scopes for the character's profile, sheet
+    versions and voice profile, which live in the player's own repo.
+  - **Only on a PDS that serves spaces:** the table-as-group scopes, i.e. calls to a group host
+    (`rpc:fyi.opensocial.*?aud=*`) and the player's membership acceptance. A space scope asked of
+    a PDS without spaces fails the whole sign-in, so the package asks for these only after
+    checking the PDS. The client metadata publishes all of them either way.
+  - **Not yet:** space scopes for campaign and player spaces. A PDS must resolve a space type's
+    lexicon to grant one, and none can be published under the placeholder `game.bardcast`.
+- **Confidential client (optional).** With the `OAUTH_PRIVATE_KEY` secret (an ES256 private JWK,
+  as JSON, with a `kid`), token requests are signed (`private_key_jwt`) and the public half is
+  served at `/atproto/jwks.json`. Authorization servers give confidential clients much longer
+  sessions, which Bardcast needs to act for a table between visits. Generate one with
+  `node -e "import('@atproto/jwk-jose').then(async ({JoseKey}) => console.log(JSON.stringify((await JoseKey.generate(['ES256'], 'k1')).privateJwk)))"`
+  and set it with `npx wrangler secret put OAUTH_PRIVATE_KEY`. Without it Bardcast stays a public
+  client. Local development on `127.0.0.1` is always public.
+- **Outside a request.** `auth.restore(did)` returns a stored session for background work; the
+  Worker sets the package's `origin` to the request's origin.
 - **Workers.** Workers refuse `redirect: "error"`, which AT-Proto's identity lookups ask for.
-  The package (0.2.1 and later) resolves handles and DIDs without it; before that every sign-in
+  The package (0.2.1 and later; Bardcast is on 0.3.0) resolves handles and DIDs without it; before that every sign-in
   failed with "We couldn't find that handle".
 - **Browser.** `apps/web/src/session.ts` uses the package's headless client, and reads a
   failed sign-in back from `?auth_error=`.
@@ -58,9 +76,8 @@ the package Brad's Bluesky apps share. Its README covers how it works. In Bardca
 - **Lock.** The package's default refresh lock is per-isolate. Bardcast does not yet call
   a player's PDS with their OAuth session, so nothing contends for it.
   TODO(bardcast): pass a Durable Object `requestLock` before the first PDS write. That
-  first write will be a character's profile and sheet versions, which also needs repo
-  scopes in place of the default `atproto` scope (`docs/character-creation.md`,
-  "Prerequisites").
+  first write will be a character's profile and sheet versions; sign-in already asks for
+  their repo scopes (`docs/character-creation.md`, "Prerequisites").
 
 ## Target for the pieces not yet deployed
 
