@@ -96,7 +96,7 @@ async function mockFetch(input: string | URL | { toString(): string }, init: Req
     const skey = decodeURIComponent(spaceMatch[2]!);
     const policies = JSON.parse(bodyStr) as { readPolicy: string; writePolicy: string };
     return new Response(
-      ok({ uri: `at://${APP_DID}/space/${type}/${skey}`, type, skey, ...policies, createdAt: "2026-10-10T00:00:00Z", updatedAt: "2026-10-10T00:00:00Z" }),
+      ok({ uri: `at://${APP_DID}/space/${type}/${skey}`, authority: APP_DID, type, skey, ...policies, createdAt: "2026-10-10T00:00:00Z", updatedAt: "2026-10-10T00:00:00Z" }),
       { status: 200, headers: { "content-type": "application/json" } },
     );
   } else if (path === "/api/v1/audio/upload" && method === "POST") {
