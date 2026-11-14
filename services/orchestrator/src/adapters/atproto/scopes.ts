@@ -46,7 +46,9 @@ const servesSpaces = pdsServesMethod("com.atproto.space.getDelegationToken");
  * NSID root is a domain Bardcast controls. A PDS has to resolve a space type's
  * lexicon to grant a scope for it, and nobody can publish one under the
  * placeholder `game.bardcast`, so asking now would fail sign-in on exactly the
- * PDSes that serve spaces.
+ * PDSes that serve spaces. Use the Spaces beta spelling: positional, or a
+ * named `spaceType=` parameter (not `type=`), with `title` in the space type
+ * lexicon (docs/spaces-beta-readiness.md).
  */
 export const BARDCAST_CONDITIONAL_SCOPES: ConditionalScope[] = [
   {

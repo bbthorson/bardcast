@@ -42,7 +42,9 @@ with its own DID. Each campaign is a space under the table's DID, keyed by the c
 - **Hosting moves; URIs don't.** Most players' PDSes can't hold space records yet, so their replies
   and creation recordings are hosted for them (by Antiphony, or Bardcast for its own collections)
   and served only to Bardcast. Once a player's PDS supports spaces, Bardcast writes the same
-  records there with their OAuth session, and the URI and CID stay the same.
+  records there with their OAuth session, and the URI and CID stay the same. (That assumes the
+  space URI format has settled first: it may change before the Spaces public beta, see
+  `docs/spaces-beta-readiness.md`.)
 - **A deleted reply a chapter used** leaves a dangling reference in the action log; the chapter
   stays.
 
@@ -61,7 +63,9 @@ This needs Antiphony 0.10.1. An older one ignores the field and would seal Bardc
 instead, so the client reads every member's post back and refuses one without the member's DID
 (`SPACE_AUTHOR_IGNORED`). Not built yet:
 
-- **The authority is still Bardcast's DID** in every URI. Table DIDs wait on choosing a group host.
+- **The authority is still Bardcast's DID** in every URI. Table DIDs wait on choosing a group host,
+  and on that host running the Spaces beta protocol (`opensocial.fyi` didn't on 2026-11-14).
+- **The join flow doesn't yet say chapters stay with the table** when a player leaves.
 - **Creation recordings are still in a space under Bardcast's DID**, not one under the player's.
 
 ## Visibility

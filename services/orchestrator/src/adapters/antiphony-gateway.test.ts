@@ -262,7 +262,7 @@ describe("Antiphony gateway", () => {
 
   it("reads a fresh playback link off the post, for playing at once", async () => {
     captured.length = 0;
-    const url = await gateway().playbackUrl(postUri("p1", SPACE) as `at://${string}`);
+    const url = await gateway().playbackUrl(postUri("p1", SPACE));
     expect(url).toBe("https://cdn.example/p1.mp3?sig=fresh");
     expect(captured[0]).toMatchObject({ path: "/api/v1/posts/p1", method: "GET" });
   });
@@ -294,7 +294,7 @@ describe("Antiphony gateway", () => {
     try {
       const err = await gateway()
         .createReply({
-          promptUri: postUri("p1", SPACE) as `at://${string}`,
+          promptUri: postUri("p1", SPACE),
           promptCid: PROMPT_CID,
           audioBlob: new Blob([new Uint8Array([1])]),
           actingDid: "did:example:alice",
@@ -355,7 +355,7 @@ describe("Antiphony gateway", () => {
     captured.length = 0;
 
     const replyUri = await gw.createReply({
-      promptUri: prompt.uri as `at://${string}`,
+      promptUri: prompt.uri,
       promptCid: prompt.cid,
       audioBlob: new Blob([new Uint8Array([1])], { type: "audio/webm" }),
       actingDid: "did:example:alice",
@@ -380,7 +380,7 @@ describe("Antiphony gateway", () => {
     captured.length = 0;
     const err = await gateway()
       .createReply({
-        promptUri: postUri("p1", SPACE) as `at://${string}`,
+        promptUri: postUri("p1", SPACE),
         promptCid: "bafysomethingelse",
         audioBlob: new Blob([new Uint8Array([1])]),
         actingDid: "did:example:alice",
@@ -404,7 +404,7 @@ describe("Antiphony gateway", () => {
 
       const replyErr = await gw
         .createReply({
-          promptUri: postUri("p1", SPACE) as `at://${string}`,
+          promptUri: postUri("p1", SPACE),
           promptCid: PROMPT_CID,
           audioBlob: new Blob([new Uint8Array([1])]),
           actingDid: "did:example:alice",
@@ -424,7 +424,7 @@ describe("Antiphony gateway", () => {
   });
 
   it("credits a spaced reply to its player from authorDid, not the uri's author segment", async () => {
-    const replies = await gateway().listReplies(postUri("p1", SPACE) as `at://${string}`);
+    const replies = await gateway().listReplies(postUri("p1", SPACE));
     expect(replies[0]!.uri).toBe(postUri("r1", SPACE));
     expect(replies[0]!.uri).not.toContain("did:example:alice");
     expect(replies[0]).toMatchObject({ author: "did:example:alice", authorDid: "did:example:alice" });

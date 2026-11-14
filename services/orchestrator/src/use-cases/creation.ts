@@ -381,7 +381,7 @@ function replaceLast(creation: Creation, turn: CreationTurn): Creation {
 }
 
 async function transcriptOf(svc: CoreServices, promptUri: string, replyUri: string): Promise<string | undefined> {
-  const replies = await svc.antiphony.listReplies(promptUri as `at://${string}`);
+  const replies = await svc.antiphony.listReplies(promptUri);
   return replies.find((r) => r.uri === replyUri)?.transcript?.trim() || undefined;
 }
 

@@ -92,6 +92,7 @@ Design decisions live in [`docs/`](./docs):
 - [`character-creation.md`](./docs/character-creation.md) — the character decisions: player-owned versioned sheets, campaign seats, the action log, gear, and the voice-driven creation flow.
 - [`packages/srd/README.md`](./packages/srd/README.md) — the SRD 5.2 data: where it comes from, how to update it, attribution.
 - [`integration-with-core.md`](./docs/integration-with-core.md) — the two-layer identity model (DID auth + a headless engine user) and the engine requirements it implies.
+- [`spaces-beta-readiness.md`](./docs/spaces-beta-readiness.md) — what the Spaces public beta (2026-12-01) asked of Bardcast, the space URI module, and what waits on the group host.
 - [`hosting.md`](./docs/hosting.md) — Cloudflare-only hosting: what is deployed today, the target for the rest, and ElevenLabs.
 - [`brand.md`](./docs/brand.md) — the visual identity ("Felt & Vellum"): palette, type, voice seals, dice shapes, and the candle rule. Tokens, generative marks + assets live in `packages/brand`.
 

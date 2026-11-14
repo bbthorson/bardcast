@@ -1,4 +1,5 @@
 import { NSID } from "@antiphony/shared";
+import { rkeyOfRecordUri } from "@bardcast/domain";
 import type { z } from "zod";
 import {
   ApiFailure,
@@ -69,7 +70,7 @@ function assertAuthorSegment(uri: string, spaceAuthor: SpaceAuthor | undefined, 
 
 /** postId (rkey) is the last segment of a post's at:// uri (see the engine's postIdFromUri). */
 export function postIdFromUri(uri: string): string {
-  return uri.slice(uri.lastIndexOf("/") + 1);
+  return rkeyOfRecordUri(uri);
 }
 
 /**

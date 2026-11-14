@@ -136,7 +136,15 @@ The player makes and owns their characters; a campaign seats them. Design and de
 - [ ] **Creation recordings in a space under the player's own DID** (personal-private), not
       Bardcast's. Waits on the same work as table DIDs: an authority other than Bardcast's.
 - [ ] **Tables as atmospheric groups** (G4): a group DID per table, campaigns as space keys under
-      it. Waits on choosing a group host.
+      it. Waits on choosing a group host. On 2026-11-14 `opensocial.fyi` still ran the
+      pre-November-12 Spaces alpha (`docs/spaces-beta-readiness.md`).
+- [x] **Spaces public beta readiness** (2026-12-01; `docs/spaces-beta-readiness.md`): audited
+      2026-11-14. No alpha dependencies, scopes or managing-app endpoints to migrate; Antiphony's
+      side is done (its PR #252, REST contract unchanged). Space URI handling is centralized in
+      `packages/domain/src/space-uri.ts`.
+- [ ] **Before the first kept recording: the space URI format.** It may become
+      `at:space/{authority}/…` before the beta. Update `space-uri.ts` (and test fixtures) once it
+      is announced.
 - [ ] **Join consent:** the join flow says chapters belong to the table and stay after a player
       leaves (G3).
 - [ ] **Pick the real NSID root** to replace the placeholder `game.bardcast` (`packages/domain/src/nsid.ts`)
