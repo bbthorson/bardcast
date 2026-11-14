@@ -13,7 +13,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
+    "lint": "eslint . --max-warnings=0",
     "lint:lore": "pinakes lint --root content/campaigns/sir-gawain-and-the-green-knight",
     "compile:lore": "pinakes compile --root content/campaigns/sir-gawain-and-the-green-knight",
     "prose:lore": "pinakes prose-check --root content/campaigns/sir-gawain-and-the-green-knight",
@@ -24,7 +24,12 @@
   },
   "devDependencies": {
     "@bbthorson/pinakes": "0.9.1",
+    "@eslint/js": "10.0.1",
+    "eslint": "10.15.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.14.0",
     "typescript": "^5.7.2",
+    "typescript-eslint": "8.72.2",
     "wrangler": "4.149.0"
   },
   "engines": {

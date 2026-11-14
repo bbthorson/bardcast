@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AtUri, IsoDateTime } from "./ids.js";
+import { IsoDateTime } from "./ids.js";
 
 /** Lifecycle of a player's voice clone. */
 export const VoiceStatus = z.enum(["unlinked", "ivc", "pvc"]);

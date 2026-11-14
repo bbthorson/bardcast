@@ -6,6 +6,7 @@
  */
 export * from "./nsid.js";
 export * from "./spaces.js";
+export * from "./space-uri.js";
 export * from "./ids.js";
 export * from "./identity.js";
 export * from "./character.js";

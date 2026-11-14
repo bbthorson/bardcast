@@ -45,6 +45,11 @@ kit, not the private repo.
   `campaignSpace(campaignId)`, a player's creation recordings in `playerSpace(did)`
   (`packages/domain/src/spaces.ts`). Never post audio flat. Audio in a space plays only from
   signed links that expire within the hour: read one when you need it, never store it.
+- **Space URIs are spelled in one file.** Build, parse and validate record URIs only through
+  `packages/domain/src/space-uri.ts` (and the `AtUri` schema, which uses it): no
+  `startsWith("at://")`, no hand-split paths. The space URI format may change before the Spaces
+  public beta (`at:space/…` for `at://…/space/…`), so keep no recording until it is announced.
+  See `docs/spaces-beta-readiness.md`.
 - **Members own what they write; the table owns what Bardcast generates.** Decided 2026-11-01
   (`docs/integration-with-core.md`). A table is an atmospheric group with its own DID, and a
   campaign is a space under it. A player's replies and creation recordings are authored under the
@@ -110,5 +115,5 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 ## Verify
 
 ```bash
-npm install && npm run typecheck && npm test
+npm install && npm run typecheck && npm run lint && npm test
 ```

@@ -1,3 +1,4 @@
+import { parseSpaceRecordUri } from "@bardcast/domain";
 import { BlobRefSchema, EMBED_NSID, SpaceKeySchema, SpacePolicySchema, SpaceViewSchema } from "@antiphony/shared";
 import { httpsUrl } from "@antiphony/shared/types/url";
 import { z } from "zod";
@@ -55,17 +56,16 @@ export type SpaceAuthor = z.infer<typeof SpaceAuthor>;
  * for what Bardcast writes (Antiphony 0.10.1, `spaceAuthor`).
  */
 export function spaceOfUri(uri: string): SpaceKey | null {
-  const parts = uri.replace(/^at:\/\//, "").split("/");
-  if (parts[1] !== "space" || parts.length < 7) return null;
-  const parsed = SpaceKey.safeParse({ type: parts[2], skey: parts[3] });
+  const parts = parseSpaceRecordUri(uri);
+  if (!parts) return null;
+  const parsed = SpaceKey.safeParse({ type: parts.spaceType, skey: parts.skey });
   return parsed.success ? parsed.data : null;
 }
 
 /** The DID in a space post uri's author segment, or null for a flat or malformed uri. */
 export function authorSegmentOfUri(uri: string): string | null {
-  const parts = uri.replace(/^at:\/\//, "").split("/");
-  if (parts[1] !== "space" || parts.length < 7) return null;
-  return parts[4]?.startsWith("did:") ? parts[4] : null;
+  const author = parseSpaceRecordUri(uri)?.author;
+  return author?.startsWith("did:") ? author : null;
 }
 
 /**

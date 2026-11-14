@@ -27,7 +27,7 @@ import {
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
-import { AbilityScores, BackgroundIncreases, type Campaign, type Player } from "@bardcast/domain";
+import { AbilityScores, AtUri, BackgroundIncreases, isRecordUri, type Campaign, type Player } from "@bardcast/domain";
 import { AtprotoIdentityProvider } from "./adapters/atproto/identity-provider.js";
 
 const CreateCampaignSchema = z.object({
@@ -47,7 +47,7 @@ const PublishPromptSchema = z.object({
 });
 
 const IngestRepliesSchema = z.object({
-  antiphonyPromptUri: z.string().startsWith("at://"),
+  antiphonyPromptUri: AtUri,
   intent: z.enum(["sheet", "behavior", "voice", "story"]).default("story"),
 });
 
@@ -93,7 +93,7 @@ async function resolvePlayer(c: Context, svc: CoreServices): Promise<Player | nu
 
   const actingDid = c.req.header("X-Acting-Did") || c.req.header("x-acting-did");
   if (actingDid && actingDid.startsWith("did:")) {
-    return { did: actingDid as any, createdAt: new Date().toISOString() };
+    return { did: actingDid, createdAt: new Date().toISOString() };
   }
 
   return null;
@@ -151,7 +151,7 @@ export function createApp(svc: CoreServices): Hono {
 
     const campaign: Campaign = {
       title: parsed.data.title,
-      dm: player.did as any,
+      dm: player.did,
       ...(parsed.data.premise ? { premise: parsed.data.premise } : {}),
       ...(parsed.data.calendar ? { calendar: parsed.data.calendar } : {}),
       party: [],
@@ -237,8 +237,8 @@ export function createApp(svc: CoreServices): Hono {
     }
 
     const playerUri = `at://${player.did}` as const;
-    if (!campaign.party.includes(playerUri as any)) {
-      campaign.party.push(playerUri as any);
+    if (!campaign.party.includes(playerUri)) {
+      campaign.party.push(playerUri);
       await svc.store.putCampaign(invite.campaignId, campaign);
     }
 
@@ -351,7 +351,7 @@ export function createApp(svc: CoreServices): Hono {
     await ingestReplies(svc, {
       campaignId,
       characterId,
-      antiphonyPromptUri: parsed.data.antiphonyPromptUri as `at://${string}`,
+      antiphonyPromptUri: parsed.data.antiphonyPromptUri,
       intent: parsed.data.intent,
     });
     return c.body(null, 204);
@@ -407,8 +407,8 @@ export function createApp(svc: CoreServices): Hono {
     if (!audioBlob) {
       return c.json({ error: "validation_failed", message: "audio file is required" }, 400);
     }
-    if (!promptUri || !promptUri.startsWith("at://")) {
-      return c.json({ error: "validation_failed", message: "promptUri must be an at:// URI" }, 400);
+    if (!promptUri || !isRecordUri(promptUri)) {
+      return c.json({ error: "validation_failed", message: "promptUri must be an atproto record URI" }, 400);
     }
 
     // The reply seals the prompt's CID, and Antiphony refuses a wrong one: take
@@ -420,10 +420,10 @@ export function createApp(svc: CoreServices): Hono {
 
     // Post to Antiphony via gateway
     const replyUri = await svc.antiphony.createReply({
-      promptUri: promptUri as any,
+      promptUri: promptUri,
       promptCid: prompt.antiphonyPromptCid,
       audioBlob,
-      actingDid: player.did as any,
+      actingDid: player.did as `did:${string}`,
       // A player's reply is their own record at the table.
       spaceAuthor: "actor",
       ...(text ? { text } : {}),
@@ -433,7 +433,7 @@ export function createApp(svc: CoreServices): Hono {
     await ingestReplies(svc, {
       campaignId,
       characterId,
-      antiphonyPromptUri: promptUri as any,
+      antiphonyPromptUri: promptUri,
       intent,
     });
 

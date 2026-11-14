@@ -1,4 +1,4 @@
-import type { CampaignSeat } from "@bardcast/domain";
+import type { AtUri, CampaignSeat } from "@bardcast/domain";
 import type { CoreServices } from "../ports/index.js";
 import { inferTraits, mergeTraits } from "./infer-traits.js";
 
@@ -8,7 +8,7 @@ export interface IngestRepliesInput {
   /** The character whose player authored the replies. */
   characterId: string;
   /** Antiphony prompt whose replies to pull. */
-  antiphonyPromptUri: `at://${string}`;
+  antiphonyPromptUri: AtUri;
   /** The prompt's intent — which signal axis these replies primarily feed. */
   intent: "sheet" | "behavior" | "voice" | "story";
 }
@@ -22,7 +22,7 @@ export interface IngestRepliesInput {
  */
 export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput): Promise<void> {
   const replies = await svc.antiphony.listReplies(input.antiphonyPromptUri);
-  const replyUris = replies.map((r) => r.uri as `at://${string}`);
+  const replyUris = replies.map((r) => r.uri);
   const now = svc.clock().toISOString();
 
   // --- Seat: record provenance; infer traits from transcripts. ---
@@ -50,7 +50,6 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
       // Inference is best effort: a decision-model outage must not stop the
       // replies from feeding provenance, behavior, and voice. The next ingest
       // of this prompt re-reads the same replies and tries again.
-      // eslint-disable-next-line no-console
       console.warn(`trait inference failed for ${input.characterId}:`, err);
     }
     // TODO(bardcast): infer drives too. They belong on the durable

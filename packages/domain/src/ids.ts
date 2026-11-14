@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isRecordUri } from "./space-uri.js";
 
 /**
  * Identity model. Mirrors supper_club_secrets/protocol/ARCHITECTURE.md §7:
@@ -24,8 +25,11 @@ export const Did = z
   .regex(/^did:[a-z]+:[A-Za-z0-9._:%-]+$/, "Must be a valid DID, e.g. 'did:plc:abc123'");
 export type Did = z.infer<typeof Did>;
 
-/** An AT-URI pointing at a record, e.g. at://did:plc:abc/game.bardcast.campaign.chapter/3k2a. */
-export const AtUri = z.string().startsWith("at://");
+/**
+ * An AT-URI pointing at a record, e.g. at://did:plc:abc/game.bardcast.campaign.chapter/3k2a,
+ * or a record in a space. What counts as one is decided in `space-uri.ts`.
+ */
+export const AtUri = z.string().refine(isRecordUri, "Must be an atproto record URI (at://…)");
 export type AtUri = z.infer<typeof AtUri>;
 
 export const IsoDateTime = z.iso.datetime({ offset: true });

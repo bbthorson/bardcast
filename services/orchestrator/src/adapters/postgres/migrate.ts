@@ -133,9 +133,9 @@ export async function seedGawainCampaign(store: Store): Promise<void> {
   const partyCharacterIds = ["gawain", "ysolde", "cadoc", "morwen"];
   const campaign: Campaign = {
     title: "Sir Gawain and the Green Knight",
-    dm: dmDid as any,
+    dm: dmDid,
     premise: "Christmas to Christmas · Arthurian quest across the Wilderness of Wirral to the Green Chapel.",
-    party: partyCharacterIds.map((id) => `at://${id}` as any),
+    party: partyCharacterIds.map((id) => `at://${id}`),
     calendar: "Arthurian Lunar",
     createdAt: now,
   };
@@ -146,7 +146,7 @@ export async function seedGawainCampaign(store: Store): Promise<void> {
     {
       id: "gawain",
       profile: {
-        player: "did:example:theo" as any,
+        player: "did:example:theo",
         displayName: "Sir Gawain",
         concept: "Arthur's nephew, sworn to keep a bargain he doesn't understand.",
         pronouns: "he/him",
@@ -161,7 +161,7 @@ export async function seedGawainCampaign(store: Store): Promise<void> {
     {
       id: "ysolde",
       profile: {
-        player: "did:example:priya" as any,
+        player: "did:example:priya",
         displayName: "Ysolde the Herald",
         concept: "Court chronicler who records vows that cannot be unmade.",
         pronouns: "she/her",
@@ -172,7 +172,7 @@ export async function seedGawainCampaign(store: Store): Promise<void> {
     {
       id: "cadoc",
       profile: {
-        player: "did:example:sam" as any,
+        player: "did:example:sam",
         displayName: "Brother Cadoc",
         concept: "Wandering monk searching for holy places in untamed wilderness.",
         pronouns: "he/him",
@@ -183,7 +183,7 @@ export async function seedGawainCampaign(store: Store): Promise<void> {
     {
       id: "morwen",
       profile: {
-        player: "did:example:jules" as any,
+        player: "did:example:jules",
         displayName: "Morwen",
         concept: "Scout of the northern marches who knows the old woods.",
         pronouns: "they/them",
@@ -196,8 +196,8 @@ export async function seedGawainCampaign(store: Store): Promise<void> {
   for (const { id, profile } of characterProfiles) {
     await store.putCharacter(id, profile);
     const seat: CampaignSeat = {
-      campaign: `at://${campaignId}` as any,
-      character: `at://${id}` as any,
+      campaign: `at://${campaignId}`,
+      character: `at://${id}`,
       traits: [
         { name: "Courteous", value: "Courteous to a fault", confidence: 90 },
         { name: "Brave", value: "Stands firm before danger", confidence: 80 },

@@ -56,6 +56,5 @@ const svc = buildServices({
 const app = createApp(svc);
 
 serve({ fetch: app.fetch, port }, (info) => {
-  // eslint-disable-next-line no-console
   console.log(`bardcast-orchestrator listening on http://localhost:${info.port}`);
 });

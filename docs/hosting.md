@@ -51,6 +51,9 @@ the package Brad's Bluesky apps share. Its README covers how it works. In Bardca
     checking the PDS. The client metadata publishes all of them either way.
   - **Not yet:** space scopes for campaign and player spaces. A PDS must resolve a space type's
     lexicon to grant one, and none can be published under the placeholder `game.bardcast`.
+    When they're added, use the Spaces beta spelling: the positional `space:{type}?…` form or
+    the named `spaceType=` parameter (not `type=`), and `title` (not `name`) in the space type
+    lexicon (`docs/spaces-beta-readiness.md`).
 - **Confidential client (optional).** With the `OAUTH_PRIVATE_KEY` secret (an ES256 private JWK,
   as JSON, with a `kid`), token requests are signed (`private_key_jwt`) and the public half is
   served at `/atproto/jwks.json`. Authorization servers give confidential clients much longer
