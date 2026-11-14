@@ -93,7 +93,7 @@ async function resolvePlayer(c: Context, svc: CoreServices): Promise<Player | nu
 
   const actingDid = c.req.header("X-Acting-Did") || c.req.header("x-acting-did");
   if (actingDid && actingDid.startsWith("did:")) {
-    return { did: actingDid as any, createdAt: new Date().toISOString() };
+    return { did: actingDid, createdAt: new Date().toISOString() };
   }
 
   return null;
@@ -151,7 +151,7 @@ export function createApp(svc: CoreServices): Hono {
 
     const campaign: Campaign = {
       title: parsed.data.title,
-      dm: player.did as any,
+      dm: player.did,
       ...(parsed.data.premise ? { premise: parsed.data.premise } : {}),
       ...(parsed.data.calendar ? { calendar: parsed.data.calendar } : {}),
       party: [],
@@ -237,8 +237,8 @@ export function createApp(svc: CoreServices): Hono {
     }
 
     const playerUri = `at://${player.did}` as const;
-    if (!campaign.party.includes(playerUri as any)) {
-      campaign.party.push(playerUri as any);
+    if (!campaign.party.includes(playerUri)) {
+      campaign.party.push(playerUri);
       await svc.store.putCampaign(invite.campaignId, campaign);
     }
 
@@ -420,10 +420,10 @@ export function createApp(svc: CoreServices): Hono {
 
     // Post to Antiphony via gateway
     const replyUri = await svc.antiphony.createReply({
-      promptUri: promptUri as any,
+      promptUri: promptUri,
       promptCid: prompt.antiphonyPromptCid,
       audioBlob,
-      actingDid: player.did as any,
+      actingDid: player.did as `did:${string}`,
       // A player's reply is their own record at the table.
       spaceAuthor: "actor",
       ...(text ? { text } : {}),
@@ -433,7 +433,7 @@ export function createApp(svc: CoreServices): Hono {
     await ingestReplies(svc, {
       campaignId,
       characterId,
-      antiphonyPromptUri: promptUri as any,
+      antiphonyPromptUri: promptUri,
       intent,
     });
 

@@ -44,7 +44,7 @@ export class InMemoryStore implements Store {
         list.push({ id, campaign });
       } else {
         const isDm = campaign.dm === filter.did;
-        const isParty = campaign.party.includes(`at://${filter.did}` as any);
+        const isParty = campaign.party.includes(`at://${filter.did}`);
         if (isDm || isParty) {
           list.push({ id, campaign });
         }

@@ -50,7 +50,6 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
       // Inference is best effort: a decision-model outage must not stop the
       // replies from feeding provenance, behavior, and voice. The next ingest
       // of this prompt re-reads the same replies and tries again.
-      // eslint-disable-next-line no-console
       console.warn(`trait inference failed for ${input.characterId}:`, err);
     }
     // TODO(bardcast): infer drives too. They belong on the durable

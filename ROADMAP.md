@@ -142,6 +142,11 @@ The player makes and owns their characters; a campaign seats them. Design and de
       2026-11-14. No alpha dependencies, scopes or managing-app endpoints to migrate; Antiphony's
       side is done (its PR #252, REST contract unchanged). Space URI handling is centralized in
       `packages/domain/src/space-uri.ts`.
+- [x] **Lint** (2026-11-14): ESLint across every workspace (`eslint.config.mjs`), in CI with zero
+      warnings. Beyond the recommended sets it enforces two CLAUDE.md rules: record URIs only
+      through `space-uri.ts`, and no vendor imports in use-cases.
+- [ ] Turn on the React Compiler rules of `eslint-plugin-react-hooks` (`set-state-in-effect`,
+      `refs`): 13 findings in `apps/web` and `apps/dm`, each a rendering change to make carefully.
 - [ ] **Before the first kept recording: the space URI format.** It may become
       `at:space/{authority}/…` before the beta. Update `space-uri.ts` (and test fixtures) once it
       is announced.

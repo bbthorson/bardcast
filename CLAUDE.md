@@ -115,5 +115,5 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 ## Verify
 
 ```bash
-npm install && npm run typecheck && npm test
+npm install && npm run typecheck && npm run lint && npm test
 ```

@@ -147,7 +147,7 @@ export interface AnswerCreationInput {
  * reads it, then the conversation moves on as far as it can.
  */
 export async function answerCreation(svc: CoreServices, input: AnswerCreationInput): Promise<CreationView> {
-  let creation = await load(svc, input.id, input.did);
+  const creation = await load(svc, input.id, input.did);
   if (creation.status !== "talking") throw new CreationError("the conversation is over", "conflict");
   const last = creation.turns.at(-1);
   if (!last || last.reply) throw new CreationError("there's no question waiting for an answer", "conflict");
@@ -172,7 +172,7 @@ export async function answerCreation(svc: CoreServices, input: AnswerCreationInp
     ...(transcript ? { transcript } : {}),
     at: svc.clock().toISOString(),
   };
-  creation = await save(svc, input.id, replaceLast(creation, { ...last, reply }));
+  await save(svc, input.id, replaceLast(creation, { ...last, reply }));
   return advanceCreation(svc, input);
 }
 

@@ -70,7 +70,7 @@ export class ElevenLabsVoiceCloner implements VoiceCloner {
     }
 
     let publicUserId: string | null = null;
-    let voiceId: string | null = null;
+    let voiceId: string | null;
 
     try {
       const url = new URL(input.sharingLink);

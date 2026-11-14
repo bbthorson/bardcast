@@ -19,14 +19,12 @@ import type { DeliverablePrompt, EngagementChannel, ReplyNotice } from "../port.
 export class BlueskyEngagementChannel implements EngagementChannel {
   readonly kind = "bluesky";
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async deliverPrompt(_prompt: DeliverablePrompt): Promise<void> {
     throw new Error(
       "BlueskyEngagementChannel is a stub: Bluesky communities API is not yet available.",
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onReply(_handler: (notice: ReplyNotice) => void): () => void {
     return () => {};
   }

@@ -1,4 +1,3 @@
-import type { AtUri, VoiceProfile } from "@bardcast/domain";
 
 /**
  * Owns voice models. Bardcast stores only an opaque `modelRef` + consent in the

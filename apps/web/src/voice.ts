@@ -1,4 +1,4 @@
-import type { AtUri, VoiceProfile } from "@bardcast/domain";
+import type { VoiceProfile } from "@bardcast/domain";
 import { useCallback, useEffect, useState } from "react";
 
 /**
@@ -14,8 +14,6 @@ import { useCallback, useEffect, useState } from "react";
  * walkable until those endpoints exist.
  */
 
-const SAMPLES_FOR_READY = 3; // matches StubVoiceCloner.SAMPLES_FOR_READY
-const TRAIN_MS = 1500; // pretend the provider takes a moment
 const key = (did: string) => `bardcast.web.voice.${did}`;
 
 function load(did: string): VoiceProfile | null {

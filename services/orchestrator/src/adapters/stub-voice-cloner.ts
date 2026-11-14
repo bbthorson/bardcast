@@ -1,4 +1,3 @@
-import type { AtUri, VoiceProfile } from "@bardcast/domain";
 import type { VoiceCloner } from "../ports/voice-cloner.js";
 
 /**
@@ -27,7 +26,7 @@ export class StubVoiceCloner implements VoiceCloner {
     }
   }
 
-  async revoke(modelRef: string): Promise<void> {
+  async revoke(_modelRef: string): Promise<void> {
     // no-op for the stub
   }
 }

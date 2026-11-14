@@ -43,7 +43,7 @@ export function CreateCampaign({ player, onBack }: { player: Player; onBack: () 
       }
 
       setCreated({ id: res.id, campaign: res.campaign, inviteCode });
-    } catch (err) {
+    } catch {
       // Local fallback for offline development
       const fallbackId = `campaign.${title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "untitled"}`;
       const fallbackInvite = Math.random().toString(36).slice(2, 8).toUpperCase();

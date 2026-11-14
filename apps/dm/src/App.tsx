@@ -45,9 +45,7 @@ export function App() {
     fetchCampaigns().then((list) => {
       if (!cancelled && list.length > 0) {
         setCampaigns(list);
-        if (!list.some((c) => c.id === selectedCampaignId)) {
-          setSelectedCampaignId(list[0]!.id);
-        }
+        setSelectedCampaignId((current) => (list.some((c) => c.id === current) ? current : list[0]!.id));
       }
     });
     return () => {
@@ -96,8 +94,8 @@ export function App() {
       const { chapter } = await generateChapterApi(selectedCampaignId, characterIds);
       setStatus(`Chapter created: “${chapter.title}” (${chapter.status})`);
       await refreshCampaign(selectedCampaignId);
-    } catch (err: any) {
-      setStatus(`Generation halted: ${err.message || String(err)}`);
+    } catch (err) {
+      setStatus(`Generation halted: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsGenerating(false);
     }
@@ -121,8 +119,8 @@ export function App() {
       setPromptScene("");
       setStatus("Prompt sent to the players.");
       await refreshCampaign(selectedCampaignId);
-    } catch (err: any) {
-      setStatus(`Failed to publish prompt: ${err.message || String(err)}`);
+    } catch (err) {
+      setStatus(`Failed to publish prompt: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsPublishing(false);
     }
@@ -290,7 +288,7 @@ export function App() {
                 <label style={styles.label}>Signal intent</label>
                 <select
                   value={promptIntent}
-                  onChange={(e) => setPromptIntent(e.target.value as any)}
+                  onChange={(e) => setPromptIntent(e.target.value as typeof promptIntent)}
                   style={styles.select}
                 >
                   <option value="story">Story</option>

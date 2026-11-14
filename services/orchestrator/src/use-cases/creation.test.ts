@@ -158,7 +158,7 @@ describe("session zero", () => {
     expect(v.creation.turns.at(-1)).toMatchObject({ kind: "ask", attribute: "background", candidates: ["soldier", "sage"] });
 
     // Background doesn't settle in MAX_TURNS replies: the player picks.
-    v = await answerCreation(svc, { id, did: ALICE, text: "I learned a lot, here and there." });
+    await answerCreation(svc, { id, did: ALICE, text: "I learned a lot, here and there." });
     v = await answerCreation(svc, { id, did: ALICE, text: "Some of it with a sword, some with books." });
     expect(v.creation.turns.at(-1)).toMatchObject({ kind: "ask", attribute: "background" });
     v = await answerCreation(svc, { id, did: ALICE, text: "Hard to say." });

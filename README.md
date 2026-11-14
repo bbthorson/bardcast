@@ -115,6 +115,7 @@ channel. The milestone-by-milestone path to the MVP is tracked in [`ROADMAP.md`]
 nvm use            # Node 22
 npm install        # install all workspaces
 npm run typecheck  # all workspaces type-check green
+npm run lint       # ESLint across every workspace (eslint.config.mjs), zero warnings
 npm test           # srd + domain + orchestrator tests
 ```
 
