@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@antiphony/capture-kit": "^0.1.0",
+    "@antiphony/capture-kit": "^0.2.1",
     "@bardcast/brand": "*",
     "@bardcast/domain": "*",
     "@bardcast/srd": "*",
