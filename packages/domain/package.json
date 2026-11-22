@@ -16,7 +16,7 @@
   "dependencies": {
     "@atproto/syntax": "0.0.0-spaces-alpha-20261117141222",
     "@bardcast/srd": "*",
-    "zod": "^4.0.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "typescript": "^5.7.2",
