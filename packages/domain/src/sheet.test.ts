@@ -3,6 +3,10 @@ import { bringHome, chooseHistory, joinCampaign, playSeat, seatSheet, type Campa
 import { classes } from "@bardcast/srd";
 import { CharacterSheet, hitDieOf, SRD_CLASS_INDEXES, levelOf, levelUp, nextVersion, playSheet, proficiencyBonus, sheetAtLevel, type Advancement } from "./sheet.js";
 
+// A global in every runtime domain runs in (browsers, Node, Workers), but domain compiles
+// against ES2022 alone, with no DOM or Node types, so declare it here for the snapshots below.
+declare function structuredClone<T>(value: T): T;
+
 const T = "2026-10-01T00:00:00Z";
 const NOW = "2026-10-07T00:00:00Z";
 const REF = { uri: "at://did:plc:alice/game.bardcast.character.sheet/3kgawain", cid: "bafysheet1" };
