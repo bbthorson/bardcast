@@ -64,7 +64,8 @@ instead, so the client reads every member's post back and refuses one without th
 (`SPACE_AUTHOR_IGNORED`). Not built yet:
 
 - **The authority is still Bardcast's DID** in every URI. Table DIDs wait on choosing a group host,
-  and on that host running the Spaces beta protocol (`opensocial.fyi` didn't on 2026-11-14).
+  and on that host running the Spaces beta protocol (`opensocial.fyi` served the November 12
+  method names by 2026-11-22).
 - **The join flow doesn't yet say chapters stay with the table** when a player leaves.
 - **Creation recordings are still in a space under Bardcast's DID**, not one under the player's.
 
@@ -73,7 +74,9 @@ instead, so the client reads every member's post back and refuses one without th
 Every recording goes into a space (`packages/domain/src/spaces.ts`): a campaign's prompts and
 replies in `campaignSpace(campaignId)`, a player's creation recordings in `playerSpace(did)`.
 Bardcast creates each space with `managing-app` read and write policies: it is the managing app,
-and decides who hears what. Audio in a space plays only from signed links that expire within the
+and decides who hears what. A space on a PDS or group host names it in
+`com.atproto.managedspace.policy` (`managingApp: {BARDCAST_DID}#bardcast_spaces`), and its host
+asks Bardcast's `com.atproto.managedspace.checkAccess` (`docs/spaces-beta-readiness.md`). Audio in a space plays only from signed links that expire within the
 hour, so a playback URL is used at once and never stored.
 
 Bardcast content never appears in another app's surfaces: posts are isolated by `originAppId`.

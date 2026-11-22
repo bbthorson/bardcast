@@ -106,7 +106,7 @@ describe("versions", () => {
 });
 
 describe("bringing progress home", () => {
-  const SEAT_URI = "at://did:web:bardcast/space/campaign/thornwood/did:plc:alice/game.bardcast.campaign.seat/did:plc:alice";
+  const SEAT_URI = "at://did:web:bardcast.app/space/game.bardcast.space.campaign/campaign.thornwood/did:web:bardcast.app/game.bardcast.campaign.seat/did:plc:alice";
   const home = (current: CharacterSheet) => ({ current, currentRef: REF, seatUri: SEAT_URI, now: NOW });
   const sat = (sheet: CharacterSheet, startingLevel: number, earned: Advancement[], open = false): CampaignSeat => ({
     ...joinCampaign({ campaign: "at://campaign.thornwood", sheet, sheetRef: REF, startingLevel, createdAt: T }),

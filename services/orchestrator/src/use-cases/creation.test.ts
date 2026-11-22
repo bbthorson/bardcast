@@ -37,6 +37,7 @@ class FakeAntiphony implements AntiphonyGateway {
   spaces: SpaceKey[] = [];
   prompts: Array<{ title: string; hasAudio: boolean; space: SpaceKey; uri: string }> = [];
   replies: AntiphonyReply[] = [];
+  replySpaces: SpaceKey[] = [];
   transcripts = new Map<string, string>();
 
   async ensureSpace(space: SpaceKey) {
@@ -58,6 +59,7 @@ class FakeAntiphony implements AntiphonyGateway {
   }
   async createReply(input: Parameters<AntiphonyGateway["createReply"]>[0]) {
     const uri = `${input.promptUri}-reply`;
+    this.replySpaces.push(input.space);
     this.replies.push({ uri, cid: "bafyr", promptUri: input.promptUri, author: input.actingDid, createdAt: "2026-10-28T00:00:00Z" });
     return uri;
   }
@@ -230,6 +232,8 @@ describe("session zero", () => {
     let v = await answerCreation(svc, { id, did: ALICE, audio });
     const replyUri = svc.antiphony.replies[0]!.uri;
     expect(svc.antiphony.replies[0]!.promptUri).toBe(svc.antiphony.prompts[0]!.uri);
+    // The answer goes in the player's own space, named by the caller, not read off the prompt's URI.
+    expect(svc.antiphony.replySpaces[0]).toEqual(playerSpace(ALICE));
     expect(v.creation.turns[0]!.reply).toMatchObject({ uri: replyUri });
     expect(v.next).toEqual({ kind: "wait" });
     expect(svc.antiphony.prompts).toHaveLength(1);

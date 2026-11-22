@@ -4,7 +4,7 @@ import { createApp } from "./app.js";
 
 /**
  * Cloudflare Workers entry. The `bardcast` Worker serves the apps/web assets
- * and, for `/api/*`, `/atproto/*` and `/healthz` (`run_worker_first` in the
+ * and, for `/api/*`, `/atproto/*`, `/xrpc/*` and `/healthz` (`run_worker_first` in the
  * root `wrangler.jsonc`), this orchestrator. One origin means the session
  * cookie is first-party: no `SameSite=None`, no third-party cookie blocking.
  *
@@ -37,6 +37,11 @@ export interface Env {
   AI_GATEWAY_ID?: string;
   /** Only for an authenticated gateway. */
   AI_GATEWAY_TOKEN?: string;
+  /**
+   * Bardcast's DID, the authority of its spaces. Turns on
+   * `com.atproto.managedspace.checkAccess` (docs/spaces-beta-readiness.md).
+   */
+  BARDCAST_DID?: string;
 }
 
 let migrated: Promise<void> | undefined;
@@ -72,6 +77,7 @@ function appFor(origin: string, env: Env): Hono {
       ...(env.ANTHROPIC_API_KEY !== undefined ? { anthropicApiKey: env.ANTHROPIC_API_KEY } : {}),
       ...(env.NARRATIVE_MODEL !== undefined ? { narrativeModel: env.NARRATIVE_MODEL } : {}),
       ...(env.AI_GATEWAY_TOKEN !== undefined ? { aiGatewayToken: env.AI_GATEWAY_TOKEN } : {}),
+      ...(env.BARDCAST_DID?.startsWith("did:") ? { appDid: env.BARDCAST_DID as `did:${string}` } : {}),
     });
     app = createApp(svc);
     apps.set(origin, app);

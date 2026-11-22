@@ -51,9 +51,14 @@ the package Brad's Bluesky apps share. Its README covers how it works. In Bardca
     checking the PDS. The client metadata publishes all of them either way.
   - **Not yet:** space scopes for campaign and player spaces. A PDS must resolve a space type's
     lexicon to grant one, and none can be published under the placeholder `game.bardcast`.
-    When they're added, use the Spaces beta spelling: the positional `space:{type}?…` form or
-    the named `spaceType=` parameter (not `type=`), and `title` (not `name`) in the space type
-    lexicon (`docs/spaces-beta-readiness.md`).
+    When they're added, build them with `SpacePermission` from `@atproto/oauth-scopes`, as the
+    members scope is, and use `title` (not `name`) in the space type lexicon
+    (`docs/spaces-beta-readiness.md`). Every scope is built by that library and checked in
+    `scopes.test.ts`.
+- **Managing app (`checkAccess`).** Set `BARDCAST_DID` (a Worker var, not a secret) to Bardcast's
+  DID, and publish a `#bardcast_spaces` service in that DID's document pointing at this origin.
+  A space host then reaches `GET /xrpc/com.atproto.managedspace.checkAccess` (routed to the
+  Worker by `run_worker_first`). Without `BARDCAST_DID` the method answers 501.
 - **Confidential client (optional).** With the `OAUTH_PRIVATE_KEY` secret (an ES256 private JWK,
   as JSON, with a `kid`), token requests are signed (`private_key_jwt`) and the public half is
   served at `/atproto/jwks.json`. Authorization servers give confidential clients much longer

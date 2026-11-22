@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@atproto/syntax": "0.0.0-spaces-alpha-20261117141222",
     "@bardcast/srd": "*",
     "zod": "^4.0.0"
   },

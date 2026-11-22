@@ -46,23 +46,12 @@ export const SpaceAuthor = z.enum(["authority", "actor"]);
 export type SpaceAuthor = z.infer<typeof SpaceAuthor>;
 
 /**
- * The space a post lives in, read off its at:// uri
- * (`at://{appDid}/space/{type}/{skey}/{authorSegment}/{collection}/{rkey}`), or
- * null for a flat post. A reply goes in its parent's space, so this is how a
- * reply knows where its audio must be uploaded.
- *
- * Only the type and key are read. The author segment is the member's own DID
- * for a member's record (a DM's prompt, a player's reply), and Bardcast's DID
- * for what Bardcast writes (Antiphony 0.10.1, `spaceAuthor`).
+ * The DID in a space post uri's author segment, or null for a flat or malformed
+ * uri. Antiphony's post view carries no field for it (contract 0.10.9), so it is
+ * read off the uri, through `@atproto/syntax` (`parseSpaceRecordUri`). The
+ * author segment is the member's own DID for a member's record (a DM's prompt, a
+ * player's reply), and Bardcast's DID for what Bardcast writes (`spaceAuthor`).
  */
-export function spaceOfUri(uri: string): SpaceKey | null {
-  const parts = parseSpaceRecordUri(uri);
-  if (!parts) return null;
-  const parsed = SpaceKey.safeParse({ type: parts.spaceType, skey: parts.skey });
-  return parsed.success ? parsed.data : null;
-}
-
-/** The DID in a space post uri's author segment, or null for a flat or malformed uri. */
 export function authorSegmentOfUri(uri: string): string | null {
   const author = parseSpaceRecordUri(uri)?.author;
   return author?.startsWith("did:") ? author : null;

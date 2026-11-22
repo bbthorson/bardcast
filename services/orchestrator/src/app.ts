@@ -23,11 +23,24 @@ import {
   takeSeat,
   publishPrompt,
   suggestPrompts,
+  checkSpaceAccess,
 } from "./use-cases/index.js";
+import { ServiceAuthError } from "./ports/index.js";
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
-import { AbilityScores, AtUri, BackgroundIncreases, isRecordUri, type Campaign, type Player } from "@bardcast/domain";
+import {
+  AbilityScores,
+  AtUri,
+  BackgroundIncreases,
+  campaignSpace,
+  Did,
+  isRecordUri,
+  managingAppRef,
+  parseSpaceRef,
+  type Campaign,
+  type Player,
+} from "@bardcast/domain";
 import { AtprotoIdentityProvider } from "./adapters/atproto/identity-provider.js";
 
 const CreateCampaignSchema = z.object({
@@ -99,6 +112,20 @@ async function resolvePlayer(c: Context, svc: CoreServices): Promise<Player | nu
   return null;
 }
 
+/** The method a space host calls on its managing app (Spaces, November 12 protocol). */
+const CHECK_ACCESS = "com.atproto.managedspace.checkAccess";
+
+/** An XRPC error body: `{ error, message }`, which atproto clients read. */
+function xrpcError(c: Context, status: 400 | 401 | 403 | 500 | 501, error: string, message: string) {
+  return c.json({ error, message }, status);
+}
+
+/** We couldn't answer (the store, or the issuer's DID document): a failure, never a denial. */
+function couldNotDecide(c: Context, err: unknown) {
+  console.error(`${CHECK_ACCESS} could not decide:`, err);
+  return xrpcError(c, 500, "InternalServerError", "could not decide");
+}
+
 /**
  * The orchestrator's HTTP surface. One thin handler per use-case — validate,
  * delegate, serialize. No vendor SDKs directly; ports and adapters throughout.
@@ -118,6 +145,58 @@ export function createApp(svc: CoreServices): Hono {
   );
 
   app.get("/healthz", (c) => c.json({ ok: true, service: "bardcast-orchestrator" }));
+
+  // --- Bardcast as a managing app (atproto Spaces) ----------------------------
+
+  /**
+   * `com.atproto.managedspace.checkAccess`: a space host asks whether an
+   * account may read or write a space that names Bardcast as its managing app
+   * (`com.atproto.managedspace.policy`). Service auth only, signed as the
+   * space's authority, with `aud` = Bardcast's `managingApp` reference and
+   * `lxm` = this method.
+   *
+   * Only 200 is an answer. Every other status, and a timeout, the host reports
+   * as `UpstreamFailure`, which is not a denial: so this route never answers
+   * `{ read: false, write: false }` for anything but a decision.
+   */
+  app.get(`/xrpc/${CHECK_ACCESS}`, async (c) => {
+    const managing = svc.managingApp;
+    if (!managing) return xrpcError(c, 501, "MethodNotImplemented", "Bardcast manages no spaces here yet");
+
+    const auth = c.req.header("authorization");
+    if (!auth?.startsWith("Bearer ")) return xrpcError(c, 401, "AuthenticationRequired", "service auth required");
+    let iss: string;
+    try {
+      ({ iss } = await managing.serviceAuth.verify(auth.slice("Bearer ".length), {
+        aud: managingAppRef(managing.appDid),
+        lxm: CHECK_ACCESS,
+      }));
+    } catch (err) {
+      if (err instanceof ServiceAuthError) return xrpcError(c, 401, err.code, err.message);
+      return couldNotDecide(c, err);
+    }
+
+    const space = parseSpaceRef(c.req.query("space") ?? "");
+    if (!space) return xrpcError(c, 400, "InvalidRequest", "space must be a space reference");
+    const repo = c.req.query("repo");
+    if (repo !== undefined && !Did.safeParse(repo).success) return xrpcError(c, 400, "InvalidRequest", "repo must be a DID");
+    // Only the space's own authority (its host signs as it) may ask about it.
+    if (iss !== space.authority) return xrpcError(c, 403, "NotAuthorized", "only the space's authority may check access to it");
+
+    const clientId = c.req.query("clientId");
+    try {
+      return c.json(
+        await checkSpaceAccess(svc, {
+          space,
+          appDid: managing.appDid,
+          ...(repo !== undefined ? { repo } : {}),
+          ...(clientId !== undefined ? { clientId } : {}),
+        }),
+      );
+    } catch (err) {
+      return couldNotDecide(c, err);
+    }
+  });
 
   // AT-Proto OAuth routes
   if (svc.identity instanceof AtprotoIdentityProvider) {
@@ -422,6 +501,7 @@ export function createApp(svc: CoreServices): Hono {
     const replyUri = await svc.antiphony.createReply({
       promptUri: promptUri,
       promptCid: prompt.antiphonyPromptCid,
+      space: campaignSpace(campaignId),
       audioBlob,
       actingDid: player.did as `did:${string}`,
       // A player's reply is their own record at the table.

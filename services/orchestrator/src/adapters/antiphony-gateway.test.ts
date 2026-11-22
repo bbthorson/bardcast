@@ -1,4 +1,11 @@
-import { AntiphonyClient, AntiphonyError, authorSegmentOfUri, postIdFromUri, spaceOfUri } from "@bardcast/antiphony-client";
+import { AntiphonyClient, AntiphonyError, authorSegmentOfUri, postIdFromUri } from "@bardcast/antiphony-client";
+import { parseSpaceRecordUri } from "@bardcast/domain";
+
+/** The fake engine's own reading of a parent's space (Antiphony keeps it on the record). */
+function spaceOfUri(uri: string): { type: string; skey: string } | undefined {
+  const p = parseSpaceRecordUri(uri);
+  return p ? { type: p.spaceType, skey: p.skey } : undefined;
+}
 import { describe, expect, it } from "vitest";
 import { ClientAntiphonyGateway } from "./antiphony-gateway.js";
 
@@ -115,7 +122,7 @@ async function mockFetch(input: string | URL | { toString(): string }, init: Req
       spaceAuthor?: "authority" | "actor";
       reply?: { root: { cid: string }; parent: { uri: string; cid: string } };
     };
-    const space = post.space ?? (post.reply ? (spaceOfUri(post.reply.parent.uri) ?? undefined) : undefined);
+    const space = post.space ?? (post.reply ? spaceOfUri(post.reply.parent.uri) : undefined);
     const author =
       space && post.spaceAuthor === "actor" && !ignoresSpaceAuthor ? rawHeaders["x-antiphony-acting-actor-did"]! : APP_DID;
     if (post.reply) {
@@ -280,7 +287,7 @@ describe("Antiphony gateway", () => {
       uri: postUri("p1", SPACE),
       cid: PROMPT_CID,
     };
-    await client.createReply({ prompt, audio: { blob: new Blob([new Uint8Array([1])], { type: "audio/webm" }) } }, "did:example:alice");
+    await client.createReply({ prompt, space: SPACE, audio: { blob: new Blob([new Uint8Array([1])], { type: "audio/webm" }) } }, "did:example:alice");
 
     expect(captured.find((c) => c.path === "/api/v1/audio/upload")!.form).toEqual({ spaceType: SPACE.type, skey: SPACE.skey });
     // The reply names no space: it inherits its parent's.
@@ -296,6 +303,7 @@ describe("Antiphony gateway", () => {
         .createReply({
           promptUri: postUri("p1", SPACE),
           promptCid: PROMPT_CID,
+          space: SPACE,
           audioBlob: new Blob([new Uint8Array([1])]),
           actingDid: "did:example:alice",
           spaceAuthor: "actor",
@@ -357,6 +365,7 @@ describe("Antiphony gateway", () => {
     const replyUri = await gw.createReply({
       promptUri: prompt.uri,
       promptCid: prompt.cid,
+      space: SPACE,
       audioBlob: new Blob([new Uint8Array([1])], { type: "audio/webm" }),
       actingDid: "did:example:alice",
       spaceAuthor: "actor",
@@ -382,6 +391,7 @@ describe("Antiphony gateway", () => {
       .createReply({
         promptUri: postUri("p1", SPACE),
         promptCid: "bafysomethingelse",
+        space: SPACE,
         audioBlob: new Blob([new Uint8Array([1])]),
         actingDid: "did:example:alice",
         spaceAuthor: "actor",
@@ -406,6 +416,7 @@ describe("Antiphony gateway", () => {
         .createReply({
           promptUri: postUri("p1", SPACE),
           promptCid: PROMPT_CID,
+          space: SPACE,
           audioBlob: new Blob([new Uint8Array([1])]),
           actingDid: "did:example:alice",
           spaceAuthor: "actor",
@@ -495,18 +506,6 @@ describe("AntiphonyClient.listReplies (fetch-mocked)", () => {
 
 describe("reading an at:// uri", () => {
   const SPACED = `at://${APP_DID}/space/${SPACE.type}/${SPACE.skey}/${APP_DID}/dev.antiphony.audio.post/p1`;
-
-  it("takes the space from the type and key, whatever the author segment", () => {
-    expect(spaceOfUri(SPACED)).toEqual(SPACE);
-    // A member's own post has their DID there (Antiphony 0.10.1, and posts made before 0.9.0).
-    expect(spaceOfUri(SPACED.replace(`/${SPACE.skey}/${APP_DID}/`, `/${SPACE.skey}/did:plc:alice/`))).toEqual(SPACE);
-    // A player's own space is keyed by their DID; here the post is Bardcast's (the narrator's).
-    expect(spaceOfUri(`at://${APP_DID}/space/game.bardcast.space.player/did:plc:alice/${APP_DID}/dev.antiphony.audio.post/c1`)).toEqual({
-      type: "game.bardcast.space.player",
-      skey: "did:plc:alice",
-    });
-    expect(spaceOfUri(`at://${APP_DID}/dev.antiphony.audio.post/p1`)).toBeNull();
-  });
 
   it("reads the author segment of a space uri, and none off a flat one", () => {
     expect(authorSegmentOfUri(SPACED)).toBe(APP_DID);

@@ -13,8 +13,12 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.3.0",
+    "@atproto-labs/did-resolver": "0.0.0-spaces-alpha-20261117141222",
     "@atproto/common-web": "0.5.14",
+    "@atproto/crypto": "0.0.0-spaces-alpha-20261117141222",
     "@atproto/lex-cbor": "0.1.6",
+    "@atproto/oauth-scopes": "0.0.0-spaces-alpha-20261117141222",
+    "@atproto/syntax": "0.0.0-spaces-alpha-20261117141222",
     "@bardcast/antiphony-client": "*",
     "@bardcast/domain": "*",
     "@bardcast/engagement": "*",

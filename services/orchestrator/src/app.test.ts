@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { campaignSpace } from "@bardcast/domain";
 import { createApp } from "./app.js";
 import { InMemoryStore } from "./adapters/in-memory-store.js";
 import { StubDecisionModel } from "./adapters/stub-decision-model.js";
@@ -217,7 +218,7 @@ describe("Orchestrator HTTP App", () => {
     expect(replyBody.replyUri).toBe("at://dev.antiphony.audio.post/r1");
     // The reply names the CID stored when the prompt was published.
     expect(replies).toHaveLength(1);
-    expect(replies[0]).toMatchObject({ promptUri: "at://dev.antiphony.audio.post/p1", promptCid: "bafyp1" });
+    expect(replies[0]).toMatchObject({ promptUri: "at://dev.antiphony.audio.post/p1", promptCid: "bafyp1", space: campaignSpace(campaignId) });
 
     // A reply to a prompt this campaign never published has no CID to name: 404, nothing sent.
     const strayRes = await app.request(`/api/campaigns/${campaignId}/characters/char.sam/reply`, {

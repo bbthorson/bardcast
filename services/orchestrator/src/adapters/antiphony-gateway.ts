@@ -55,6 +55,7 @@ export class ClientAntiphonyGateway implements AntiphonyGateway {
   async createReply(input: {
     promptUri: AtUri;
     promptCid: string;
+    space: SpaceKey;
     audioBlob: Blob;
     actingDid: `did:${string}`;
     spaceAuthor: SpaceAuthor;
@@ -63,6 +64,7 @@ export class ClientAntiphonyGateway implements AntiphonyGateway {
     return this.client.createReply(
       {
         prompt: { uri: input.promptUri, cid: input.promptCid },
+        space: input.space,
         audio: { blob: input.audioBlob },
         spaceAuthor: input.spaceAuthor,
         ...(input.text !== undefined ? { text: input.text } : {}),
