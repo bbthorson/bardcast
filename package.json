@@ -23,7 +23,7 @@
     "dev:web": "npm run dev -w @bardcast/web"
   },
   "devDependencies": {
-    "@bbthorson/pinakes": "0.9.1",
+    "@bbthorson/pinakes": "1.0.2",
     "@eslint/js": "10.0.1",
     "eslint": "10.15.0",
     "eslint-plugin-react-hooks": "7.1.1",
