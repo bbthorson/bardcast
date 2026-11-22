@@ -69,7 +69,7 @@ the package Brad's Bluesky apps share. Its README covers how it works. In Bardca
 - **Outside a request.** `auth.restore(did)` returns a stored session for background work; the
   Worker sets the package's `origin` to the request's origin.
 - **Workers.** Workers refuse `redirect: "error"`, which AT-Proto's identity lookups ask for.
-  The package (0.2.1 and later; Bardcast is on 0.5.1) resolves handles and DIDs without it; before that every sign-in
+  The package (0.2.1 and later; Bardcast is on 0.5.2) resolves handles and DIDs without it; before that every sign-in
   failed with "We couldn't find that handle".
 - **Browser.** `apps/web/src/session.ts` uses the package's headless client, and reads a
   failed sign-in back from `?auth_error=`.
