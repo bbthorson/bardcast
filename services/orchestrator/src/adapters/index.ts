@@ -19,6 +19,7 @@ import { d1Store, memoryStore } from "@bbthorson/atproto-cf-auth/server";
 import { ElevenLabsVoiceCloner } from "./elevenlabs/voice-cloner.js";
 import { ElevenLabsAudioRenderer } from "./elevenlabs/audio-renderer.js";
 import { ClaudeNarrativeWriter } from "./anthropic/narrative-writer.js";
+import { AtprotoServiceAuthVerifier } from "./atproto/service-auth.js";
 
 export * from "./postgres/client.js";
 export * from "./postgres/postgres-store.js";
@@ -85,6 +86,14 @@ export interface BuildServicesConfig {
   sqlClient?: SqlClient;
   /** Optional custom store override. */
   store?: Store;
+  /**
+   * Bardcast's own DID (`BARDCAST_DID`): the authority of the spaces it makes,
+   * and whose DID document publishes its managing-app service
+   * (`#bardcast_spaces`). With it, Bardcast answers
+   * `com.atproto.managedspace.checkAccess`; without it, that method answers
+   * `MethodNotImplemented`.
+   */
+  appDid?: `did:${string}`;
 }
 
 /**
@@ -186,6 +195,7 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
     decisions,
     engagement,
     clock: () => new Date(),
+    ...(config.appDid ? { managingApp: { appDid: config.appDid, serviceAuth: new AtprotoServiceAuthVerifier() } } : {}),
   };
 }
 

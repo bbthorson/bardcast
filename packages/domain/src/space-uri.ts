@@ -1,57 +1,120 @@
+import { AtUri, SpaceRef, type DidString, type NsidString, type RecordKeyString } from "@atproto/syntax";
+
 /**
- * The one place Bardcast knows how an atproto record URI is spelled.
+ * The one place Bardcast reads or builds an atproto record URI.
  *
- * A record in a space is named today by
+ * Bardcast doesn't spell URIs itself: everything here goes through
+ * `@atproto/syntax` (`AtUri`, `SpaceRef`), pinned exactly to the Spaces alpha
+ * Antiphony runs. A record in a space is named today by
  * `at://{authority}/space/{spaceType}/{skey}/{author}/{collection}/{rkey}`.
- * That spelling may change before the Spaces public beta (December 2026) to
- * `at:space/{authority}/{spaceType}/{skey}/{author}/{collection}/{rkey}`
- * (the combined `at:public` / `at:space` URI proposal). Everything that
- * builds, parses or validates a URI that may name a space record goes through
- * this module, so a format change is a change to this file (and its tests).
+ * That spelling may change at the Spaces public beta (December 2026) to
+ * `at:space/{authority}/{spaceType}/{skey}/{author}/{collection}/{rkey}`, and
+ * Antiphony would then switch outright in contract 0.11. If it does, the change
+ * arrives here with the `@atproto/syntax` pin bump, and this module's tests
+ * (which spell today's form out) fail until they are updated.
  *
  * Bardcast does not mint space URIs itself: Antiphony mints them for the posts
  * it holds, and Bardcast only reads the space and author off them. Keep no
- * recording that must outlive a format change until the format is announced.
+ * recording that must outlive a format change until the format is announced
+ * (docs/spaces-beta-readiness.md).
  */
 
-/** Every form of record URI Bardcast accepts. Today only `at://`. */
-const RECORD_URI_PREFIXES = ["at://"] as const;
-
-/** Whether `s` is spelled like an atproto record URI (flat, or in a space). */
-export function isRecordUri(s: string): boolean {
-  return RECORD_URI_PREFIXES.some((p) => s.startsWith(p));
+function parse(s: string): AtUri | null {
+  try {
+    return new AtUri(s);
+  } catch {
+    return null;
+  }
 }
 
-/** The parts of a space record URI. */
-export interface SpaceRecordUriParts {
+/**
+ * Whether `s` is a record URI Bardcast accepts:
+ *
+ *  - a space URI, only as `@atproto/syntax` parses and prints it (so a format
+ *    change follows the pin);
+ *  - a flat URI that `@atproto/syntax` accepts;
+ *  - or a flat local placeholder, `at://{local id}/…`, which stores already hold:
+ *    `at://campaign.1a2b3c4d/…` names a campaign by its local id, and a local id
+ *    whose last label starts with a digit isn't a valid handle. They never name
+ *    a space record. TODO(bardcast): retire them when seats, actions and
+ *    chapters are written to the campaign's space (docs/spaces-beta-readiness.md).
+ */
+export function isRecordUri(s: string): boolean {
+  const u = parse(s);
+  if (u?.isSpace) return parseSpaceRecordUri(s) !== null || parseSpaceRef(s) !== null;
+  if (u?.toString() === s) return true;
+  return isLocalPlaceholder(s);
+}
+
+const LOCAL_PLACEHOLDER = "at://";
+
+function isLocalPlaceholder(s: string): boolean {
+  if (!s.startsWith(LOCAL_PLACEHOLDER)) return false;
+  const host = s.slice(LOCAL_PLACEHOLDER.length).split("/", 1)[0] ?? "";
+  // A host that claims to be a DID must be one the parser accepts, and nothing
+  // shaped like a space may get through as a placeholder.
+  return host.length > 0 && !host.startsWith("did:") && !s.includes("/space/");
+}
+
+/** A space: its authority, type and key. */
+export interface SpaceRefParts {
   /** The space's authority: a DID (Bardcast's today; a table's later). */
   authority: string;
   /** The space type, an NSID (`SpaceTypes`). */
   spaceType: string;
   /** The space key. */
   skey: string;
+}
+
+/** The parts of a space record URI. */
+export interface SpaceRecordUriParts extends SpaceRefParts {
   /** The author segment: whose record it is. A DID. */
   author: string;
   collection: string;
   rkey: string;
 }
 
-/** Parse a space record URI, or null for a flat or malformed one. */
+/** Parse a space record URI, or null for a flat, space-only or malformed one. */
 export function parseSpaceRecordUri(uri: string): SpaceRecordUriParts | null {
-  if (!uri.startsWith("at://")) return null;
-  const parts = uri.slice("at://".length).split("/");
-  if (parts.length !== 7 || parts[1] !== "space") return null;
-  const [authority, , spaceType, skey, author, collection, rkey] = parts as [string, string, string, string, string, string, string];
-  if (!authority || !spaceType || !skey || !author || !collection || !rkey) return null;
-  return { authority, spaceType, skey, author, collection, rkey };
+  const u = parse(uri);
+  if (!u?.isSpace) return null;
+  const { spaceDid, spaceType, skey, authorDid, collection, rkey } = u;
+  if (!spaceDid || !spaceType || !skey || !authorDid || !collection || !rkey) return null;
+  const parts = { authority: spaceDid, spaceType, skey, author: authorDid, collection, rkey };
+  // The parser ignores trailing segments; rebuilding the URI refuses them.
+  try {
+    return spaceRecordUri(parts) === uri ? parts : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parse a reference to a space itself (`com.atproto.managedspace.checkAccess`'s
+ * `space`, a `space-ref`), or null for anything else, including a record URI.
+ */
+export function parseSpaceRef(uri: string): SpaceRefParts | null {
+  try {
+    const ref = SpaceRef.parse(uri);
+    return { authority: ref.spaceDid, spaceType: ref.spaceType, skey: ref.skey };
+  } catch {
+    return null;
+  }
 }
 
 /** Build a space record URI. Tests and fixtures use this; production URIs come from Antiphony. */
 export function spaceRecordUri(p: SpaceRecordUriParts): string {
-  return `at://${p.authority}/space/${p.spaceType}/${p.skey}/${p.author}/${p.collection}/${p.rkey}`;
+  return new SpaceRef(p.authority as DidString, p.spaceType as NsidString, p.skey as RecordKeyString)
+    .recordUri(p.author as DidString, p.collection as NsidString, p.rkey as RecordKeyString)
+    .toString();
 }
 
-/** A record's rkey: the last path segment, for a flat or a space URI alike. */
+/** Build a reference to a space itself. */
+export function spaceRefUri(p: SpaceRefParts): string {
+  return new SpaceRef(p.authority as DidString, p.spaceType as NsidString, p.skey as RecordKeyString).toString();
+}
+
+/** A record's rkey, for a flat or a space URI alike, or "" if it names none. */
 export function rkeyOfRecordUri(uri: string): string {
-  return uri.slice(uri.lastIndexOf("/") + 1);
+  return parse(uri)?.rkey ?? "";
 }

@@ -159,6 +159,7 @@ export async function answerCreation(svc: CoreServices, input: AnswerCreationInp
     uri = await svc.antiphony.createReply({
       promptUri: last.prompt.uri,
       promptCid: last.prompt.cid,
+      space: playerSpace(input.did),
       audioBlob: input.audio,
       actingDid: input.did,
       // The player's answer is their own recording.

@@ -3,6 +3,10 @@ import { bringHome, chooseHistory, joinCampaign, playSeat, seatSheet, type Campa
 import { classes } from "@bardcast/srd";
 import { CharacterSheet, hitDieOf, SRD_CLASS_INDEXES, levelOf, levelUp, nextVersion, playSheet, proficiencyBonus, sheetAtLevel, type Advancement } from "./sheet.js";
 
+// A global in every runtime domain runs in (browsers, Node, Workers), but domain compiles
+// against ES2022 alone, with no DOM or Node types, so declare it here for the snapshots below.
+declare function structuredClone<T>(value: T): T;
+
 const T = "2026-10-01T00:00:00Z";
 const NOW = "2026-10-07T00:00:00Z";
 const REF = { uri: "at://did:plc:alice/game.bardcast.character.sheet/3kgawain", cid: "bafysheet1" };
@@ -106,7 +110,7 @@ describe("versions", () => {
 });
 
 describe("bringing progress home", () => {
-  const SEAT_URI = "at://did:web:bardcast/space/campaign/thornwood/did:plc:alice/game.bardcast.campaign.seat/did:plc:alice";
+  const SEAT_URI = "at://did:web:bardcast.app/space/game.bardcast.space.campaign/campaign.thornwood/did:web:bardcast.app/game.bardcast.campaign.seat/did:plc:alice";
   const home = (current: CharacterSheet) => ({ current, currentRef: REF, seatUri: SEAT_URI, now: NOW });
   const sat = (sheet: CharacterSheet, startingLevel: number, earned: Advancement[], open = false): CampaignSeat => ({
     ...joinCampaign({ campaign: "at://campaign.thornwood", sheet, sheetRef: REF, startingLevel, createdAt: T }),

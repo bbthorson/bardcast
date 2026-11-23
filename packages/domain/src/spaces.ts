@@ -26,3 +26,22 @@ export function campaignSpace(campaignId: string): SpaceKey {
 export function playerSpace(did: `did:${string}`): SpaceKey {
   return { type: SpaceTypes.player, skey: did };
 }
+
+/**
+ * Bardcast as a managing app (`com.atproto.managedspace.policy`): the service
+ * in Bardcast's DID document that answers `com.atproto.managedspace.checkAccess`
+ * for the spaces it manages. A space host reads `managingApp`
+ * (`{did}#{serviceId}`) off the space's policy, resolves the service's endpoint
+ * from that DID document, and signs its call with `aud` set to the same string.
+ *
+ * TODO(bardcast): publish the service entry (`{ id: "#bardcast_spaces",
+ * type: "BardcastManagingApp", serviceEndpoint: "https://{origin}" }`) in
+ * Bardcast's DID document before any space names Bardcast as its managing app
+ * (docs/spaces-beta-readiness.md).
+ */
+export const MANAGING_APP_SERVICE_ID = "bardcast_spaces";
+
+/** The `managingApp` reference for Bardcast under `appDid`: `{appDid}#bardcast_spaces`. */
+export function managingAppRef(appDid: string): string {
+  return `${appDid}#${MANAGING_APP_SERVICE_ID}`;
+}

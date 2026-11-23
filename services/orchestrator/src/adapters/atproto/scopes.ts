@@ -1,13 +1,21 @@
 import { Collections } from "@bardcast/domain";
 import { pdsServesMethod, type ConditionalScope } from "@bbthorson/atproto-cf-auth/server";
+import { RepoPermission, RpcPermission, SpacePermission } from "@atproto/oauth-scopes";
 
 /**
  * What Bardcast asks a player's PDS for at sign-in.
  *
  * Built from the NSID constants, so they follow `NSID_ROOT` when the
- * placeholder is swapped. Changing a scope asks every player to consent again
- * at their next sign-in.
+ * placeholder is swapped, and printed by `@atproto/oauth-scopes` (pinned to the
+ * Spaces alpha) rather than spelled by hand: the library writes each scope in
+ * its canonical form, with the Spaces beta's parameter names (`spaceType`, not
+ * `type`), and `scopes.test.ts` checks every one parses and grants what Bardcast
+ * needs. Changing a scope asks every player to consent again at their next
+ * sign-in.
  */
+
+const ownRepo = (collection: string) => new RepoPermission([collection as `${string}.${string}.${string}`], ["create", "update", "delete"]).toString();
+const anyHost = (lxm: string) => new RpcPermission("*", [lxm as `${string}.${string}.${string}`]).toString();
 
 /**
  * Asked at every sign-in: identity, plus writing the character into the
@@ -17,9 +25,9 @@ import { pdsServesMethod, type ConditionalScope } from "@bbthorson/atproto-cf-au
  */
 export const BARDCAST_SCOPE = [
   "atproto",
-  `repo:${Collections.characterProfile}`,
-  `repo:${Collections.characterSheet}`,
-  `repo:${Collections.voiceProfile}`,
+  ownRepo(Collections.characterProfile),
+  ownRepo(Collections.characterSheet),
+  ownRepo(Collections.voiceProfile),
 ].join(" ");
 
 /**
@@ -39,29 +47,37 @@ const servesSpaces = pdsServesMethod("com.atproto.space.getDelegationToken");
  *    founding a table (`provisionGroup`), opening its spaces (`createSpace`),
  *    joining and leaving. Any host, hence `aud=*`.
  *  - The player's half of membership: their acceptance, in the table's members
- *    space, in their own repo.
+ *    space (any table's: `authority=*`, any key), in their own repo. Read, and
+ *    create/update/delete of `fyi.opensocial.acceptance` only. The library
+ *    prints it as `space:fyi.opensocial.members?authority=*&collection=…`: the
+ *    key (`*`) and the actions (read, create, update, delete) are its defaults,
+ *    so it leaves them out. It grants the same as the hand-written
+ *    `…&skey=*&…&action=read&action=create&action=update&action=delete`.
  *
  * TODO(bardcast): add the campaign and player space scopes
  * (`space:${SpaceTypes.campaign}?…`, `space:${SpaceTypes.player}?…`) once the
  * NSID root is a domain Bardcast controls. A PDS has to resolve a space type's
  * lexicon to grant a scope for it, and nobody can publish one under the
  * placeholder `game.bardcast`, so asking now would fail sign-in on exactly the
- * PDSes that serve spaces. Use the Spaces beta spelling: positional, or a
- * named `spaceType=` parameter (not `type=`), with `title` in the space type
- * lexicon (docs/spaces-beta-readiness.md).
+ * PDSes that serve spaces. Build them with `SpacePermission` like the members
+ * scope below, and declare the space types with `title` (not `name`)
+ * (docs/spaces-beta-readiness.md).
  */
 export const BARDCAST_CONDITIONAL_SCOPES: ConditionalScope[] = [
   {
     scope: [
-      "rpc:fyi.opensocial.provisionGroup?aud=*",
-      "rpc:fyi.opensocial.createSpace?aud=*",
-      "rpc:fyi.opensocial.requestJoin?aud=*",
-      "rpc:fyi.opensocial.leaveGroup?aud=*",
-      [
-        "space:fyi.opensocial.members?authority=*&skey=*",
-        "collection=fyi.opensocial.acceptance",
-        "action=read&action=create&action=update&action=delete",
-      ].join("&"),
+      anyHost("fyi.opensocial.provisionGroup"),
+      anyHost("fyi.opensocial.createSpace"),
+      anyHost("fyi.opensocial.requestJoin"),
+      anyHost("fyi.opensocial.leaveGroup"),
+      new SpacePermission(
+        "fyi.opensocial.members",
+        "*",
+        "*",
+        ["fyi.opensocial.acceptance"],
+        ["read", "create", "update", "delete"],
+        undefined,
+      ).toString(),
     ].join(" "),
     when: servesSpaces,
   },

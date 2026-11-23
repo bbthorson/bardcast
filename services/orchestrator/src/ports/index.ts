@@ -28,4 +28,5 @@ export type {
   DecideInput,
   DecideResult,
 } from "./decision-model.js";
-export type { CoreServices } from "./core-services.js";
+export type { CoreServices, ManagingApp } from "./core-services.js";
+export { ServiceAuthError, type ServiceAuthVerifier, type ServiceAuthErrorCode } from "./service-auth.js";

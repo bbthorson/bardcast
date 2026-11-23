@@ -51,6 +51,7 @@ const svc = buildServices({
   ...(anthropicApiKey !== undefined ? { anthropicApiKey } : {}),
   ...(narrativeModel !== undefined ? { narrativeModel } : {}),
   ...(aiGatewayToken !== undefined ? { aiGatewayToken } : {}),
+  ...(process.env["BARDCAST_DID"]?.startsWith("did:") ? { appDid: process.env["BARDCAST_DID"] as `did:${string}` } : {}),
 });
 
 const app = createApp(svc);

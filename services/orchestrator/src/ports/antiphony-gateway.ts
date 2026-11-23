@@ -48,7 +48,9 @@ export interface AntiphonyGateway {
    */
   playbackUrl(postUri: AtUri): Promise<string | undefined>;
   /**
-   * Reply to a prompt. The reply, and its audio, go in the prompt's space.
+   * Reply to a prompt. The reply, and its audio, go in the prompt's space,
+   * which the caller names (`campaignSpace`, `playerSpace`) rather than reading
+   * it off the prompt's URI: the URI format may change at the Spaces beta.
    * `promptCid` is the prompt's real CID (`AntiphonyPrompt.cid`, stored on the
    * Prompt as `antiphonyPromptCid`): it is sealed into the reply, and Antiphony
    * refuses one that doesn't match (`REPLY_CID_MISMATCH`). Returns the reply's
@@ -57,6 +59,8 @@ export interface AntiphonyGateway {
   createReply(input: {
     promptUri: AtUri;
     promptCid: string;
+    /** The prompt's space. Antiphony refuses a reply whose audio is stored elsewhere. */
+    space: SpaceKey;
     audioBlob: Blob;
     actingDid: `did:${string}`;
     spaceAuthor: SpaceAuthor;

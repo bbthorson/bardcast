@@ -9,7 +9,6 @@ import {
   RepliesPage,
   SpaceView,
   UploadAudioResult,
-  spaceOfUri,
   authorSegmentOfUri,
   type SpaceAuthor,
   type SpaceKey,
@@ -255,20 +254,23 @@ export class AntiphonyClient {
   /**
    * Post a player's reply to a prompt: upload audio, then create a post whose
    * `reply.root`/`parent` point at the prompt, attributed to `actingDid`. The
-   * reply lands in the prompt's space, so its audio is uploaded there too.
+   * reply lands in the prompt's space, so its audio is uploaded there too: the
+   * caller names that space (`space`, absent for a flat prompt). It isn't read
+   * off the prompt's URI, whose format may change at the Spaces beta.
    * Reads the reply back and returns its at:// uri, checking its author
    * segment as `createPrompt` does.
    */
   async createReply(
     input: {
       prompt: { uri: string; cid: string };
+      space?: SpaceKey;
       audio: { blob: Blob; filename?: string };
       text?: string;
       spaceAuthor?: SpaceAuthor;
     },
     actingDid: string,
   ): Promise<string> {
-    const space = spaceOfUri(input.prompt.uri);
+    const { space } = input;
     const audioRef = await this.uploadAudio(input.audio.blob, {
       actingDid,
       ...(input.audio.filename ? { filename: input.audio.filename } : {}),

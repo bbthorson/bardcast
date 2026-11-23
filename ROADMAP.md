@@ -136,12 +136,15 @@ The player makes and owns their characters; a campaign seats them. Design and de
 - [ ] **Creation recordings in a space under the player's own DID** (personal-private), not
       Bardcast's. Waits on the same work as table DIDs: an authority other than Bardcast's.
 - [ ] **Tables as atmospheric groups** (G4): a group DID per table, campaigns as space keys under
-      it. Waits on choosing a group host. On 2026-11-14 `opensocial.fyi` still ran the
-      pre-November-12 Spaces alpha (`docs/spaces-beta-readiness.md`).
+      it. Waits on choosing a group host. By 2026-11-22 `opensocial.fyi` served the
+      November 12 protocol's method names (`docs/spaces-beta-readiness.md`).
 - [x] **Spaces public beta readiness** (2026-12-01; `docs/spaces-beta-readiness.md`): audited
-      2026-11-14. No alpha dependencies, scopes or managing-app endpoints to migrate; Antiphony's
-      side is done (its PR #252, REST contract unchanged). Space URI handling is centralized in
-      `packages/domain/src/space-uri.ts`.
+      2026-11-14, redone 2026-11-22. Bardcast now serves `com.atproto.managedspace.checkAccess`
+      (off until `BARDCAST_DID` is set), builds its scopes with `@atproto/oauth-scopes`, and
+      parses record URIs with `@atproto/syntax`, all pinned to the alpha Antiphony runs.
+- [ ] **Turn on `checkAccess`:** publish `#bardcast_spaces` in Bardcast's DID document and set
+      `BARDCAST_DID` (`docs/spaces-beta-readiness.md`). Needed before any space names Bardcast as
+      its managing app.
 - [x] **Lint** (2026-11-14): ESLint across every workspace (`eslint.config.mjs`), in CI with zero
       warnings. Beyond the recommended sets it enforces two CLAUDE.md rules: record URIs only
       through `space-uri.ts`, and no vendor imports in use-cases.

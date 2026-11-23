@@ -1,5 +1,5 @@
 import type { Player } from "@bardcast/domain";
-import { createBlueskyAuth, type AuthStore, type BlueskyAuth } from "@bbthorson/atproto-cf-auth/server";
+import { createAtprotoAuth, type AtprotoAuth, type AuthStore } from "@bbthorson/atproto-cf-auth/server";
 import { Hono } from "hono";
 import type { IdentityProvider } from "../../ports/identity-provider.js";
 import { BARDCAST_CONDITIONAL_SCOPES, BARDCAST_SCOPE } from "./scopes.js";
@@ -40,10 +40,10 @@ export interface AtprotoConfig {
  * The DID is the durable player identity a character follows across campaigns.
  */
 export class AtprotoIdentityProvider implements IdentityProvider {
-  readonly auth: BlueskyAuth;
+  readonly auth: AtprotoAuth;
 
   constructor(private readonly config: AtprotoConfig) {
-    this.auth = createBlueskyAuth({
+    this.auth = createAtprotoAuth({
       appName: config.appName,
       store: config.store,
       secret: config.secret,
