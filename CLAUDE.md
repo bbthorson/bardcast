@@ -87,7 +87,7 @@ into the loop. `apps/player` is the live PWA; `packages/engagement/src/adapters/
 
 ## Stack
 
-- npm workspaces, Node ≥ 22, TypeScript strict.
+- npm workspaces, Node ≥ 26 (`.nvmrc`), TypeScript strict.
 - `services/orchestrator`: **Hono** (matches Antiphony — lean JSON service, no framework magic).
 - `apps/web`, `apps/player`, `apps/dm`: **Vite + React** (web is the front door; player is a PWA).
 - Rules data: `@bardcast/srd`, a generated, typed subset of the D&D SRD 5.2.

@@ -118,7 +118,7 @@ export class ElevenLabsAudioRenderer implements AudioRenderer {
   }
 
   /** One text-to-speech call. */
-  private async speak(text: string, voiceId: string, speaker: string): Promise<Uint8Array> {
+  private async speak(text: string, voiceId: string, speaker: string): Promise<Uint8Array<ArrayBuffer>> {
     const res = await this.fetchImpl(`${this.baseUrl}/v1/text-to-speech/${voiceId}`, {
       method: "POST",
       headers: {
