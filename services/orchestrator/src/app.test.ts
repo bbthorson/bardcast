@@ -167,10 +167,18 @@ describe("Orchestrator HTTP App", () => {
       createdAt: "2026-01-01T00:00:00Z",
     });
 
-    // Invalid prompt body
-    const badPrompt = await app.request(`/api/campaigns/${campaignId}/prompts`, {
+    // Unauthenticated prompt fails with 401
+    const unauthPrompt = await app.request(`/api/campaigns/${campaignId}/prompts`, {
       method: "POST",
       headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "Hello?" }),
+    });
+    expect(unauthPrompt.status).toBe(401);
+
+    // Invalid prompt body (authenticated as DM)
+    const badPrompt = await app.request(`/api/campaigns/${campaignId}/prompts`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "X-Acting-Did": dmDid },
       body: JSON.stringify({ title: "" }), // title min 1
     });
     expect(badPrompt.status).toBe(400);
@@ -189,10 +197,18 @@ describe("Orchestrator HTTP App", () => {
     });
     expect(promptRes.status).toBe(201);
 
+    // Non-DM cannot generate chapters
+    const forbiddenChapter = await app.request(`/api/campaigns/${campaignId}/chapters`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "X-Acting-Did": "did:example:stranger" },
+      body: JSON.stringify({ characterIds: ["char.sam"] }),
+    });
+    expect(forbiddenChapter.status).toBe(403);
+
     // Generate chapter when not ready returns 409
     const chapterRes = await app.request(`/api/campaigns/${campaignId}/chapters`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "X-Acting-Did": dmDid },
       body: JSON.stringify({ characterIds: ["char.sam"] }),
     });
     expect(chapterRes.status).toBe(409);

@@ -1,6 +1,8 @@
 import type { AtUri, CampaignSeat } from "@bardcast/domain";
 import type { CoreServices } from "../ports/index.js";
 import { inferTraits, mergeTraits } from "./infer-traits.js";
+import { partyOf } from "./seats.js";
+import { resolveCharacterVoice, voiceKeyForCharacter } from "./voice.js";
 
 export interface IngestRepliesInput {
   /** The campaign the prompt belongs to. The sheet these replies build is scoped to it. */
@@ -21,7 +23,15 @@ export interface IngestRepliesInput {
  * DecisionModel, accumulates behavior exemplars, and advances the voice clone.
  */
 export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput): Promise<void> {
-  const replies = await svc.antiphony.listReplies(input.antiphonyPromptUri);
+  const [allReplies, profile] = await Promise.all([
+    svc.antiphony.listReplies(input.antiphonyPromptUri),
+    svc.store.getCharacter(input.characterId),
+  ]);
+  // Multi-player prompts carry replies from the whole table: only fold this
+  // character's own player's replies into their seat, behavior, and voice.
+  const replies = profile?.player
+    ? allReplies.filter((r) => r.authorDid === profile.player)
+    : allReplies;
   const replyUris = replies.map((r) => r.uri);
   const now = svc.clock().toISOString();
 
@@ -42,7 +52,6 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
     };
     seat.sourceReplies = dedupe([...seat.sourceReplies, ...replyUris]);
     const transcripts = replies.map((r) => r.transcript).filter((t): t is string => Boolean(t));
-    const profile = await svc.store.getCharacter(input.characterId);
     try {
       const inferred = await inferTraits(svc.decisions, { profile, transcripts });
       seat.traits = mergeTraits(seat.traits, inferred);
@@ -71,17 +80,21 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
     behavior.updatedAt = now;
     await svc.store.putBehavior(input.characterId, behavior);
   }
-  // --- Voice: feed reply audio to the cloner to generate or update the IVC. ---
+
+  // --- Voice: feed reply audio to the cloner once to create an IVC. ---
+  // Only train when consented and still unlinked so repeat ingests don't leak
+  // provider voice slots.
   if (input.intent === "voice" || input.intent === "story") {
-    const existing = await svc.store.getVoice(input.characterId);
-    if (existing?.consent && existing.status !== "pvc") {
+    const existing = await resolveCharacterVoice(svc, input.characterId);
+    if (existing?.consent && existing.status === "unlinked") {
       const sampleAudioUrls = replies.map((r) => r.audioUrl).filter((u): u is string => Boolean(u));
       if (sampleAudioUrls.length > 0) {
+        const voiceKey = await voiceKeyForCharacter(svc, input.characterId);
         const voiceId = await svc.voice.createIvc({
-          characterId: input.characterId,
+          characterId: voiceKey,
           sampleAudioUrls,
         });
-        await svc.store.putVoice(input.characterId, {
+        await svc.store.putVoice(voiceKey, {
           consent: true,
           status: "ivc",
           modelRef: voiceId,
@@ -90,6 +103,46 @@ export async function ingestReplies(svc: CoreServices, input: IngestRepliesInput
       }
     }
   }
+}
+
+export interface SyncCampaignResult {
+  promptsChecked: number;
+  charactersSynced: number;
+}
+
+/**
+ * Re-ingest every published prompt for every matching party member in a
+ * campaign. Useful when Antiphony finishes async transcription after a player's
+ * initial reply upload.
+ */
+export async function syncCampaignReplies(
+  svc: CoreServices,
+  input: { campaignId: string },
+): Promise<SyncCampaignResult> {
+  const [prompts, party] = await Promise.all([
+    svc.store.listPrompts(input.campaignId),
+    partyOf(svc, input.campaignId),
+  ]);
+
+  const synced = new Set<string>();
+  for (const prompt of prompts) {
+    if (!prompt.antiphonyPromptUri) continue;
+    for (const member of party) {
+      const targeted =
+        prompt.audience.length === 0 ||
+        prompt.audience.some((uri) => uri === `at://${member.id}` || uri === `at://${member.player}`);
+      if (!targeted) continue;
+      await ingestReplies(svc, {
+        campaignId: input.campaignId,
+        characterId: member.id,
+        antiphonyPromptUri: prompt.antiphonyPromptUri,
+        intent: prompt.intent ?? "story",
+      });
+      synced.add(member.id);
+    }
+  }
+
+  return { promptsChecked: prompts.length, charactersSynced: synced.size };
 }
 
 function dedupe<T>(xs: T[]): T[] {

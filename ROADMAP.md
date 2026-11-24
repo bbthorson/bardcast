@@ -22,7 +22,7 @@ What's real and verified today, so the checkboxes below start from an honest flo
 - **Antiphony client** (`packages/antiphony-client`) wired behind the gateway port, fetch-mock tested.
 - Orchestrator loop skeleton: five use-cases with API routes, loop test runs end-to-end on stubs.
 - `apps/web` front door: six screens, branded, deployed to Cloudflare (Worker `bardcast`, static assets).
-- Campaign canon seed: *Sir Gawain and the Green Knight* (OKF, Pinakes 0.9.1).
+- Campaign canon seed: *Sir Gawain and the Green Knight* (OKF, Pinakes 1.0.2, linted in CI).
 
 ## M1 — Rename + hardening
 
@@ -153,7 +153,7 @@ The player makes and owns their characters; a campaign seats them. Design and de
 - [ ] **Before the first kept recording: the space URI format.** It may become
       `at:space/{authority}/…` before the beta. Update `space-uri.ts` (and test fixtures) once it
       is announced.
-- [ ] **Join consent:** the join flow says chapters belong to the table and stay after a player
+- [x] **Join consent:** the join flow (`JoinInvite.tsx`) says chapters belong to the table and stay after a player
       leaves (G3).
 - [ ] **Pick the real NSID root** to replace the placeholder `game.bardcast` (`packages/domain/src/nsid.ts`)
       before the first kept campaign: the space type is sealed into every campaign URI. Listed with
@@ -172,15 +172,23 @@ The player makes and owns their characters; a campaign seats them. Design and de
 - [x] `VoiceCloner` adapter (`ElevenLabsVoiceCloner`): IVC creation via POST /v1/voices/add using audio samples,
       shared PVC import from private link, and revocation via DELETE /v1/voices/{voice_id}.
 - [x] `AudioRenderer` adapter (`ElevenLabsAudioRenderer`): speaker-tagged multi-voice TTS synthesis, binary
-      audio frame concatenation, and storage persistence.
-- [ ] Orchestrator voice endpoints: train on sample add, poll status, revoke; wire the
-      `apps/web` VoiceClone screen to them (`apps/web/src/voice.ts` TODO).
+      audio frame concatenation, and R2 storage persistence (`AUDIO_BUCKET`, streamed via
+      `GET /api/campaigns/:campaignId/chapters/:chapterId/audio`).
+- [x] Orchestrator voice endpoints (`/api/voice`, `/consent`, `/ivc`, `/pvc`, `DELETE /api/voice`) keyed by
+      player DID, with `apps/web` `VoiceClone` wired live and DID-keyed voice resolution across readiness,
+      ingest, and chapter generation.
 
 ## M5 — Narrative engine
 
 > ⏳ **Waiting**: narrative-writer logic/capabilities are being extracted from another repo.
 > Don't build a throwaway implementation here — hold this milestone until that lands, then adapt
 > it behind the `NarrativeWriter` port.
+>
+> **Pinakes notes for M5:** Pinakes 1.0.2 currently lints/compiles static seed lore on local disk
+> (`lint:lore` in CI). Using Pinakes' library API (`context`, `lint`, `affectStateAt`) at runtime in
+> Cloudflare Workers will require either build-time compiled seed bundles or an in-memory/virtual-FS
+> `UniverseInput` in Pinakes, plus handling Bardcast's fantasy-calendar `storyDate` strings alongside
+> Pinakes' `YYYY-MM-DD` `asOf` horizon.
 
 - [ ] Real `NarrativeWriter` adapter (canon + character state → chapter script with dice
       checkpoints).
@@ -196,16 +204,19 @@ The player makes and owns their characters; a campaign seats them. Design and de
 ## M6 — Player surface + delivery
 
 - [x] `apps/player`: upload audio replies directly to the orchestrator BFF (`POST /api/campaigns/:id/characters/:charId/reply`)
-      which proxies to Antiphony and triggers character signal ingestion.
+      which proxies to Antiphony and triggers character signal ingestion. Inline prompt answering and chapter
+      playback are also wired directly in `apps/web` (`CampaignProgress.tsx`).
 - [ ] Web Push (VAPID) in the PWA engagement adapter so players hear about new prompts/chapters.
 - [ ] Share one recorder hook between `apps/web` and `apps/player` instead of the current copies.
 
 ## M7 — DM console + first episode
 
-- [x] `apps/dm`: real campaign/roster selection, readiness dashboard, suggested prompts, prompt composer
+- [x] `apps/dm`: real campaign/roster selection, AT-Proto session check, invite code minting, reply sync,
+      readiness dashboard (with optional playtest thresholds), suggested prompts, prompt composer
       and publishing, and trigger for chapter generation with audio playback.
-- [ ] Deploy the loop on Cloudflare: orchestrator Worker (`nodejs_compat`), player/DM static Workers,
-      R2 buckets, Queues for rendering, `wrangler` secrets (see `docs/hosting.md`).
+- [x] Bundle `apps/dm` under `/dm/` on the single `bardcast` Cloudflare Worker (same-origin `bsky_sid` cookie)
+      and bind R2 `AUDIO_BUCKET` (`bardcast-audio`) for rendered chapter MP3s; Queues for long async renders
+      wait on M5.
 - [ ] **MVP exit**: run one full episode loop end-to-end on the deployed stack with real players.
 
 ## Explicitly out of MVP

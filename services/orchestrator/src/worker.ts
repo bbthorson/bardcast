@@ -1,18 +1,21 @@
 import type { Hono } from "hono";
-import { buildServices, migrateD1, type D1Database } from "./adapters/index.js";
+import { buildServices, migrateD1, type D1Database, type R2Bucket } from "./adapters/index.js";
 import { createApp } from "./app.js";
 
 /**
  * Cloudflare Workers entry. The `bardcast` Worker serves the apps/web assets
- * and, for `/api/*`, `/atproto/*`, `/xrpc/*` and `/healthz` (`run_worker_first` in the
- * root `wrangler.jsonc`), this orchestrator. One origin means the session
- * cookie is first-party: no `SameSite=None`, no third-party cookie blocking.
+ * (and apps/dm under `/dm/`) and, for `/api/*`, `/atproto/*`, `/xrpc/*` and
+ * `/healthz` (`run_worker_first` in the root `wrangler.jsonc`), this
+ * orchestrator. One origin means the session cookie is first-party: no
+ * `SameSite=None`, no third-party cookie blocking.
  *
  * `src/index.ts` stays the Node entry for local development.
  */
 export interface Env {
   DB: D1Database;
   ASSETS: { fetch(request: Request): Promise<Response> };
+  /** R2 bucket for rendered chapter MP3s (`r2_buckets` in wrangler.jsonc). */
+  AUDIO_BUCKET?: R2Bucket;
   /** Seals sign-in sessions in D1. Set with `wrangler secret put SESSION_SECRET`. */
   SESSION_SECRET?: string;
   /**
@@ -58,6 +61,7 @@ function appFor(origin: string, env: Env): Hono {
   if (!app) {
     const svc = buildServices({
       d1: env.DB,
+      ...(env.AUDIO_BUCKET !== undefined ? { r2AudioBucket: env.AUDIO_BUCKET } : {}),
       auth: "atproto",
       appBaseUrl: `${origin}/`,
       orchestratorBaseUrl: origin,
@@ -85,14 +89,36 @@ function appFor(origin: string, env: Env): Hono {
   return app;
 }
 
-function isApiPath(pathname: string): boolean {
-  return pathname === "/healthz" || pathname.startsWith("/api/") || pathname.startsWith("/atproto/");
+export function isApiPath(pathname: string): boolean {
+  return (
+    pathname === "/healthz" ||
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/atproto/") ||
+    pathname.startsWith("/xrpc/")
+  );
+}
+
+/**
+ * Navigation requests to `/dm` or `/dm/...` (without a file extension) serve the
+ * DM console's `index.html` instead of falling back to apps/web's root SPA.
+ */
+function isDmRoute(pathname: string): boolean {
+  if (pathname === "/dm" || pathname === "/dm/") return true;
+  if (!pathname.startsWith("/dm/")) return false;
+  const last = pathname.split("/").pop() ?? "";
+  return !last.includes(".");
 }
 
 export default {
   async fetch(request: Request, env: Env, ctx: unknown): Promise<Response> {
     const url = new URL(request.url);
-    if (!isApiPath(url.pathname)) return env.ASSETS.fetch(request);
+    if (!isApiPath(url.pathname)) {
+      if (isDmRoute(url.pathname)) {
+        const dmIndex = new URL("/dm/index.html", url.origin);
+        return env.ASSETS.fetch(new Request(dmIndex.toString(), request));
+      }
+      return env.ASSETS.fetch(request);
+    }
 
     let app: Hono;
     try {

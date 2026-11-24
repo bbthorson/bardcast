@@ -1,36 +1,63 @@
 import { color, font, shape } from "@bardcast/brand";
-import type { CharacterReadiness, PartyReadiness, Prompt, Chapter } from "@bardcast/domain";
-import { useEffect, useState, useCallback } from "react";
+import type { CharacterReadiness, PartyReadiness, Prompt, Chapter, ReadinessThresholds } from "@bardcast/domain";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
+  fetchSession,
   fetchCampaigns,
   fetchCampaignDetail,
   fetchReadiness,
   fetchPrompts,
   fetchSuggestedPrompts,
+  createInviteApi,
+  syncCampaignApi,
   publishPromptApi,
   generateChapterApi,
+  type DmSession,
   type CampaignSummary,
   type CampaignDetail,
   type PromptSuggestion,
 } from "./api.js";
 
+const PLAYTEST_THRESHOLDS: ReadinessThresholds = {
+  minConfidentTraits: 0,
+  minTraitConfidence: 60,
+  minBehaviorExemplars: 1,
+  requireVoice: true,
+};
+
 /**
  * DM console: gives the DM full control over their table:
- * 1. Campaign selection and party readiness gate.
- * 2. Prompt station with loop-suggested prompts and prompt publishing.
- * 3. Chapter generation when the party is ready, with audio playback and script viewing.
+ * 1. Same-origin AT-Proto session check (shares cookie with apps/web).
+ * 2. Campaign selection, invite code minting, reply syncing, and party readiness gate.
+ * 3. Prompt station with loop-suggested prompts and prompt publishing.
+ * 4. Chapter generation when the party is ready, with R2 audio playback and script viewing.
  *
  * Adheres strictly to the Felt & Vellum brand design and the Candle Rule.
  */
 export function App() {
+  const initialCampaign = useMemo(
+    () => new URLSearchParams(window.location.search).get("campaign") ?? "",
+    [],
+  );
+
+  const [session, setSession] = useState<DmSession | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("gawain-green-knight");
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>(initialCampaign);
   const [campaignDetail, setCampaignDetail] = useState<CampaignDetail | null>(null);
   const [readiness, setReadiness] = useState<PartyReadiness | null>(null);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [suggestions, setSuggestions] = useState<PromptSuggestion[]>([]);
   const [status, setStatus] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [playtestMode, setPlaytestMode] = useState(true);
+
+  // Invite panel state
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [isMintingInvite, setIsMintingInvite] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   // Prompt composer state
   const [promptTitle, setPromptTitle] = useState("");
@@ -39,13 +66,13 @@ export function App() {
   const [promptAudience, setPromptAudience] = useState<string>("all");
   const [isPublishing, setIsPublishing] = useState(false);
 
-  // Load initial campaigns list
+  // Resolve AT-Proto session (same-origin cookie from apps/web)
   useEffect(() => {
     let cancelled = false;
-    fetchCampaigns().then((list) => {
-      if (!cancelled && list.length > 0) {
-        setCampaigns(list);
-        setSelectedCampaignId((current) => (list.some((c) => c.id === current) ? current : list[0]!.id));
+    fetchSession().then((s) => {
+      if (!cancelled) {
+        setSession(s);
+        setAuthChecked(true);
       }
     });
     return () => {
@@ -53,45 +80,129 @@ export function App() {
     };
   }, []);
 
-  // Refresh current campaign data
-  const refreshCampaign = useCallback(async (cId: string) => {
-    setStatus("Refreshing campaign state…");
-    const detail = await fetchCampaignDetail(cId);
-    setCampaignDetail(detail);
+  // Load campaigns for the signed-in user
+  useEffect(() => {
+    if (!authChecked) return;
+    if (!session && !import.meta.env.DEV) return;
+    let cancelled = false;
+    fetchCampaigns(session?.did).then((list) => {
+      if (cancelled) return;
+      // Prefer campaigns where this user is DM
+      const sorted = [...list].sort((a, b) => {
+        const aDm = session && a.campaign.dm === session.did ? 0 : 1;
+        const bDm = session && b.campaign.dm === session.did ? 0 : 1;
+        return aDm - bDm;
+      });
+      setCampaigns(sorted);
+      setSelectedCampaignId((current) => {
+        if (current && sorted.some((c) => c.id === current)) return current;
+        return sorted[0]?.id ?? current;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authChecked, session]);
 
-    const charIds = detail?.party.map((p) => p.id) ?? [];
-    if (charIds.length > 0) {
-      const [r, p, s] = await Promise.all([
-        fetchReadiness(cId, charIds),
-        fetchPrompts(cId),
-        fetchSuggestedPrompts(cId, charIds),
-      ]);
-      setReadiness(r);
-      setPrompts(p);
-      setSuggestions(s);
-    } else {
-      setReadiness(null);
-      const p = await fetchPrompts(cId);
-      setPrompts(p);
-      setSuggestions([]);
-    }
-    setStatus("");
-  }, []);
+  const activeThresholds = playtestMode ? PLAYTEST_THRESHOLDS : undefined;
+
+  // Refresh current campaign data
+  const refreshCampaign = useCallback(
+    async (cId: string) => {
+      if (!cId) return;
+      setStatus("Refreshing campaign state…");
+      const detail = await fetchCampaignDetail(cId);
+      setCampaignDetail(detail);
+
+      const charIds = detail?.party.map((p) => p.id) ?? [];
+      if (charIds.length > 0) {
+        const [r, p, s] = await Promise.all([
+          fetchReadiness(cId, charIds, activeThresholds),
+          fetchPrompts(cId),
+          fetchSuggestedPrompts(cId, charIds),
+        ]);
+        setReadiness(r);
+        setPrompts(p);
+        setSuggestions(s);
+      } else {
+        setReadiness(null);
+        const p = await fetchPrompts(cId);
+        setPrompts(p);
+        setSuggestions([]);
+      }
+      setStatus("");
+    },
+    [activeThresholds],
+  );
 
   useEffect(() => {
     if (selectedCampaignId) {
-      refreshCampaign(selectedCampaignId);
+      setInviteCode(null);
+      setCopiedInvite(false);
+      void refreshCampaign(selectedCampaignId);
     }
   }, [selectedCampaignId, refreshCampaign]);
 
-  const characterIds = campaignDetail?.party.map((p) => p.id) ?? [];
+  const party = useMemo(() => campaignDetail?.party ?? [], [campaignDetail]);
+  const characterIds = useMemo(() => party.map((p) => p.id), [party]);
+  const nameById = useMemo(
+    () => Object.fromEntries(party.map((p) => [p.id, p.profile?.displayName || p.id])),
+    [party],
+  );
+  const isOwner = !campaignDetail || !session || campaignDetail.campaign.dm === session.did;
+
+  async function handleMintInvite() {
+    if (!selectedCampaignId) return;
+    setIsMintingInvite(true);
+    setCopiedInvite(false);
+    try {
+      const { code } = await createInviteApi(selectedCampaignId, session?.did);
+      setInviteCode(code);
+      setStatus(`Invite code minted: ${code}`);
+    } catch (err) {
+      setStatus(`Could not create invite: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsMintingInvite(false);
+    }
+  }
+
+  async function handleCopyInvite() {
+    if (!inviteCode) return;
+    const url = `${window.location.origin}/join?code=${encodeURIComponent(inviteCode)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedInvite(true);
+    } catch {
+      setStatus(`Share this invite link: ${url}`);
+    }
+  }
+
+  async function handleSyncReplies() {
+    if (!selectedCampaignId) return;
+    setIsSyncing(true);
+    setStatus("Syncing player replies & transcripts from Antiphony…");
+    try {
+      const res = await syncCampaignApi(selectedCampaignId, session?.did);
+      await refreshCampaign(selectedCampaignId);
+      setStatus(
+        `Synced ${res.promptsChecked} ${res.promptsChecked === 1 ? "prompt" : "prompts"} across ${res.charactersSynced} ${res.charactersSynced === 1 ? "character" : "characters"}.`,
+      );
+    } catch (err) {
+      setStatus(`Sync failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  }
 
   async function handleGenerate() {
     if (!readiness?.ready || characterIds.length === 0) return;
     setIsGenerating(true);
     setStatus("Writing chapter and synthesizing audio…");
     try {
-      const { chapter } = await generateChapterApi(selectedCampaignId, characterIds);
+      const { chapter } = await generateChapterApi(selectedCampaignId, characterIds, {
+        ...(activeThresholds ? { thresholds: activeThresholds } : {}),
+        ...(session?.did ? { actingDid: session.did } : {}),
+      });
       setStatus(`Chapter created: “${chapter.title}” (${chapter.status})`);
       await refreshCampaign(selectedCampaignId);
     } catch (err) {
@@ -103,18 +214,26 @@ export function App() {
 
   async function handlePublishPrompt(e: React.FormEvent) {
     e.preventDefault();
-    if (!promptTitle.trim()) return;
+    if (!promptTitle.trim() || !selectedCampaignId) return;
     setIsPublishing(true);
     setStatus("Publishing prompt to the table…");
     try {
       const audience = promptAudience === "all" ? [] : [promptAudience];
-      await publishPromptApi({
-        campaignId: selectedCampaignId,
-        title: promptTitle.trim(),
-        scene: promptScene.trim() || undefined,
-        intent: promptIntent,
-        audience,
-      });
+      const audienceDids =
+        promptAudience === "all"
+          ? party.map((p) => p.player)
+          : party.filter((p) => p.id === promptAudience).map((p) => p.player);
+      await publishPromptApi(
+        {
+          campaignId: selectedCampaignId,
+          title: promptTitle.trim(),
+          scene: promptScene.trim() || undefined,
+          intent: promptIntent,
+          audience,
+          audienceDids,
+        },
+        session?.did,
+      );
       setPromptTitle("");
       setPromptScene("");
       setStatus("Prompt sent to the players.");
@@ -137,12 +256,54 @@ export function App() {
     }
   }
 
+  if (!authChecked) {
+    return (
+      <main style={styles.main}>
+        <div style={styles.page}>
+          <p style={styles.muted}>Checking your DM seat…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!session && !import.meta.env.DEV) {
+    return (
+      <main style={styles.main}>
+        <div style={{ ...styles.page, maxWidth: 480, paddingTop: "5rem" }}>
+          <span style={styles.eyebrow}>Console</span>
+          <h1 style={styles.h1}>Bardcast — DM Table</h1>
+          <p style={{ ...styles.muted, marginTop: "1rem", lineHeight: 1.5 }}>
+            Sign in with your Bluesky account on Bardcast first. Your session carries straight over to the DM console.
+          </p>
+          <div style={{ marginTop: "1.5rem" }}>
+            <a
+              href="/"
+              style={{ ...styles.candleBtn, textDecoration: "none", display: "inline-block" }}
+            >
+              Sign in at Bardcast
+            </a>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main style={styles.main}>
       <div style={styles.page}>
         {/* Header and Campaign Selector */}
         <header style={styles.header}>
           <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+              <a href="/" style={{ color: color.chalkDim, fontSize: "0.85rem", textDecoration: "none" }}>
+                ‹ Back to Bardcast
+              </a>
+              {session && (
+                <span style={{ ...styles.muted, fontFamily: font.mono, fontSize: "0.75rem" }}>
+                  {session.handle ? `@${session.handle}` : session.did}
+                </span>
+              )}
+            </div>
             <span style={styles.eyebrow}>Console</span>
             <h1 style={styles.h1}>Bardcast — DM Table</h1>
           </div>
@@ -163,23 +324,62 @@ export function App() {
                   </option>
                 ))
               ) : (
-                <option value={selectedCampaignId}>{selectedCampaignId}</option>
+                <option value="">No campaigns yet</option>
               )}
             </select>
-            <button style={styles.btnSecondary} onClick={() => refreshCampaign(selectedCampaignId)}>
+            <button style={styles.btnSecondary} onClick={() => void refreshCampaign(selectedCampaignId)} disabled={!selectedCampaignId}>
               Refresh
             </button>
           </div>
         </header>
 
+        {!selectedCampaignId && (
+          <div style={styles.campaignMeta}>
+            <p style={{ margin: 0 }}>No campaigns found for your account yet.</p>
+            <p style={{ ...styles.muted, marginTop: 6, marginBottom: 0 }}>
+              <a href="/campaigns/new" style={{ color: color.candle }}>
+                Start a campaign in Bardcast
+              </a>{" "}
+              and come back here to invite players and run the table.
+            </p>
+          </div>
+        )}
+
         {campaignDetail && (
           <div style={styles.campaignMeta}>
-            <p style={{ margin: "0 0 4px", fontSize: "1.1rem", fontFamily: font.display }}>
-              {campaignDetail.campaign.title}
-            </p>
-            {campaignDetail.campaign.premise && (
-              <p style={{ ...styles.muted, margin: 0 }}>{campaignDetail.campaign.premise}</p>
-            )}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
+              <div>
+                <p style={{ margin: "0 0 4px", fontSize: "1.1rem", fontFamily: font.display }}>
+                  {campaignDetail.campaign.title}
+                </p>
+                {campaignDetail.campaign.premise && (
+                  <p style={{ ...styles.muted, margin: 0 }}>{campaignDetail.campaign.premise}</p>
+                )}
+                {!isOwner && (
+                  <p style={{ color: color.hearthSoft, fontSize: "0.8rem", margin: "6px 0 0" }}>
+                    You are viewing this table as a player; DM actions require the campaign DM account.
+                  </p>
+                )}
+              </div>
+              {isOwner && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  {inviteCode ? (
+                    <>
+                      <span style={{ fontFamily: font.mono, fontSize: "0.95rem", letterSpacing: "0.1em", padding: "0.45rem 0.75rem", background: color.felt, borderRadius: shape.radius.chip, border: `1px solid ${color.feltLine}` }}>
+                        {inviteCode}
+                      </span>
+                      <button style={styles.btnSecondary} onClick={() => void handleCopyInvite()}>
+                        {copiedInvite ? "Copied link" : "Copy invite link"}
+                      </button>
+                    </>
+                  ) : (
+                    <button style={styles.btnSecondary} onClick={() => void handleMintInvite()} disabled={isMintingInvite}>
+                      {isMintingInvite ? "Minting…" : "New invite code"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -195,26 +395,43 @@ export function App() {
                   ? "All party members meet the thresholds. The table is ready for the next chapter."
                   : "Gathering character voices, sheets, and behaviors."}
               </p>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: "0.8rem", color: color.chalkDim, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={playtestMode}
+                  onChange={(e) => setPlaytestMode(e.target.checked)}
+                />
+                Playtest thresholds (1 reply + voice clone; uncheck for full 5 traits / 8 exemplars)
+              </label>
             </div>
-            {/* The Candle: single lit action when the gate is ready */}
-            <button
-              style={{
-                ...styles.candleBtn,
-                ...(readiness?.ready && !isGenerating ? null : styles.candleBtnDisabled),
-              }}
-              disabled={!readiness?.ready || isGenerating}
-              onClick={handleGenerate}
-            >
-              {isGenerating ? "Synthesizing…" : "Generate next chapter"}
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                style={styles.btnSecondary}
+                disabled={!selectedCampaignId || isSyncing || !isOwner}
+                onClick={() => void handleSyncReplies()}
+              >
+                {isSyncing ? "Syncing…" : "Sync replies"}
+              </button>
+              {/* The Candle: single lit action when the gate is ready */}
+              <button
+                style={{
+                  ...styles.candleBtn,
+                  ...(readiness?.ready && !isGenerating && isOwner ? null : styles.candleBtnDisabled),
+                }}
+                disabled={!readiness?.ready || isGenerating || !isOwner}
+                onClick={() => void handleGenerate()}
+              >
+                {isGenerating ? "Synthesizing…" : "Generate next chapter"}
+              </button>
+            </div>
           </div>
 
           {characterIds.length === 0 ? (
-            <p style={styles.muted}>No characters enrolled in this campaign yet.</p>
+            <p style={styles.muted}>No characters enrolled in this campaign yet. Mint an invite code above and send it to your players.</p>
           ) : readiness ? (
             <div style={styles.grid}>
               {Object.entries(readiness.perCharacter).map(([id, r]) => (
-                <CharacterCard key={id} id={id} r={r} />
+                <CharacterCard key={id} id={id} displayName={nameById[id] ?? id} r={r} />
               ))}
             </div>
           ) : (
@@ -239,7 +456,7 @@ export function App() {
                     <div style={{ flex: 1 }}>
                       <span style={styles.tag}>{s.intent}</span>
                       {s.characterId && (
-                        <span style={{ ...styles.tag, marginLeft: 6 }}>for {s.characterId}</span>
+                        <span style={{ ...styles.tag, marginLeft: 6 }}>for {nameById[s.characterId] ?? s.characterId}</span>
                       )}
                       <p style={{ margin: "6px 0 2px", fontWeight: 500 }}>{s.title}</p>
                       <p style={{ ...styles.muted, margin: 0, fontSize: "0.8rem" }}>{s.rationale}</p>
@@ -254,7 +471,7 @@ export function App() {
           )}
 
           {/* Prompt composer form */}
-          <form onSubmit={handlePublishPrompt} style={styles.composerForm}>
+          <form onSubmit={(e) => void handlePublishPrompt(e)} style={styles.composerForm}>
             <div style={styles.formRow}>
               <div style={{ flex: 2, display: "flex", flexDirection: "column", gap: 6 }}>
                 <label style={styles.label}>Prompt title / question *</label>
@@ -278,7 +495,7 @@ export function App() {
                   <option value="all">Whole Party</option>
                   {characterIds.map((cId) => (
                     <option key={cId} value={cId}>
-                      {cId}
+                      {nameById[cId] ?? cId}
                     </option>
                   ))}
                 </select>
@@ -313,11 +530,11 @@ export function App() {
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <button
                 type="submit"
-                disabled={isPublishing || !promptTitle.trim()}
+                disabled={isPublishing || !promptTitle.trim() || !selectedCampaignId || !isOwner}
                 style={{
                   ...styles.btnSecondary,
                   fontWeight: 600,
-                  opacity: isPublishing || !promptTitle.trim() ? 0.5 : 1,
+                  opacity: isPublishing || !promptTitle.trim() || !selectedCampaignId || !isOwner ? 0.5 : 1,
                 }}
               >
                 {isPublishing ? "Sending…" : "Publish prompt to party"}
@@ -339,7 +556,9 @@ export function App() {
                     {p.scene && <p style={{ ...styles.muted, margin: "4px 0 0", fontSize: "0.85rem" }}>{p.scene}</p>}
                     <span style={{ ...styles.muted, fontSize: "0.75rem", marginTop: 4, display: "block" }}>
                       {new Date(p.createdAt).toLocaleString()} · Audience:{" "}
-                      {p.audience && p.audience.length > 0 ? p.audience.join(", ") : "Party"}
+                      {p.audience && p.audience.length > 0
+                        ? p.audience.map((u) => nameById[u.replace(/^at:\/\//, "")] ?? u).join(", ")
+                        : "Party"}
                     </span>
                   </div>
                 ))}
@@ -411,7 +630,7 @@ export function App() {
                       <div style={styles.scriptBox}>
                         {ch.script.map((line, li) => (
                           <div key={li} style={{ marginBottom: 6 }}>
-                            <span style={{ fontWeight: 600, color: color.chalk }}>{line.speaker}: </span>
+                            <span style={{ fontWeight: 600, color: color.chalk }}>{nameById[line.speaker] ?? line.speaker}: </span>
                             <span style={{ color: color.chalkDim }}>{line.text}</span>
                           </div>
                         ))}
@@ -430,11 +649,16 @@ export function App() {
   );
 }
 
-function CharacterCard({ id, r }: { id: string; r: CharacterReadiness }) {
+function CharacterCard({ id, displayName, r }: { id: string; displayName: string; r: CharacterReadiness }) {
   return (
     <article style={{ ...styles.card, borderColor: r.ready ? color.moss : color.feltLine }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "0.6rem" }}>
-        <h3 style={{ margin: 0, fontFamily: font.display, fontSize: "1.1rem" }}>{id}</h3>
+        <div>
+          <h3 style={{ margin: 0, fontFamily: font.display, fontSize: "1.1rem" }}>{displayName}</h3>
+          {displayName !== id && (
+            <span style={{ fontFamily: font.mono, fontSize: "0.7rem", color: color.chalkDim }}>{id}</span>
+          )}
+        </div>
         <span
           style={{
             fontFamily: font.mono,

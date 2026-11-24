@@ -2,89 +2,163 @@ import type { VoiceProfile } from "@bardcast/domain";
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * Client-side stub of the voice-clone lifecycle. Mirrors the orchestrator's
- * `VoiceCloner` port and `StubVoiceCloner`: a voice advances
- * collecting → training → ready once it has enough samples, and consent is a
- * real, revocable gate (docs/hosting.md — ElevenLabs requires it). We store only
- * the `VoiceProfile` shape (a modelRef + consent + sample URIs), never raw audio.
+ * Orchestrator-backed voice-clone lifecycle (docs/hosting.md, docs/character-creation.md).
  *
- * TODO(bardcast): replace this with calls to the orchestrator — `train` on add,
- * `status` polling while training, `revoke` on revoke — uploading each sample to
- * Antiphony and passing its reply AT-URI here. This hook keeps the front door
- * walkable until those endpoints exist.
+ * One voice profile per player (keyed by DID on the orchestrator). Consent is a
+ * real, revocable gate: granting consent persists to D1, training an IVC sends
+ * the player's session-zero recordings (or arms auto-cloning on first campaign
+ * reply), linking a PVC imports a private ElevenLabs share link, and revoking
+ * deletes the model at ElevenLabs.
  */
 
-const key = (did: string) => `bardcast.web.voice.${did}`;
+const ORCHESTRATOR =
+  (import.meta.env["VITE_ORCHESTRATOR_URL"] as string | undefined) ??
+  (import.meta.env.DEV ? "http://127.0.0.1:8787" : "");
 
-function load(did: string): VoiceProfile | null {
-  try {
-    const raw = localStorage.getItem(key(did));
-    return raw ? (JSON.parse(raw) as VoiceProfile) : null;
-  } catch {
-    return null;
-  }
+function headersFor(did: string, json = false): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (json) headers["content-type"] = "application/json";
+  if (did) headers["X-Acting-Did"] = did;
+  return headers;
+}
+
+async function readError(res: Response, fallback: string): Promise<string> {
+  const body = ((await res.json().catch(() => ({}))) as { message?: string; error?: string }) || {};
+  return body.message || body.error || fallback;
 }
 
 export function useVoiceClone(did: string) {
-  const [profile, setProfile] = useState<VoiceProfile | null>(() => load(did));
+  const [profile, setProfile] = useState<VoiceProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    setProfile(load(did));
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setNotice(null);
+    fetch(`${ORCHESTRATOR}/api/voice`, {
+      headers: headersFor(did),
+      credentials: "include",
+    })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        const data = (await res.json()) as { profile: VoiceProfile | null };
+        return data.profile ?? null;
+      })
+      .catch(() => null)
+      .then((loaded) => {
+        if (!cancelled) {
+          setProfile(loaded);
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [did]);
 
-  const persist = useCallback(
-    (next: VoiceProfile | null) => {
-      setProfile(next);
+  /** Give consent and mark as unlinked (ready for IVC or PVC). */
+  const startClone = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`${ORCHESTRATOR}/api/voice/consent`, {
+        method: "POST",
+        headers: headersFor(did),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await readError(res, "Could not save voice consent."));
+      const data = (await res.json()) as { profile: VoiceProfile };
+      setProfile(data.profile);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save voice consent.");
+    } finally {
+      setBusy(false);
+    }
+  }, [did]);
+
+  /** Train an Instant Voice Clone from the player's session-zero recordings (or arm auto-clone). */
+  const trainIvc = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`${ORCHESTRATOR}/api/voice/ivc`, {
+        method: "POST",
+        headers: headersFor(did, true),
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error(await readError(res, "Could not build voice clone."));
+      const data = (await res.json()) as { profile: VoiceProfile; trained: boolean; sampleCount: number };
+      setProfile(data.profile);
+      if (data.trained) {
+        setNotice(
+          data.sampleCount > 0
+            ? `Built your voice clone from ${data.sampleCount} ${data.sampleCount === 1 ? "recording" : "recordings"}.`
+            : "Your voice clone is active.",
+        );
+      } else {
+        setNotice(
+          "You're all set. No recordings yet — Bardcast will build your Instant Voice Clone automatically from your first spoken answer.",
+        );
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not build voice clone.");
+    } finally {
+      setBusy(false);
+    }
+  }, [did]);
+
+  /** Link a user-owned ElevenLabs shared Professional Voice Clone link. */
+  const linkPvc = useCallback(
+    async (sharingLink: string) => {
+      setBusy(true);
+      setError(null);
+      setNotice(null);
       try {
-        if (next) localStorage.setItem(key(did), JSON.stringify(next));
-        else localStorage.removeItem(key(did));
-      } catch {
-        /* private mode — state lives only in memory */
+        const res = await fetch(`${ORCHESTRATOR}/api/voice/pvc`, {
+          method: "POST",
+          headers: headersFor(did, true),
+          credentials: "include",
+          body: JSON.stringify({ sharingLink }),
+        });
+        if (!res.ok) throw new Error(await readError(res, "Could not link ElevenLabs voice."));
+        const data = (await res.json()) as { profile: VoiceProfile };
+        setProfile(data.profile);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not link ElevenLabs voice.");
+      } finally {
+        setBusy(false);
       }
     },
     [did],
   );
 
-  /** Give consent and mark as unlinked. */
-  const startClone = useCallback(() => {
-    persist({ status: "unlinked", consent: true, createdAt: new Date().toISOString() });
-  }, [persist]);
-
-  /** Link a user-owned ElevenLabs shared voice link. */
-  const linkPvc = useCallback(
-    (sharingLink: string) => {
-      if (!profile || !profile.consent) return;
-      persist({
-        ...profile,
-        status: "pvc",
-        modelRef: `elevenlabs:${sharingLink.split("/").pop() || "unknown"}`,
+  /** Honour a consent revocation: delete the provider clone and unlink. */
+  const revoke = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch(`${ORCHESTRATOR}/api/voice`, {
+        method: "DELETE",
+        headers: headersFor(did),
+        credentials: "include",
       });
-    },
-    [profile, persist],
-  );
+      if (!res.ok) throw new Error(await readError(res, "Could not revoke voice clone."));
+      const data = (await res.json()) as { profile: VoiceProfile };
+      setProfile(data.profile);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not revoke voice clone.");
+    } finally {
+      setBusy(false);
+    }
+  }, [did]);
 
-  /** Backend creates/assigns an IVC automatically. */
-  const setIvc = useCallback(
-    (voiceId: string) => {
-      if (!profile || !profile.consent) return;
-      persist({
-        ...profile,
-        status: "ivc",
-        modelRef: `elevenlabs-ivc:${voiceId}`,
-      });
-    },
-    [profile, persist],
-  );
-
-  /** Honour a consent revocation: drop the model, mark the profile unlinked/revoked. */
-  const revoke = useCallback(() => {
-    persist({
-      status: "unlinked",
-      consent: false,
-      createdAt: profile?.createdAt ?? new Date().toISOString(),
-    });
-  }, [profile, persist]);
-
-  return { profile, startClone, linkPvc, setIvc, revoke };
+  return { profile, loading, busy, error, notice, startClone, trainIvc, linkPvc, revoke };
 }
-

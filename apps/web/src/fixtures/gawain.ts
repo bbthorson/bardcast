@@ -87,6 +87,8 @@ export interface ChapterView {
   segments?: SpeakerSegment[];
   /** Fraction already listened to. */
   played?: number;
+  /** Playable URL / ref for a rendered chapter (same-origin R2 stream or data URI). */
+  audioRef?: string;
   beats?: Beat[];
   /** The DM's margin note, in chalk. */
   dmNote?: string;

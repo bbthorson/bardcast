@@ -206,12 +206,15 @@ function SignedIn({
       ) : isCampaignView ? (
         <CampaignProgress
           campaignId={routeCampaignId}
-          // TODO(bardcast): open the player app's recorder for this prompt.
-          onAnswer={() => undefined}
+          player={player}
           onOpenCharacter={(id) => navigate(path.character(routeCampaignId, id))}
         />
       ) : router.path === path.create ? (
-        <CreateCampaign player={player} onBack={back} />
+        <CreateCampaign
+          player={player}
+          onBack={back}
+          onOpenCampaign={(id) => navigate(path.campaign(id))}
+        />
       ) : router.path === path.join ? (
         <JoinInvite
           player={player}

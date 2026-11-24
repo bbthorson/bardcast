@@ -1,20 +1,22 @@
+import { useAudioRecorder } from "@antiphony/capture-kit";
 import { color, font, seal, shape, trail, voice, voiceColor, voiceHues, type Seal } from "@bardcast/brand";
-import { useMemo, useState, useEffect } from "react";
+import type { PartyReadiness, Player, Prompt } from "@bardcast/domain";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { campaign, dm, party, readinessOf, speakerColor, type ChapterView, type PartyMember } from "../fixtures/gawain.js";
 import { Die, EpisodeWave, HandNote, HexKey, PlayGlyph, SealMark, SplatterStain, Stop, styles } from "../ui.js";
 import {
   fetchCampaignDetail,
   fetchCampaignPrompts,
   fetchPartyReadiness,
+  submitPromptReplyApi,
   type CampaignDetail,
 } from "../api.js";
-import type { PartyReadiness, Prompt } from "@bardcast/domain";
 
 /**
  * Campaign progress: the quest spine as a hand-drawn trail with a stop per
- * chapter. Told chapters carry an episode player and the beats that happened
- * (with the die that decided them); the chapter being gathered shows who's
- * ready to be heard across the readiness gate's three axes.
+ * chapter. Told chapters carry a real episode player and the beats that
+ * happened; the chapter being gathered shows who's ready to be heard across the
+ * readiness gate's three axes.
  *
  * Connects to the orchestrator for live campaign state. Only the sample table
  * (`campaign.id`) falls back to the Sir Gawain fixture; a real campaign shows
@@ -25,18 +27,37 @@ import type { PartyReadiness, Prompt } from "@bardcast/domain";
  */
 export function CampaignProgress({
   campaignId,
-  onAnswer,
+  player,
   onOpenCharacter,
 }: {
   campaignId?: string;
-  onAnswer: (promptUri?: string) => void;
+  player: Player;
   onOpenCharacter: (id: string) => void;
 }) {
   const [campaignData, setCampaignData] = useState<CampaignDetail | null>(null);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [readiness, setReadiness] = useState<PartyReadiness | null>(null);
   const [load, setLoad] = useState<"loading" | "ready" | "missing">("loading");
+  const [answering, setAnswering] = useState(false);
+  const [answeredBanner, setAnsweredBanner] = useState<string | null>(null);
   const isSample = !campaignId || campaignId === campaign.id;
+
+  const loadCampaign = useCallback(async (cId: string) => {
+    const detail = await fetchCampaignDetail(cId);
+    if (!detail) {
+      setLoad("missing");
+      return;
+    }
+    setCampaignData(detail);
+    setLoad("ready");
+    const charIds = detail.party.map((p) => p.id);
+    const [promptList, ready] = await Promise.all([
+      fetchCampaignPrompts(cId),
+      charIds.length > 0 ? fetchPartyReadiness(cId, charIds) : Promise.resolve(null),
+    ]);
+    setPrompts(promptList);
+    setReadiness(ready);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +65,8 @@ export function CampaignProgress({
     setCampaignData(null);
     setPrompts([]);
     setReadiness(null);
+    setAnswering(false);
+    setAnsweredBanner(null);
     setLoad("loading");
     fetchCampaignDetail(cId).then(async (detail) => {
       if (cancelled) return;
@@ -83,22 +106,37 @@ export function CampaignProgress({
           ? `@${p.profile.player.replace(/^did:[^:]+:/, "").slice(0, 10)}`
           : defaultFixture?.handle || `@${p.id}`,
         hue: defaultFixture?.hue ?? voiceHues[idx % voiceHues.length]!,
-        confidentTraits: r ? Math.round(r.sheet.progress * 5) : defaultFixture?.confidentTraits ?? 5,
-        exemplars: r ? Math.round(r.behavior.progress * 8) : defaultFixture?.exemplars ?? 8,
+        confidentTraits: r ? Math.round(r.sheet.progress * 5) : defaultFixture?.confidentTraits ?? 0,
+        exemplars: r ? Math.round(r.behavior.progress * 8) : defaultFixture?.exemplars ?? 0,
         voice: r ? (r.voice.progress > 0 ? "ivc" : "unlinked") : defaultFixture?.voice ?? "unlinked",
       };
     });
   }, [campaignData, readiness, isSample]);
 
+  const mySeat = useMemo(
+    () => campaignData?.party.find((p) => p.player === player.did) ?? null,
+    [campaignData, player.did],
+  );
+
   const activePrompt = useMemo(() => {
     if (prompts.length > 0) {
-      const p = prompts[prompts.length - 1]!;
-      const targetId = p.audience?.[0]?.replace(/^at:\/\//, "") || partyList[0]?.id || "gawain";
+      // Pick the newest prompt aimed at this player (or whole party), else newest overall.
+      const sorted = [...prompts].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const p =
+        sorted.find(
+          (pr) =>
+            pr.audience.length === 0 ||
+            pr.audience.some(
+              (uri) => uri === `at://${player.did}` || (mySeat ? uri === `at://${mySeat.id}` : false),
+            ),
+        ) ?? sorted[0]!;
+      const targetId = mySeat?.id || p.audience?.[0]?.replace(/^at:\/\//, "") || partyList[0]?.id || "gawain";
       return {
         to: targetId,
         asked: `asked ${new Date(p.createdAt).toLocaleDateString()}`,
         text: p.title + (p.scene ? ` — ${p.scene}` : ""),
         seconds: 30,
+        intent: p.intent ?? ("story" as const),
         antiphonyPromptUri: p.antiphonyPromptUri,
       };
     }
@@ -108,22 +146,24 @@ export function CampaignProgress({
       asked: campaign.prompt.asked,
       text: campaign.prompt.text,
       seconds: campaign.prompt.seconds,
+      intent: "story" as const,
       antiphonyPromptUri: undefined as string | undefined,
     };
-  }, [prompts, partyList, isSample]);
+  }, [prompts, partyList, isSample, player.did, mySeat]);
 
   const chapterList: ChapterView[] = useMemo(() => {
     if (isSample && !campaignData?.chapters.length) return campaign.chapters;
     const romanNumerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
     const chapters: ChapterView[] = (campaignData?.chapters ?? []).map((ch, idx) => ({
-        numeral: romanNumerals[idx] ?? String(ch.index),
-        title: ch.title,
-        state: ch.status === "ready" ? "told" : ch.status === "drafting" ? "sealed" : "gathering",
-        when: ch.storyDate ?? (ch.status === "ready" ? "recorded" : "gathering voices"),
-        minutes: Math.max(1, Math.round((ch.script.length * 4) / 60)),
-        beats: ch.beats.map((b) => ({ who: ch.script[0]?.speaker ?? "narrator", text: b.summary })),
-        played: ch.status === "ready" ? 1 : 0,
-      }));
+      numeral: romanNumerals[idx] ?? String(ch.index),
+      title: ch.title,
+      state: ch.status === "ready" ? "told" : ch.status === "drafting" ? "sealed" : "gathering",
+      when: ch.storyDate ?? (ch.status === "ready" ? "recorded" : "gathering voices"),
+      minutes: Math.max(1, Math.round((ch.script.length * 4) / 60)),
+      beats: ch.beats.map((b) => ({ who: ch.script[0]?.speaker ?? "narrator", text: b.summary })),
+      played: 0,
+      ...(ch.audioRef ? { audioRef: ch.audioRef } : {}),
+    }));
     // The trail always ends at the chapter the party is gathering voices for,
     // so the readiness gate has somewhere to sit.
     if (partyList.length > 0 && !chapters.some((c) => c.state === "gathering")) {
@@ -148,6 +188,7 @@ export function CampaignProgress({
   const dmHandle = campaignData?.campaign.dm
     ? `@${campaignData.campaign.dm.replace(/^did:[^:]+:/, "").slice(0, 10)}`
     : dm.handle;
+  const isDm = Boolean(campaignData && campaignData.campaign.dm === player.did);
 
   const seals = useMemo(
     () => Object.fromEntries(partyList.map((p) => [p.id, seal(p.id, { hue: p.hue, bars: 29 })])),
@@ -156,6 +197,7 @@ export function CampaignProgress({
   const dmSeal = useMemo(() => seal(dm.seed, { bone: true, bars: 29 }), []);
   const path = useMemo(() => trail("trail", walkedRatio), [walkedRatio]);
   const asked = activePrompt ? partyList.find((p) => p.id === activePrompt.to) ?? partyList[0] : undefined;
+  const liveCampaignId = campaignData?.id ?? campaignId ?? campaign.id;
 
   if (!isSample && load !== "ready") {
     return (
@@ -170,43 +212,100 @@ export function CampaignProgress({
       <div style={{ padding: "8px 24px 0", display: "flex", flexDirection: "column", gap: 10 }}>
         <span style={styles.eyebrow}>{eyebrow}</span>
         <h1 style={{ ...styles.h1, fontSize: 32, margin: 0 }}>{title}</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
-          <div style={{ display: "flex" }}>
-            {partyList.map((p) => (
-              <SealMark key={p.id} seal={seals[p.id]!} size={34} label={p.name} style={{ marginRight: -4 }} />
-            ))}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex" }}>
+              {partyList.map((p) => (
+                <SealMark key={p.id} seal={seals[p.id]!} size={34} label={p.name} style={{ marginRight: -4 }} />
+              ))}
+            </div>
+            <span style={{ fontSize: 14, color: color.chalkDim, marginLeft: 8 }}>
+              {partyList.length} {partyList.length === 1 ? "player" : "players"} · DM <span style={{ fontFamily: font.mono }}>{dmHandle}</span>
+            </span>
           </div>
-          <span style={{ fontSize: 14, color: color.chalkDim, marginLeft: 8 }}>
-            {partyList.length} {partyList.length === 1 ? "player" : "players"} · DM <span style={{ fontFamily: font.mono }}>{dmHandle}</span>
-          </span>
+          {isDm && (
+            <a
+              href={`/dm/?campaign=${encodeURIComponent(liveCampaignId)}`}
+              style={{ ...styles.compact, textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+            >
+              DM Console ›
+            </a>
+          )}
         </div>
       </div>
 
       {partyList.length === 0 && (
-        <p style={{ ...styles.muted, margin: "22px 24px 0" }}>No one has joined yet. Once players take a seat, their readiness shows up here.</p>
+        <p style={{ ...styles.muted, margin: "22px 24px 0" }}>
+          No one has joined yet. Once players take a seat, their readiness shows up here.
+        </p>
       )}
 
       {/* The DM's question, set down a little crooked. */}
       {activePrompt && asked && (
-      <section style={{ ...styles.card, margin: "22px 16px 0", transform: "rotate(0.9deg)", boxShadow: "0 10px 24px rgba(0,0,0,0.35)", display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <SealMark seal={dmSeal} size={36} />
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <span style={{ fontSize: 14, fontWeight: 600 }}>{voice.promptNotification(asked.shortName)}</span>
-            <span style={styles.meta}>{activePrompt.asked}</span>
+        <section
+          style={{
+            ...styles.card,
+            margin: "22px 16px 0",
+            transform: answering ? "none" : "rotate(0.9deg)",
+            boxShadow: "0 10px 24px rgba(0,0,0,0.35)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <SealMark seal={dmSeal} size={36} />
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{voice.promptNotification(asked.shortName)}</span>
+              <span style={styles.meta}>{activePrompt.asked}</span>
+            </div>
           </div>
-        </div>
-        <p style={{ fontFamily: font.display, fontSize: 20, lineHeight: 1.35, margin: 0, textWrap: "pretty" }}>{activePrompt.text}</p>
-        {/* The one candle on this screen. */}
-        <button style={styles.candle} onClick={() => onAnswer(activePrompt.antiphonyPromptUri)}>
-          <span style={{ width: 12, height: 12, borderRadius: 999, background: color.felt }} />
-          {voice.answerAs(asked.shortName)} · 0:{String(activePrompt.seconds).padStart(2, "0")}
-        </button>
-      </section>
+          <p style={{ fontFamily: font.display, fontSize: 20, lineHeight: 1.35, margin: 0, textWrap: "pretty" }}>
+            {activePrompt.text}
+          </p>
+
+          {answeredBanner && (
+            <p style={{ color: color.moss, fontSize: 14, margin: 0 }}>{answeredBanner}</p>
+          )}
+
+          {answering ? (
+            <InlinePromptRecorder
+              campaignId={liveCampaignId}
+              characterId={mySeat?.id ?? asked.id}
+              characterName={asked.shortName}
+              promptUri={activePrompt.antiphonyPromptUri}
+              intent={activePrompt.intent}
+              actingDid={player.did}
+              onCancel={() => setAnswering(false)}
+              onSent={() => {
+                setAnswering(false);
+                setAnsweredBanner("Sent. Your DM can sync replies and weave it into the next chapter.");
+                void loadCampaign(liveCampaignId);
+              }}
+            />
+          ) : (
+            /* The one candle on this screen. */
+            <button
+              style={styles.candle}
+              onClick={() => {
+                setAnsweredBanner(null);
+                setAnswering(true);
+              }}
+            >
+              <span style={{ width: 12, height: 12, borderRadius: 999, background: color.felt }} />
+              {voice.answerAs(asked.shortName)}
+            </button>
+          )}
+        </section>
       )}
 
       <div style={{ padding: "34px 24px 44px", position: "relative" }}>
-        <svg viewBox="0 0 20 1000" preserveAspectRatio="none" aria-hidden style={{ position: "absolute", left: 34, top: 44, width: 20, height: "calc(100% - 154px)", overflow: "visible" }}>
+        <svg
+          viewBox="0 0 20 1000"
+          preserveAspectRatio="none"
+          aria-hidden
+          style={{ position: "absolute", left: 34, top: 44, width: 20, height: "calc(100% - 154px)", overflow: "visible" }}
+        >
           <path d={path.full} stroke={color.feltWorn} strokeWidth={2} strokeDasharray="1 7" strokeLinecap="round" fill="none" vectorEffect="non-scaling-stroke" />
           <path d={path.walked} stroke={color.chalk} strokeWidth={2.2} strokeLinecap="round" fill="none" vectorEffect="non-scaling-stroke" />
         </svg>
@@ -230,7 +329,182 @@ export function CampaignProgress({
   );
 }
 
+function InlinePromptRecorder({
+  campaignId,
+  characterId,
+  characterName,
+  promptUri,
+  intent,
+  actingDid,
+  onCancel,
+  onSent,
+}: {
+  campaignId: string;
+  characterId: string;
+  characterName: string;
+  promptUri?: string | undefined;
+  intent: "sheet" | "behavior" | "voice" | "story";
+  actingDid: string;
+  onCancel: () => void;
+  onSent: () => void;
+}) {
+  const { status, elapsedMs, start, stop, recording, reset, error, errorKind } = useAudioRecorder({
+    maxDurationMs: 180_000,
+  });
+  const blob = recording?.blob;
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!blob) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    setPreviewUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [blob]);
+
+  if (!promptUri) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <p style={{ ...styles.muted, margin: 0 }}>
+          This is a sample prompt. Join or start a live campaign to record answers for your DM.
+        </p>
+        <button style={styles.secondary} onClick={onCancel}>Close</button>
+      </div>
+    );
+  }
+
+  async function send() {
+    if (!blob || !promptUri || sending) return;
+    setSending(true);
+    setSendError(null);
+    try {
+      await submitPromptReplyApi(
+        {
+          campaignId,
+          characterId,
+          promptUri,
+          intent,
+          audio: blob,
+          ...(note.trim() ? { text: note.trim() } : {}),
+        },
+        actingDid,
+      );
+      reset();
+      onSent();
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : "Could not send your reply.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, borderTop: `1px solid ${color.feltLine}`, paddingTop: 12 }}>
+      {error && status === "error" && (
+        <p style={{ color: color.hearthSoft, fontSize: 13, margin: 0 }}>
+          {errorKind === "permission-denied"
+            ? "Microphone access was denied. Allow microphone permissions in your browser to answer out loud."
+            : error}
+        </p>
+      )}
+      {sendError && <p style={{ color: color.hearthSoft, fontSize: 13, margin: 0 }}>{sendError}</p>}
+
+      {status === "recording" ? (
+        <button
+          style={{ ...styles.candle, background: color.hearth, color: color.chalk }}
+          onClick={stop}
+        >
+          Stop recording ({Math.floor(elapsedMs / 1000)}s)
+        </button>
+      ) : (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button style={blob ? styles.secondary : styles.candle} onClick={start} disabled={sending}>
+            {blob ? "Re-record" : `Record as ${characterName}`}
+          </button>
+          <button style={styles.quiet} onClick={() => { reset(); onCancel(); }} disabled={sending}>
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {blob && status !== "recording" && (
+        <>
+          {previewUrl && <audio controls src={previewUrl} style={{ width: "100%" }} />}
+          <input
+            type="text"
+            placeholder="Optional short note / transcript hint…"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            disabled={sending}
+            style={styles.input}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={styles.secondary} onClick={reset} disabled={sending}>
+              Discard
+            </button>
+            <button style={styles.candle} onClick={() => void send()} disabled={sending}>
+              {sending ? "Sending to table…" : "Send answer"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ToldChapter({ ch }: { ch: ChapterView }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(ch.played ?? 0);
+  const [playError, setPlayError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+  }, [ch.audioRef]);
+
+  function togglePlay() {
+    if (!ch.audioRef) return;
+    setPlayError(null);
+    let el = audioRef.current;
+    if (!el) {
+      el = new Audio(ch.audioRef);
+      el.addEventListener("timeupdate", () => {
+        if (el && el.duration > 0) setProgress(el.currentTime / el.duration);
+      });
+      el.addEventListener("ended", () => {
+        setPlaying(false);
+        setProgress(1);
+      });
+      el.addEventListener("pause", () => setPlaying(false));
+      el.addEventListener("error", () => {
+        setPlaying(false);
+        setPlayError("Could not play this chapter's audio.");
+      });
+      audioRef.current = el;
+    }
+    if (playing) {
+      el.pause();
+      setPlaying(false);
+    } else {
+      el.play()
+        .then(() => setPlaying(true))
+        .catch(() => {
+          setPlaying(false);
+          setPlayError("Could not start audio playback.");
+        });
+    }
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 10, minWidth: 0 }}>
       <span style={styles.meta}>
@@ -238,12 +512,21 @@ function ToldChapter({ ch }: { ch: ChapterView }) {
       </span>
       <h2 style={{ ...styles.h2, margin: 0 }}>{ch.title}</h2>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {/* TODO(bardcast): play the chapter's rendered audioRef. */}
-        <HexKey size={44} background={color.feltLine} label={`Play ${ch.title}`}>
-          <PlayGlyph size={40} fill={color.chalk} />
+        <HexKey
+          size={44}
+          background={playing ? color.candle : color.feltLine}
+          label={ch.audioRef ? (playing ? `Pause ${ch.title}` : `Play ${ch.title}`) : `${ch.title} (sample audio unavailable)`}
+          {...(ch.audioRef ? { onClick: togglePlay } : {})}
+        >
+          {playing ? (
+            <span style={{ fontFamily: font.mono, fontSize: 13, fontWeight: 700, color: color.felt }}>||</span>
+          ) : (
+            <PlayGlyph size={40} fill={ch.audioRef ? color.chalk : color.chalkDim} />
+          )}
         </HexKey>
-        <EpisodeWave seed={`ch${ch.numeral}`} bars={46} height={30} segments={ch.segments ?? []} played={ch.played ?? 0} colorOf={speakerColor("felt")} />
+        <EpisodeWave seed={`ch${ch.numeral}`} bars={46} height={30} segments={ch.segments ?? []} played={progress} colorOf={speakerColor("felt")} />
       </div>
+      {playError && <p style={{ color: color.hearthSoft, fontSize: 13, margin: 0 }}>{playError}</p>}
       <ul style={{ listStyle: "none", margin: "6px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
         {ch.beats?.map((b) => {
           const who = party.find((p) => p.id === b.who);
@@ -291,27 +574,27 @@ function GatheringChapter({
         </div>
         {rows.map(({ p, r }) => {
           return (
-          <button
-            key={p.id}
-            onClick={() => onOpenCharacter(p.id)}
-            aria-label={`${p.name}: ${r.status}`}
-            style={{ display: "grid", gridTemplateColumns: "32px 1fr", gap: 10, alignItems: "center", background: "transparent", border: "none", padding: 0, color: "inherit", font: "inherit", textAlign: "left", cursor: "pointer" }}
-          >
-            <SealMark seal={seals[p.id]!} size={32} />
-            <span style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <span style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-                <span style={{ fontWeight: 500 }}>{p.name}</span>
-                <span style={{ fontFamily: font.mono, fontSize: 11, color: r.ready ? color.moss : r.status === "needs voice" ? color.hearthSoft : color.chalkDim }}>{r.status}</span>
+            <button
+              key={p.id}
+              onClick={() => onOpenCharacter(p.id)}
+              aria-label={`${p.name}: ${r.status}`}
+              style={{ display: "grid", gridTemplateColumns: "32px 1fr", gap: 10, alignItems: "center", background: "transparent", border: "none", padding: 0, color: "inherit", font: "inherit", textAlign: "left", cursor: "pointer" }}
+            >
+              <SealMark seal={seals[p.id]!} size={32} />
+              <span style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                  <span style={{ fontWeight: 500 }}>{p.name}</span>
+                  <span style={{ fontFamily: font.mono, fontSize: 11, color: r.ready ? color.moss : r.status === "needs voice" ? color.hearthSoft : color.chalkDim }}>{r.status}</span>
+                </span>
+                <span style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 4 }}>
+                  {r.axes.map((v, i) => (
+                    <span key={i} style={{ height: 4, borderRadius: 2, background: color.feltLine, position: "relative", overflow: "hidden" }}>
+                      <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.round(v * 100)}%`, background: voiceColor(p.hue) }} />
+                    </span>
+                  ))}
+                </span>
               </span>
-              <span style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 4 }}>
-                {r.axes.map((v, i) => (
-                  <span key={i} style={{ height: 4, borderRadius: 2, background: color.feltLine, position: "relative", overflow: "hidden" }}>
-                    <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${Math.round(v * 100)}%`, background: voiceColor(p.hue) }} />
-                  </span>
-                ))}
-              </span>
-            </span>
-          </button>
+            </button>
           );
         })}
         <div aria-hidden style={{ display: "grid", gridTemplateColumns: "32px repeat(3, minmax(0, 1fr))", gap: 4, fontFamily: font.mono, fontSize: 10, color: color.chalkDim, marginTop: -8 }}>

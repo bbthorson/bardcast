@@ -5,6 +5,7 @@ import {
   type ReadinessThresholds,
 } from "@bardcast/domain";
 import type { CoreServices } from "../ports/index.js";
+import { resolveCharacterVoice } from "./voice.js";
 
 /**
  * Step 3 of the loop: the readiness gate. Loads every party character's signal
@@ -22,7 +23,7 @@ export async function checkReadiness(
     const [seat, behavior, voice] = await Promise.all([
       svc.store.getSeat(input.campaignId, id),
       svc.store.getBehavior(id),
-      svc.store.getVoice(id),
+      resolveCharacterVoice(svc, id),
     ]);
     party[id] = {
       seat: seat ?? undefined,

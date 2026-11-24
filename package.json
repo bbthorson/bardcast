@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present && node -e \"const fs=require('node:fs');fs.rmSync('apps/web/dist/dm',{recursive:true,force:true});fs.cpSync('apps/dm/dist','apps/web/dist/dm',{recursive:true});\"",
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint . --max-warnings=0",
     "lint:lore": "pinakes lint --root content/campaigns/sir-gawain-and-the-green-knight",

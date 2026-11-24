@@ -1,11 +1,14 @@
-import { newMasterSeed, type Chapter, type CharacterStateEvent } from "@bardcast/domain";
+import { newMasterSeed, type Chapter, type CharacterStateEvent, type ReadinessThresholds } from "@bardcast/domain";
 import type { CoreServices, NarrativeCharacter } from "../ports/index.js";
 import { checkReadiness } from "./check-readiness.js";
+import { resolveCharacterVoice } from "./voice.js";
 
 export interface GenerateChapterInput {
   campaignId: string;
   characterIds: string[];
   directorNote?: string;
+  /** Optional readiness gate override (e.g. lower thresholds during a closed playtest). */
+  thresholds?: ReadinessThresholds;
 }
 
 export class NotReadyError extends Error {
@@ -31,6 +34,7 @@ export async function generateChapter(
   const readiness = await checkReadiness(svc, {
     campaignId: input.campaignId,
     characterIds: input.characterIds,
+    ...(input.thresholds ? { thresholds: input.thresholds } : {}),
   });
   if (!readiness.ready) throw new NotReadyError(readiness.blocking);
 
@@ -51,11 +55,15 @@ export async function generateChapter(
     const [seat, behavior, voice] = await Promise.all([
       svc.store.getSeat(input.campaignId, id),
       svc.store.getBehavior(id),
-      svc.store.getVoice(id),
+      resolveCharacterVoice(svc, id),
     ]);
     characters.push({ id, profile, seat, behavior });
     if (voice?.modelRef) voiceRefs[id] = voice.modelRef;
   }
+
+  // If the DM linked a narrator voice clone, let ElevenLabs narrate in it.
+  const dmVoice = await svc.store.getVoice(campaign.dm);
+  const narratorVoiceRef = dmVoice?.consent && dmVoice.modelRef ? dmVoice.modelRef : undefined;
 
   // --- writing ---
   let chapter: Chapter = {
@@ -93,6 +101,9 @@ export async function generateChapter(
     transcript: written.transcript,
     script: written.script,
     voices: voiceRefs,
+    ...(narratorVoiceRef ? { narratorVoiceRef } : {}),
+    campaignId: input.campaignId,
+    chapterId,
   });
 
   // --- ready ---

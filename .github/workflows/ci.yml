@@ -42,8 +42,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm run lint:lore
       - run: npm test
-      # Builds apps/web, apps/player and apps/dm. apps/web/dist is what the
-      # Worker serves as static assets (wrangler.jsonc), so a broken build here
-      # is a broken deploy.
+      # Builds apps/web, apps/player and apps/dm (and stages apps/dm/dist under
+      # apps/web/dist/dm for the single bardcast Worker in wrangler.jsonc).
       - run: npm run build

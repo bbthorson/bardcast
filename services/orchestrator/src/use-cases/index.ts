@@ -1,5 +1,5 @@
 export { publishPrompt, type PublishPromptInput } from "./publish-prompt.js";
-export { ingestReplies, type IngestRepliesInput } from "./ingest-replies.js";
+export { ingestReplies, syncCampaignReplies, type IngestRepliesInput, type SyncCampaignResult } from "./ingest-replies.js";
 export { checkReadiness } from "./check-readiness.js";
 export { generateChapter, NotReadyError, type GenerateChapterInput } from "./generate-chapter.js";
 export { closeSeat, commitChapterActions, refreshSeatStates, type CommitChapterActionsInput } from "./actions.js";
@@ -31,3 +31,14 @@ export {
 } from "./creation.js";
 export { checkSpaceAccess, type SpaceAccess } from "./space-access.js";
 export { charactersOf, partyOf, SeatError, seatOf, takeSeat, type PartyMember } from "./seats.js";
+export {
+  getVoiceProfile,
+  grantVoiceConsent,
+  linkVoicePvc,
+  resolveCharacterVoice,
+  revokeVoice,
+  trainVoiceIvc,
+  VoiceError,
+  voiceKeyForCharacter,
+  type TrainVoiceIvcResult,
+} from "./voice.js";

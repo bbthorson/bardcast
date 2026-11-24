@@ -9,12 +9,20 @@ import {
   CreationError,
   currentSheet,
   getCreation,
+  getVoiceProfile,
+  grantVoiceConsent,
+  linkVoicePvc,
   listCreations,
   pickAttribute,
   proposeCharacter,
   questionAudio,
+  resolveCharacterVoice,
   reviseLine,
+  revokeVoice,
   startCreation,
+  syncCampaignReplies,
+  trainVoiceIvc,
+  VoiceError,
   generateChapter,
   ingestReplies,
   NotReadyError,
@@ -38,10 +46,12 @@ import {
   isRecordUri,
   managingAppRef,
   parseSpaceRef,
+  ReadinessThresholds,
   type Campaign,
   type Player,
 } from "@bardcast/domain";
 import { AtprotoIdentityProvider } from "./adapters/atproto/identity-provider.js";
+import { chapterAudioKey } from "./adapters/r2-audio-storage.js";
 
 const CreateCampaignSchema = z.object({
   title: z.string().min(1).max(200),
@@ -67,7 +77,18 @@ const IngestRepliesSchema = z.object({
 const GenerateChapterSchema = z.object({
   characterIds: z.array(z.string()).min(1),
   directorNote: z.string().max(2000).optional(),
+  thresholds: ReadinessThresholds.optional(),
 });
+
+const LinkPvcSchema = z.object({
+  sharingLink: z.string().min(1).max(500),
+});
+
+const TrainIvcSchema = z.object({
+  force: z.boolean().optional(),
+});
+
+const VOICE_ERROR_STATUS = { conflict: 409, invalid: 400 } as const;
 
 const JoinCampaignSchema = z.object({
   code: z.string().min(1).max(64),
@@ -375,7 +396,7 @@ export function createApp(svc: CoreServices): Hono {
       currentSheet(svc, characterId).then((v) => v?.sheet ?? null),
       svc.store.getSeat(campaignId, characterId),
       svc.store.getBehavior(characterId),
-      svc.store.getVoice(characterId),
+      resolveCharacterVoice(svc, characterId),
     ]);
 
     if (!profile) {
@@ -383,6 +404,72 @@ export function createApp(svc: CoreServices): Hono {
     }
 
     return c.json({ characterId, profile, sheet, seat, behavior, voice });
+  });
+
+  // --- Voice clone lifecycle (keyed by signed-in player DID) -----------------
+  app.get("/api/voice", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const profile = await getVoiceProfile(svc, { did: player.did as `did:${string}` });
+    return c.json({ profile });
+  });
+
+  app.post("/api/voice/consent", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const profile = await grantVoiceConsent(svc, { did: player.did as `did:${string}` });
+    return c.json({ profile });
+  });
+
+  app.post("/api/voice/pvc", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const raw = await c.req.json().catch(() => null);
+    const parsed = LinkPvcSchema.safeParse(raw);
+    if (!parsed.success) {
+      return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+    }
+    try {
+      const profile = await linkVoicePvc(svc, {
+        did: player.did as `did:${string}`,
+        sharingLink: parsed.data.sharingLink,
+      });
+      return c.json({ profile });
+    } catch (err) {
+      if (err instanceof VoiceError) {
+        return c.json({ error: err.code, message: err.message }, VOICE_ERROR_STATUS[err.code]);
+      }
+      throw err;
+    }
+  });
+
+  app.post("/api/voice/ivc", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const raw = await c.req.json().catch(() => ({}));
+    const parsed = TrainIvcSchema.safeParse(raw ?? {});
+    if (!parsed.success) {
+      return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+    }
+    try {
+      const result = await trainVoiceIvc(svc, {
+        did: player.did as `did:${string}`,
+        ...(parsed.data.force !== undefined ? { force: parsed.data.force } : {}),
+      });
+      return c.json(result);
+    } catch (err) {
+      if (err instanceof VoiceError) {
+        return c.json({ error: err.code, message: err.message }, VOICE_ERROR_STATUS[err.code]);
+      }
+      throw err;
+    }
+  });
+
+  app.delete("/api/voice", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const profile = await revokeVoice(svc, { did: player.did as `did:${string}` });
+    return c.json({ profile });
   });
 
   // --- Step 1: List and publish prompts -------------------------------------
@@ -393,16 +480,27 @@ export function createApp(svc: CoreServices): Hono {
   });
 
   app.post("/api/campaigns/:campaignId/prompts", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) {
+      return c.json({ error: "unauthorized", message: "Sign-in required to publish a prompt." }, 401);
+    }
+
     const campaignId = c.req.param("campaignId");
+    const campaign = await svc.store.getCampaign(campaignId);
+    if (!campaign) {
+      return c.json({ error: "not_found", message: `Campaign ${campaignId} not found` }, 404);
+    }
+    if (campaign.dm !== player.did) {
+      return c.json({ error: "forbidden", message: "Only the campaign DM can publish prompts." }, 403);
+    }
+
     const raw = await c.req.json().catch(() => null);
     const parsed = PublishPromptSchema.safeParse(raw);
     if (!parsed.success) {
       return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
     }
 
-    const player = await resolvePlayer(c, svc);
-    const dmDid = (player?.did ?? parsed.data.dmDid ?? "did:example:dm") as `did:${string}`;
-
+    const dmDid = player.did as `did:${string}`;
     const promptId = parsed.data.promptId ?? `prompt.${campaignId}.${crypto.randomUUID().slice(0, 8)}`;
     const prompt = await publishPrompt(svc, {
       campaignId,
@@ -418,9 +516,42 @@ export function createApp(svc: CoreServices): Hono {
   });
 
   // --- Step 2: Ingest replies into derived signal -----------------------------
+  app.post("/api/campaigns/:campaignId/sync", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) {
+      return c.json({ error: "unauthorized", message: "Sign-in required to sync replies." }, 401);
+    }
+    const campaignId = c.req.param("campaignId");
+    const campaign = await svc.store.getCampaign(campaignId);
+    if (!campaign) {
+      return c.json({ error: "not_found", message: `Campaign ${campaignId} not found` }, 404);
+    }
+    if (campaign.dm !== player.did) {
+      return c.json({ error: "forbidden", message: "Only the campaign DM can sync campaign replies." }, 403);
+    }
+    const result = await syncCampaignReplies(svc, { campaignId });
+    return c.json(result);
+  });
+
   app.post("/api/campaigns/:campaignId/characters/:characterId/ingest", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) {
+      return c.json({ error: "unauthorized", message: "Sign-in required to ingest replies." }, 401);
+    }
     const campaignId = c.req.param("campaignId");
     const characterId = c.req.param("characterId");
+    const [campaign, profile] = await Promise.all([
+      svc.store.getCampaign(campaignId),
+      svc.store.getCharacter(characterId),
+    ]);
+    if (!campaign) {
+      return c.json({ error: "not_found", message: `Campaign ${campaignId} not found` }, 404);
+    }
+    const isOwner = profile?.player ? profile.player === player.did : characterId === player.did;
+    if (campaign.dm !== player.did && !isOwner) {
+      return c.json({ error: "forbidden", message: "Only the DM or the character's player can ingest replies." }, 403);
+    }
+
     const raw = await c.req.json().catch(() => null);
     const parsed = IngestRepliesSchema.safeParse(raw);
     if (!parsed.success) {
@@ -444,6 +575,11 @@ export function createApp(svc: CoreServices): Hono {
     const player = await resolvePlayer(c, svc);
     if (!player) {
       return c.json({ error: "unauthorized", message: "Sign-in required to post a reply." }, 401);
+    }
+
+    const profile = await svc.store.getCharacter(characterId);
+    if (profile?.player && profile.player !== player.did) {
+      return c.json({ error: "forbidden", message: "That character belongs to another player." }, 403);
     }
 
     const contentType = c.req.header("content-type") || "";
@@ -524,13 +660,45 @@ export function createApp(svc: CoreServices): Hono {
   app.get("/api/campaigns/:campaignId/readiness", async (c) => {
     const campaignId = c.req.param("campaignId");
     const characterIds = c.req.queries("character") ?? [];
-    const readiness = await checkReadiness(svc, { campaignId, characterIds });
+    const minTraits = c.req.query("minTraits");
+    const minExemplars = c.req.query("minExemplars");
+    const requireVoice = c.req.query("requireVoice");
+    let thresholds: z.infer<typeof ReadinessThresholds> | undefined;
+    if (minTraits !== undefined || minExemplars !== undefined || requireVoice !== undefined) {
+      const parsed = ReadinessThresholds.safeParse({
+        ...(minTraits !== undefined ? { minConfidentTraits: Number(minTraits) } : {}),
+        ...(minExemplars !== undefined ? { minBehaviorExemplars: Number(minExemplars) } : {}),
+        ...(requireVoice !== undefined ? { requireVoice: requireVoice !== "false" } : {}),
+      });
+      if (!parsed.success) {
+        return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+      }
+      thresholds = parsed.data;
+    }
+    const readiness = await checkReadiness(svc, {
+      campaignId,
+      characterIds,
+      ...(thresholds ? { thresholds } : {}),
+    });
     return c.json(readiness);
   });
 
-  // --- Step 4: Generate a chapter --------------------------------------------
+  // --- Step 4: Generate a chapter & stream its rendered audio ----------------
   app.post("/api/campaigns/:campaignId/chapters", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) {
+      return c.json({ error: "unauthorized", message: "Sign-in required to generate a chapter." }, 401);
+    }
+
     const campaignId = c.req.param("campaignId");
+    const campaign = await svc.store.getCampaign(campaignId);
+    if (!campaign) {
+      return c.json({ error: "not_found", message: `Campaign ${campaignId} not found` }, 404);
+    }
+    if (campaign.dm !== player.did) {
+      return c.json({ error: "forbidden", message: "Only the campaign DM can generate chapters." }, 403);
+    }
+
     const raw = await c.req.json().catch(() => null);
     const parsed = GenerateChapterSchema.safeParse(raw);
     if (!parsed.success) {
@@ -542,6 +710,7 @@ export function createApp(svc: CoreServices): Hono {
         campaignId,
         characterIds: parsed.data.characterIds,
         ...(parsed.data.directorNote ? { directorNote: parsed.data.directorNote } : {}),
+        ...(parsed.data.thresholds ? { thresholds: parsed.data.thresholds } : {}),
       });
       return c.json(result, 201);
     } catch (err) {
@@ -550,6 +719,38 @@ export function createApp(svc: CoreServices): Hono {
       }
       throw err;
     }
+  });
+
+  app.get("/api/campaigns/:campaignId/chapters/:chapterId/audio", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) {
+      return c.json({ error: "unauthorized", message: "Sign-in required to listen to chapters." }, 401);
+    }
+    const campaignId = c.req.param("campaignId");
+    const chapterId = c.req.param("chapterId");
+    const campaign = await svc.store.getCampaign(campaignId);
+    if (!campaign) {
+      return c.json({ error: "not_found", message: `Campaign ${campaignId} not found` }, 404);
+    }
+    const isParty = campaign.dm === player.did || campaign.party.includes(`at://${player.did}` as never);
+    if (!isParty) {
+      return c.json({ error: "forbidden", message: "Only the DM and party may listen to this chapter." }, 403);
+    }
+    if (!svc.audioStorage) {
+      return c.json({ error: "not_found", message: "Chapter audio storage is not configured." }, 404);
+    }
+    const audio = await svc.audioStorage.get(chapterAudioKey(campaignId, chapterId));
+    if (!audio) {
+      return c.json({ error: "not_found", message: "Chapter audio not found." }, 404);
+    }
+    const body = audio.body instanceof Uint8Array ? audio.body.slice().buffer : audio.body;
+    return new Response(body, {
+      status: 200,
+      headers: {
+        "content-type": audio.contentType,
+        "cache-control": "private, max-age=3600",
+      },
+    });
   });
 
   // --- Character creation: session zero (docs/character-creation.md) ---------

@@ -210,3 +210,38 @@ export async function fetchPartyReadiness(
     return null;
   }
 }
+
+export async function submitPromptReplyApi(
+  params: {
+    campaignId: string;
+    characterId: string;
+    promptUri: string;
+    intent?: "sheet" | "behavior" | "voice" | "story";
+    audio: Blob;
+    text?: string;
+  },
+  actingDid?: string,
+): Promise<{ success: boolean; replyUri: string }> {
+  const headers: Record<string, string> = {};
+  if (actingDid) headers["X-Acting-Did"] = actingDid;
+  const form = new FormData();
+  form.append("audio", params.audio, "reply.webm");
+  form.append("promptUri", params.promptUri);
+  form.append("intent", params.intent ?? "story");
+  if (params.text?.trim()) form.append("text", params.text.trim());
+
+  const res = await fetch(
+    `${ORCHESTRATOR}/api/campaigns/${encodeURIComponent(params.campaignId)}/characters/${encodeURIComponent(params.characterId)}/reply`,
+    {
+      method: "POST",
+      headers,
+      credentials: "include",
+      body: form,
+    },
+  );
+  if (!res.ok) {
+    const err = ((await res.json().catch(() => ({}))) as { message?: string; error?: string }) || {};
+    throw new Error(err.message || err.error || "Could not send your reply to the table.");
+  }
+  return (await res.json()) as { success: boolean; replyUri: string };
+}

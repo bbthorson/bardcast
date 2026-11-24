@@ -7,6 +7,9 @@ export interface RenderChapterInput {
   voices: Record<string, string>;
   /** Voice/model for the DM-narrator portions. */
   narratorVoiceRef?: string | undefined;
+  /** Campaign and chapter ids, used to derive a deterministic R2 key when audio storage is mounted. */
+  campaignId?: string | undefined;
+  chapterId?: string | undefined;
 }
 
 export interface RenderLineInput {
