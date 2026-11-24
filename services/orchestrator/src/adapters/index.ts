@@ -17,15 +17,18 @@ import { D1Store } from "./d1/d1-store.js";
 import type { D1Database } from "./d1/d1.js";
 import { d1Store, memoryStore } from "@bbthorson/atproto-cf-auth/server";
 import { ElevenLabsVoiceCloner } from "./elevenlabs/voice-cloner.js";
-import { ElevenLabsAudioRenderer } from "./elevenlabs/audio-renderer.js";
+import { ElevenLabsAudioRenderer, type AudioStorageAdapter } from "./elevenlabs/audio-renderer.js";
 import { ClaudeNarrativeWriter } from "./anthropic/narrative-writer.js";
 import { AtprotoServiceAuthVerifier } from "./atproto/service-auth.js";
+import { R2AudioStorage, type R2Bucket } from "./r2-audio-storage.js";
+import type { AudioStorage } from "../ports/audio-storage.js";
 
 export * from "./postgres/client.js";
 export * from "./postgres/postgres-store.js";
 export * from "./postgres/migrate.js";
 export * from "./d1/d1.js";
 export * from "./d1/d1-store.js";
+export * from "./r2-audio-storage.js";
 export * from "./elevenlabs/voice-cloner.js";
 export * from "./elevenlabs/audio-renderer.js";
 export * from "./workers-ai-decision-model.js";
@@ -86,6 +89,10 @@ export interface BuildServicesConfig {
   sqlClient?: SqlClient;
   /** Optional custom store override. */
   store?: Store;
+  /** Cloudflare R2 bucket binding for rendered chapter MP3s (`AUDIO_BUCKET`). */
+  r2AudioBucket?: R2Bucket;
+  /** Optional custom audio storage override (e.g. InMemoryAudioStorage in tests). */
+  audioStorage?: AudioStorage & AudioStorageAdapter;
   /**
    * Bardcast's own DID (`BARDCAST_DID`): the authority of the spaces it makes,
    * and whose DID document publishes its managing-app service
@@ -161,11 +168,14 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
         }
       : undefined;
 
+  const audioStorage = config.audioStorage ?? (config.r2AudioBucket ? new R2AudioStorage(config.r2AudioBucket) : undefined);
+
   const audio = config.elevenLabsApiKey
     ? new ElevenLabsAudioRenderer({
         apiKey: config.elevenLabsApiKey,
         ...(config.defaultNarratorVoiceId ? { defaultNarratorVoiceId: config.defaultNarratorVoiceId } : {}),
         ...(gateway ? { gateway } : {}),
+        ...(audioStorage ? { storage: audioStorage } : {}),
       })
     : new StubAudioRenderer();
 
@@ -191,6 +201,7 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
       : new StubNarrativeWriter(),
     voice,
     audio,
+    ...(audioStorage ? { audioStorage } : {}),
     identity,
     decisions,
     engagement,

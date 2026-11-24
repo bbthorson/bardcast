@@ -13,6 +13,7 @@ export type {
 } from "./narrative-writer.js";
 export type { VoiceCloner } from "./voice-cloner.js";
 export type { AudioRenderer, RenderChapterInput, RenderedAudio, RenderLineInput, RenderedLine } from "./audio-renderer.js";
+export type { AudioStorage, StoredAudioObject } from "./audio-storage.js";
 export type { IdentityProvider } from "./identity-provider.js";
 export type { AntiphonyGateway } from "./antiphony-gateway.js";
 export type {

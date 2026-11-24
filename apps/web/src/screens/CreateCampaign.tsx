@@ -8,7 +8,15 @@ import { createCampaignApi, createInviteApi } from "../api.js";
  * Create-a-campaign form. Persists the campaign on the orchestrator via
  * POST /api/campaigns, mints an invite code, and displays it to the DM.
  */
-export function CreateCampaign({ player, onBack }: { player: Player; onBack: () => void }) {
+export function CreateCampaign({
+  player,
+  onBack,
+  onOpenCampaign,
+}: {
+  player: Player;
+  onBack: () => void;
+  onOpenCampaign?: (campaignId: string) => void;
+}) {
   const [title, setTitle] = useState("");
   const [premise, setPremise] = useState("");
   const [calendar, setCalendar] = useState("");
@@ -34,44 +42,24 @@ export function CreateCampaign({ player, onBack }: { player: Player; onBack: () 
         player.did,
       );
 
-      let inviteCode = "";
-      try {
-        const inv = await createInviteApi(res.id, player.did);
-        inviteCode = inv.code;
-      } catch {
-        inviteCode = Math.random().toString(36).slice(2, 8).toUpperCase();
-      }
-
-      setCreated({ id: res.id, campaign: res.campaign, inviteCode });
-    } catch {
-      // Local fallback for offline development
-      const fallbackId = `campaign.${title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "untitled"}`;
-      const fallbackInvite = Math.random().toString(36).slice(2, 8).toUpperCase();
-      setCreated({
-        id: fallbackId,
-        campaign: {
-          title: title.trim(),
-          dm: player.did,
-          party: [],
-          createdAt: new Date().toISOString(),
-          ...(premise.trim() ? { premise: premise.trim() } : {}),
-          ...(calendar.trim() ? { calendar: calendar.trim() } : {}),
-        },
-        inviteCode: fallbackInvite,
-      });
+      const inv = await createInviteApi(res.id, player.did);
+      setCreated({ id: res.id, campaign: res.campaign, inviteCode: inv.code });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create campaign. Make sure you're signed in and try again.");
     } finally {
       setLoading(false);
     }
   }
 
   if (created) {
+    const shareUrl = `${window.location.origin}/join?code=${encodeURIComponent(created.inviteCode)}`;
     return (
       <div style={styles.page}>
         <button style={{ ...styles.back, marginLeft: -10 }} onClick={onBack}>‹ Back to your table</button>
         <p style={{ ...styles.eyebrow, marginTop: "1rem" }}>Campaign created</p>
         <h1 style={styles.h1}>{created.campaign.title}</h1>
         <p style={styles.muted}>
-          Your table is set. Share this invite code with your players so they can bring their
+          Your table is set. Share this invite code (or link) with your players so they can bring their
           characters.
         </p>
         <div style={{ ...styles.card, marginTop: "1rem" }}>
@@ -79,10 +67,26 @@ export function CreateCampaign({ player, onBack }: { player: Player; onBack: () 
           <p style={{ fontFamily: font.mono, fontSize: "1.6rem", letterSpacing: "0.12em", color: color.chalk, margin: 0 }}>
             {created.inviteCode}
           </p>
-          <p style={{ ...styles.muted, fontSize: "0.8rem", marginTop: "0.75rem", marginBottom: 0 }}>
+          <p style={{ ...styles.muted, fontSize: "0.8rem", marginTop: "0.5rem", marginBottom: 0, overflowWrap: "anywhere" }}>
+            Link: <span style={{ fontFamily: font.mono }}>{shareUrl}</span>
+          </p>
+          <p style={{ ...styles.muted, fontSize: "0.8rem", marginTop: "0.5rem", marginBottom: 0 }}>
             Campaign id <span style={{ fontFamily: font.mono }}>{created.id}</span> · owner{" "}
             <span style={{ fontFamily: font.mono }}>{created.campaign.dm}</span>
           </p>
+        </div>
+        <div style={{ ...styles.row, marginTop: "1rem", flexWrap: "wrap" }}>
+          <a
+            href={`/dm/?campaign=${encodeURIComponent(created.id)}`}
+            style={{ ...styles.candle, textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+          >
+            Open DM Console
+          </a>
+          {onOpenCampaign && (
+            <button style={styles.secondary} onClick={() => onOpenCampaign(created.id)}>
+              View table
+            </button>
+          )}
         </div>
       </div>
     );

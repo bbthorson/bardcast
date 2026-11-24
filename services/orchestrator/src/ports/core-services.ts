@@ -1,5 +1,6 @@
 import type { EngagementChannel } from "@bardcast/engagement";
 import type { AudioRenderer } from "./audio-renderer.js";
+import type { AudioStorage } from "./audio-storage.js";
 import type { DecisionModel } from "./decision-model.js";
 import type { IdentityProvider } from "./identity-provider.js";
 import type { NarrativeWriter } from "./narrative-writer.js";
@@ -31,6 +32,7 @@ export interface CoreServices {
   narrative: NarrativeWriter;
   voice: VoiceCloner;
   audio: AudioRenderer;
+  audioStorage?: AudioStorage;
   identity: IdentityProvider;
   decisions: DecisionModel;
   engagement: EngagementChannel;

@@ -5,16 +5,29 @@ import { styles } from "../ui.js";
 
 interface VoiceActions {
   profile: VoiceProfile | null;
-  startClone: () => void;
-  linkPvc: (sharingLink: string) => void;
-  setIvc: (voiceId: string) => void;
-  revoke: () => void;
+  loading: boolean;
+  busy: boolean;
+  error: string | null;
+  notice: string | null;
+  startClone: () => Promise<void>;
+  trainIvc: () => Promise<void>;
+  linkPvc: (sharingLink: string) => Promise<void>;
+  revoke: () => Promise<void>;
 }
 
-export function VoiceClone({ profile, startClone, linkPvc, setIvc, revoke, onBack }: VoiceActions & { onBack: () => void }) {
+export function VoiceClone({
+  profile,
+  loading,
+  busy,
+  error,
+  notice,
+  startClone,
+  trainIvc,
+  linkPvc,
+  revoke,
+  onBack,
+}: VoiceActions & { onBack: () => void }) {
   const status = profile?.status ?? "unlinked";
-  
-  // Local role toggle for previewing the onboarding flows
   const [role, setRole] = useState<"player" | "dm">("player");
 
   return (
@@ -22,8 +35,18 @@ export function VoiceClone({ profile, startClone, linkPvc, setIvc, revoke, onBac
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <button style={{ ...styles.back, marginLeft: -10 }} onClick={onBack}>‹ Back to your table</button>
         <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.8rem", background: color.felt, padding: "0.25rem 0.5rem", borderRadius: 4 }}>
-          <button style={{ border: "none", background: role === "player" ? color.chalk : "transparent", color: role === "player" ? color.felt : color.chalk, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }} onClick={() => setRole("player")}>Player Flow</button>
-          <button style={{ border: "none", background: role === "dm" ? color.chalk : "transparent", color: role === "dm" ? color.felt : color.chalk, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }} onClick={() => setRole("dm")}>DM Flow</button>
+          <button
+            style={{ border: "none", background: role === "player" ? color.chalk : "transparent", color: role === "player" ? color.felt : color.chalk, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }}
+            onClick={() => setRole("player")}
+          >
+            Player Flow
+          </button>
+          <button
+            style={{ border: "none", background: role === "dm" ? color.chalk : "transparent", color: role === "dm" ? color.felt : color.chalk, borderRadius: 2, padding: "2px 6px", cursor: "pointer" }}
+            onClick={() => setRole("dm")}
+          >
+            DM Flow
+          </button>
         </div>
       </div>
 
@@ -32,17 +55,37 @@ export function VoiceClone({ profile, startClone, linkPvc, setIvc, revoke, onBac
         Your character speaks in your voice. Whether that happens is up to you, and you can change your mind.
       </p>
 
+      {error && (
+        <p style={{ color: color.hearthSoft, fontSize: "0.9rem", margin: "0.75rem 0 0" }}>{error}</p>
+      )}
+      {notice && (
+        <p style={{ color: color.moss, fontSize: "0.9rem", margin: "0.75rem 0 0" }}>{notice}</p>
+      )}
+
       <div style={{ marginTop: "1.5rem" }}>
-        {!profile?.consent ? (
-          <ConsentGate onConsent={startClone} />
+        {loading ? (
+          <p style={styles.muted}>Checking your voice seal…</p>
+        ) : !profile?.consent ? (
+          <ConsentGate busy={busy} onConsent={() => void startClone()} />
         ) : status === "unlinked" ? (
           role === "dm" ? (
-            <DmOrientation onLink={linkPvc} />
+            <DmOrientation busy={busy} onLink={(link) => void linkPvc(link)} onRevoke={() => void revoke()} />
           ) : (
-            <PlayerOrientation onAutoIvc={() => setIvc("auto-ivc-" + Math.floor(Math.random() * 1000))} onLink={linkPvc} />
+            <PlayerOrientation
+              busy={busy}
+              onTrainIvc={() => void trainIvc()}
+              onLink={(link) => void linkPvc(link)}
+              onRevoke={() => void revoke()}
+            />
           )
         ) : (
-          <Ready status={status} modelRef={profile.modelRef || ""} onRevoke={revoke} onDone={onBack} />
+          <Ready
+            status={status}
+            modelRef={profile.modelRef || ""}
+            busy={busy}
+            onRevoke={() => void revoke()}
+            onDone={onBack}
+          />
         )}
       </div>
     </div>
@@ -69,7 +112,7 @@ const CONSENT_TERMS: { title: string; body: string }[] = [
   },
 ];
 
-function ConsentGate({ onConsent }: { onConsent: () => void }) {
+function ConsentGate({ busy, onConsent }: { busy: boolean; onConsent: () => void }) {
   return (
     <article style={styles.card}>
       <h2 style={styles.h2}>Before we clone your voice</h2>
@@ -82,21 +125,29 @@ function ConsentGate({ onConsent }: { onConsent: () => void }) {
           </div>
         ))}
       </dl>
-      <button style={{ ...styles.candle, marginTop: "1.25rem" }} onClick={onConsent}>
-        I consent — clone my voice
+      <button style={{ ...styles.candle, marginTop: "1.25rem", ...(busy ? styles.disabled : null) }} disabled={busy} onClick={onConsent}>
+        {busy ? "Saving consent…" : "I consent — clone my voice"}
       </button>
     </article>
   );
 }
 
-function DmOrientation({ onLink }: { onLink: (link: string) => void }) {
+function DmOrientation({
+  busy,
+  onLink,
+  onRevoke,
+}: {
+  busy: boolean;
+  onLink: (link: string) => void;
+  onRevoke: () => void;
+}) {
   const [linkInput, setLinkInput] = useState("");
 
   return (
     <article style={styles.card}>
       <h2 style={styles.h2}>DM Setup: Professional Voice Clone</h2>
       <p style={styles.muted}>
-        As the DM/Narrator, you carry the voice weight. Let's create your Professional Voice Clone:
+        As the DM/Narrator, you carry the voice weight. Link your ElevenLabs Professional Voice Clone:
       </p>
       <ol style={{ ...styles.muted, paddingLeft: "1.25rem", margin: "0.5rem 0", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
         <li>Go to ElevenLabs.io and create a Creator account.</li>
@@ -106,53 +157,73 @@ function DmOrientation({ onLink }: { onLink: (link: string) => void }) {
       </ol>
       <div style={{ marginTop: "1rem" }}>
         <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.35rem" }}>Paste private ElevenLabs sharing link:</label>
-        <input 
-          type="text" 
-          value={linkInput} 
-          onChange={(e) => setLinkInput(e.target.value)} 
+        <input
+          type="text"
+          value={linkInput}
+          onChange={(e) => setLinkInput(e.target.value)}
           placeholder="https://elevenlabs.io/app/share/..."
+          disabled={busy}
           style={{ ...styles.input, marginBottom: 12 }}
         />
-        <button style={styles.candle} onClick={() => onLink(linkInput)} disabled={!linkInput}>
-          Link my Narrator voice
-        </button>
+        <div style={{ ...styles.row, gap: "0.5rem" }}>
+          <button style={styles.candle} onClick={() => onLink(linkInput)} disabled={!linkInput.trim() || busy}>
+            {busy ? "Linking…" : "Link my Narrator voice"}
+          </button>
+          <button style={styles.secondary} onClick={onRevoke} disabled={busy}>
+            Revoke consent
+          </button>
+        </div>
       </div>
     </article>
   );
 }
 
-function PlayerOrientation({ onAutoIvc, onLink }: { onAutoIvc: () => void; onLink: (link: string) => void }) {
+function PlayerOrientation({
+  busy,
+  onTrainIvc,
+  onLink,
+  onRevoke,
+}: {
+  busy: boolean;
+  onTrainIvc: () => void;
+  onLink: (link: string) => void;
+  onRevoke: () => void;
+}) {
   const [showOverride, setShowOverride] = useState(false);
   const [linkInput, setLinkInput] = useState("");
 
   return (
     <article style={styles.card}>
-      <h2 style={styles.h2}>Player Setup: Zero Friction</h2>
+      <h2 style={styles.h2}>Player Setup: Instant Voice Clone</h2>
       <p style={styles.muted}>
-        You don't need to configure anything. Bardcast will automatically build an <strong>Instant Voice Clone</strong> for you from your very first in-game prompt reply.
+        Your consent is saved. If you answered Session Zero out loud, build your Instant Voice Clone now — otherwise Bardcast will build it automatically from your first spoken answer at the table.
       </p>
-      
-      <div style={{ marginTop: "1.25rem", display: "flex", gap: "0.5rem" }}>
-        <button style={styles.candle} onClick={onAutoIvc}>
-          Continue (Use Auto-Clone)
+
+      <div style={{ marginTop: "1.25rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+        <button style={styles.candle} onClick={onTrainIvc} disabled={busy}>
+          {busy ? "Building voice clone…" : "Build my voice clone now"}
         </button>
-        <button style={styles.secondary} onClick={() => setShowOverride(!showOverride)}>
+        <button style={styles.secondary} onClick={() => setShowOverride(!showOverride)} disabled={busy}>
           Link PVC instead
+        </button>
+        <button style={styles.quiet} onClick={onRevoke} disabled={busy}>
+          Revoke consent
         </button>
       </div>
 
       {showOverride && (
         <div style={{ marginTop: "1.25rem", borderTop: `1px solid ${color.feltLine}`, paddingTop: "1rem" }}>
           <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "0.35rem" }}>Paste private ElevenLabs sharing link:</label>
-          <input 
-            type="text" 
-            value={linkInput} 
-            onChange={(e) => setLinkInput(e.target.value)} 
+          <input
+            type="text"
+            value={linkInput}
+            onChange={(e) => setLinkInput(e.target.value)}
             placeholder="https://elevenlabs.io/app/share/..."
+            disabled={busy}
             style={{ ...styles.input, marginBottom: 12 }}
           />
-          <button style={styles.candle} onClick={() => onLink(linkInput)} disabled={!linkInput}>
-            Link PVC Voice
+          <button style={styles.compact} onClick={() => onLink(linkInput)} disabled={!linkInput.trim() || busy}>
+            {busy ? "Linking…" : "Link PVC Voice"}
           </button>
         </div>
       )}
@@ -160,7 +231,19 @@ function PlayerOrientation({ onAutoIvc, onLink }: { onAutoIvc: () => void; onLin
   );
 }
 
-function Ready({ status, modelRef, onRevoke, onDone }: { status: "ivc" | "pvc"; modelRef: string; onRevoke: () => void; onDone: () => void }) {
+function Ready({
+  status,
+  modelRef,
+  busy,
+  onRevoke,
+  onDone,
+}: {
+  status: "ivc" | "pvc";
+  modelRef: string;
+  busy: boolean;
+  onRevoke: () => void;
+  onDone: () => void;
+}) {
   return (
     <article style={{ ...styles.card, borderColor: color.moss, borderWidth: 1, borderStyle: "solid" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -170,8 +253,8 @@ function Ready({ status, modelRef, onRevoke, onDone }: { status: "ivc" | "pvc"; 
         </h2>
       </div>
       <p style={{ ...styles.muted, marginTop: "0.75rem" }}>
-        {status === "ivc" 
-          ? "Your voice clone is currently set to use your in-game replies automatically." 
+        {status === "ivc"
+          ? "Your Instant Voice Clone is active and ready for chapters."
           : "Your Professional Voice Clone has been linked to your account."}
       </p>
       <p style={{ ...styles.muted, fontSize: "0.78rem" }}>
@@ -181,10 +264,11 @@ function Ready({ status, modelRef, onRevoke, onDone }: { status: "ivc" | "pvc"; 
         Revoking deletes the clone at ElevenLabs. Chapters already told keep your voice, and your recordings stay where they are in Antiphony.
       </p>
       <div style={{ ...styles.row, marginTop: "1rem", gap: "0.5rem" }}>
-        <button style={styles.danger} onClick={onRevoke}>Revoke consent &amp; unlink</button>
-        <button style={styles.candle} onClick={onDone}>Done</button>
+        <button style={styles.danger} onClick={onRevoke} disabled={busy}>
+          {busy ? "Revoking…" : "Revoke consent & unlink"}
+        </button>
+        <button style={styles.candle} onClick={onDone} disabled={busy}>Done</button>
       </div>
     </article>
   );
 }
-

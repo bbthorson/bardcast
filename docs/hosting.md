@@ -17,12 +17,12 @@ Audited against the repo and the Cloudflare account on 2026-10-03.
 
 | Piece | Where it runs | Source of truth |
 |---|---|---|
-| `apps/web` front door | **Cloudflare Worker `bardcast`** (static assets, SPA fallback) | `wrangler.jsonc` |
-| Orchestrator API (`services/orchestrator`) | **The same Worker**, for `/api/*`, `/atproto/*` and `/healthz` (`run_worker_first`) | `services/orchestrator/src/worker.ts` |
+| `apps/web` front door & `apps/dm` console | **Cloudflare Worker `bardcast`** (static assets, SPA fallback; `apps/dm` staged under `/dm/` so it shares the first-party `bsky_sid` cookie) | `wrangler.jsonc`, `package.json` |
+| Orchestrator API (`services/orchestrator`) | **The same Worker**, for `/api/*`, `/atproto/*`, `/xrpc/*` and `/healthz` (`run_worker_first`) | `services/orchestrator/src/worker.ts` |
 | Engine (Antiphony) | **Cloudflare Worker `antiphony-core-api`**, R2 `antiphony-r2-bucket` | Antiphony's own repo |
-| `apps/player`, `apps/dm` | **Not deployed.** Local dev only | no deploy config in repo |
+| `apps/player` | **Not deployed separately.** Local dev only (prompt answering is also wired inline in `apps/web`) | no separate deploy config |
 | Database | **D1 `bardcast`**, binding `DB`. Tables are created on the first API request, including `sheet_versions`, `campaign_seats` and `campaign_actions` (the old `character_sheets` table stays in existing databases, unread) | `services/orchestrator/src/adapters/d1/d1.ts` |
-| Chapter / voice audio | **No Bardcast bucket yet** | — |
+| Chapter audio | **R2 `bardcast-audio`**, binding `AUDIO_BUCKET` (create once with `npx wrangler r2 bucket create bardcast-audio`). Streamed via `GET /api/campaigns/:campaignId/chapters/:chapterId/audio` | `wrangler.jsonc`, `services/orchestrator/src/adapters/r2-audio-storage.ts` |
 
 **CI and deploy (2026-10-11).** `.github/workflows/ci.yml` runs typecheck, tests and the build on
 every PR and every push to `main`. `.github/workflows/deploy.yml` deploys the Worker with

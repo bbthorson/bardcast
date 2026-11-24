@@ -91,7 +91,10 @@ export class ElevenLabsAudioRenderer implements AudioRenderer {
     // Store audio and produce audioRef
     let audioRef: string;
     if (this.config.storage) {
-      const key = `chapters/chapter-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.mp3`;
+      const key =
+        input.campaignId && input.chapterId
+          ? `chapters/${input.campaignId}/${input.chapterId}.mp3`
+          : `chapters/chapter-${Date.now()}-${crypto.randomUUID().slice(0, 8)}.mp3`;
       audioRef = await this.config.storage.storeAudio(key, combined, "audio/mpeg");
     } else {
       // In-memory / data URI fallback when no external S3/R2 storage is mounted

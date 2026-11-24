@@ -4,6 +4,7 @@ import type {
   Chapter,
   Prompt,
   PartyReadiness,
+  ReadinessThresholds,
 } from "@bardcast/domain";
 
 export interface PromptSuggestion {
@@ -14,8 +15,16 @@ export interface PromptSuggestion {
   rationale: string;
 }
 
+// Same-origin in production (served under `/dm/` on the `bardcast` Worker so
+// the `bsky_sid` first-party cookie applies); local Vite dev talks to 127.0.0.1:8787.
 const ORCHESTRATOR =
-  (import.meta.env["VITE_ORCHESTRATOR_URL"] as string | undefined) ?? "http://localhost:8787";
+  (import.meta.env["VITE_ORCHESTRATOR_URL"] as string | undefined) ??
+  (import.meta.env.DEV ? "http://127.0.0.1:8787" : "");
+
+export interface DmSession {
+  did: string;
+  handle?: string | undefined;
+}
 
 export interface CampaignSummary {
   id: string;
@@ -26,7 +35,7 @@ export interface CampaignDetail {
   id: string;
   campaign: Campaign;
   chapters: Chapter[];
-  party: Array<{ id: string; profile: CharacterProfile | null }>;
+  party: Array<{ player: string; id: string; profile: CharacterProfile | null }>;
 }
 
 export interface PublishPromptParams {
@@ -37,6 +46,24 @@ export interface PublishPromptParams {
   audienceDids?: string[] | undefined;
   intent?: ("sheet" | "behavior" | "voice" | "story") | undefined;
   dmDid?: string | undefined;
+}
+
+export async function fetchSession(): Promise<DmSession | null> {
+  try {
+    const res = await fetch(`${ORCHESTRATOR}/atproto/session`, { credentials: "include" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      authenticated?: boolean;
+      did?: string;
+      handle?: string;
+      user?: { did?: string; handle?: string } | null;
+    };
+    const did = data.user?.did ?? (data.authenticated === false ? undefined : data.did);
+    const handle = data.user?.handle ?? data.handle;
+    return did ? { did, ...(handle ? { handle } : {}) } : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchCampaigns(actingDid?: string): Promise<CampaignSummary[]> {
@@ -70,11 +97,18 @@ export async function fetchCampaignDetail(campaignId: string): Promise<CampaignD
 export async function fetchReadiness(
   campaignId: string,
   characterIds: string[],
+  thresholds?: Pick<ReadinessThresholds, "minConfidentTraits" | "minBehaviorExemplars" | "requireVoice">,
 ): Promise<PartyReadiness | null> {
-  const query = characterIds.map((c) => `character=${encodeURIComponent(c)}`).join("&");
+  const params = new URLSearchParams();
+  for (const c of characterIds) params.append("character", c);
+  if (thresholds) {
+    params.set("minTraits", String(thresholds.minConfidentTraits));
+    params.set("minExemplars", String(thresholds.minBehaviorExemplars));
+    params.set("requireVoice", String(thresholds.requireVoice));
+  }
   try {
     const res = await fetch(
-      `${ORCHESTRATOR}/api/campaigns/${encodeURIComponent(campaignId)}/readiness?${query}`,
+      `${ORCHESTRATOR}/api/campaigns/${encodeURIComponent(campaignId)}/readiness?${params.toString()}`,
       { credentials: "include" },
     );
     if (!res.ok) return null;
@@ -116,6 +150,42 @@ export async function fetchSuggestedPrompts(
   }
 }
 
+export async function createInviteApi(
+  campaignId: string,
+  actingDid?: string,
+): Promise<{ code: string; campaignId: string }> {
+  const headers: Record<string, string> = {};
+  if (actingDid) headers["X-Acting-Did"] = actingDid;
+  const res = await fetch(`${ORCHESTRATOR}/api/campaigns/${encodeURIComponent(campaignId)}/invites`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const err = ((await res.json().catch(() => ({}))) as { message?: string }) || {};
+    throw new Error(err.message || "Failed to generate invite code");
+  }
+  return (await res.json()) as { code: string; campaignId: string };
+}
+
+export async function syncCampaignApi(
+  campaignId: string,
+  actingDid?: string,
+): Promise<{ promptsChecked: number; charactersSynced: number }> {
+  const headers: Record<string, string> = {};
+  if (actingDid) headers["X-Acting-Did"] = actingDid;
+  const res = await fetch(`${ORCHESTRATOR}/api/campaigns/${encodeURIComponent(campaignId)}/sync`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const err = ((await res.json().catch(() => ({}))) as { message?: string }) || {};
+    throw new Error(err.message || "Failed to sync replies");
+  }
+  return (await res.json()) as { promptsChecked: number; charactersSynced: number };
+}
+
 export async function publishPromptApi(
   params: PublishPromptParams,
   actingDid?: string,
@@ -148,17 +218,24 @@ export async function publishPromptApi(
 export async function generateChapterApi(
   campaignId: string,
   characterIds: string[],
-  directorNote?: string,
+  options?: {
+    directorNote?: string;
+    thresholds?: ReadinessThresholds;
+    actingDid?: string;
+  },
 ): Promise<{ chapter: Chapter }> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (options?.actingDid) headers["X-Acting-Did"] = options.actingDid;
   const res = await fetch(
     `${ORCHESTRATOR}/api/campaigns/${encodeURIComponent(campaignId)}/chapters`,
     {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       credentials: "include",
       body: JSON.stringify({
         characterIds,
-        ...(directorNote ? { directorNote } : {}),
+        ...(options?.directorNote ? { directorNote: options.directorNote } : {}),
+        ...(options?.thresholds ? { thresholds: options.thresholds } : {}),
       }),
     },
   );

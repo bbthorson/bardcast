@@ -95,7 +95,7 @@ export function JoinInvite({
         <h1 style={styles.h1}>{invite.title}</h1>
         <p style={styles.muted}>
           Everyone sits down at level {invite.startingLevel}. Whoever you bring keeps their own sheet; what happens at this table stays
-          here until they leave.
+          here until they leave. Chapters told in your voice belong to the table and stay even if you leave.
         </p>
         {invite.characterGuidance && (
           <div style={{ margin: "16px 0 4px" }}>

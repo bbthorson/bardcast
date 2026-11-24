@@ -50,9 +50,8 @@ export function App() {
         throw new Error(err.message || "Failed to deliver audio to the DM.");
       }
       setSent(true);
-    } catch {
-      // Offline fallback: acknowledge recording so offline playtesting proceeds
-      setSent(true);
+    } catch (err) {
+      setSendError(err instanceof Error ? err.message : "Could not reach the table. Check your connection and try again.");
     } finally {
       setSending(false);
     }

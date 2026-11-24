@@ -29,9 +29,9 @@
     // `/* -> /index.html 200` _redirects rule is rejected here as a self-loop.
     "not_found_handling": "single-page-application",
     "binding": "ASSETS",
-    // Only these paths run the orchestrator; everything else is served
-    // straight from assets without invoking the Worker.
-    "run_worker_first": ["/api/*", "/atproto/*", "/xrpc/*", "/healthz"]
+    // Only these paths run the orchestrator (or DM console SPA routing);
+    // everything else is served straight from assets without invoking the Worker.
+    "run_worker_first": ["/api/*", "/atproto/*", "/xrpc/*", "/healthz", "/dm", "/dm/*"]
   },
   // Campaigns, characters and sign-in sessions. Tables are created on first
   // request (services/orchestrator/src/adapters/d1/d1.ts).
@@ -40,6 +40,13 @@
       "binding": "DB",
       "database_name": "bardcast",
       "database_id": "16f4543f-0780-4518-a2aa-5d510828a05e"
+    }
+  ],
+  // Rendered chapter MP3 audio (keeps multi-voice audio out of D1 rows).
+  "r2_buckets": [
+    {
+      "binding": "AUDIO_BUCKET",
+      "bucket_name": "bardcast-audio"
     }
   ],
   "vars": {
