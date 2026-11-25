@@ -41,7 +41,7 @@ export class WorkersAiDecisionModel implements DecisionModel {
 
   constructor(private readonly config: WorkersAiDecisionModelConfig) {
     this.baseUrl = (config.baseUrl ?? "https://api.cloudflare.com/client/v4").replace(/\/+$/, "");
-    this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
+    this.fetchImpl = config.fetchImpl ?? ((...args) => globalThis.fetch(...args));
     this.model = config.model ?? DEFAULT_DECISION_MODEL;
   }
 
