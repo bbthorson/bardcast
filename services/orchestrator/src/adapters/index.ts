@@ -20,8 +20,12 @@ import { ElevenLabsVoiceCloner } from "./elevenlabs/voice-cloner.js";
 import { ElevenLabsAudioRenderer, type AudioStorageAdapter } from "./elevenlabs/audio-renderer.js";
 import { ClaudeNarrativeWriter } from "./anthropic/narrative-writer.js";
 import { AtprotoServiceAuthVerifier } from "./atproto/service-auth.js";
+import { AtprotoRpgActorReader } from "./atproto/rpg-actor-reader.js";
+import { AtprotoRpgActorWriter } from "./atproto/rpg-actor-writer.js";
 import { R2AudioStorage, type R2Bucket } from "./r2-audio-storage.js";
 import type { AudioStorage } from "../ports/audio-storage.js";
+import type { RpgActorReader } from "../ports/rpg-actor-reader.js";
+import type { RpgActorWriter } from "../ports/rpg-actor-writer.js";
 
 export * from "./postgres/client.js";
 export * from "./postgres/postgres-store.js";
@@ -35,6 +39,8 @@ export * from "./workers-ai-decision-model.js";
 export * from "./stub-decision-model.js";
 export * from "./ai-gateway.js";
 export * from "./anthropic/narrative-writer.js";
+export * from "./atproto/rpg-actor-reader.js";
+export * from "./atproto/rpg-actor-writer.js";
 
 export interface BuildServicesConfig {
   /** Base URL of the (Bardcast-controlled) Antiphony deployment. */
@@ -100,6 +106,10 @@ export interface BuildServicesConfig {
    * `com.atproto.managedspace.checkAccess`; without it, that method answers
    * `MethodNotImplemented`.
    */
+  /** Optional custom rpg.actor reader (defaults to AtprotoRpgActorReader when auth is "atproto"). */
+  rpgActor?: RpgActorReader;
+  /** Optional custom rpg.actor writer (defaults to AtprotoRpgActorWriter when auth is "atproto"). */
+  rpgActorWriter?: RpgActorWriter;
   appDid?: `did:${string}`;
 }
 
@@ -189,6 +199,13 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
         })
       : new StubDecisionModel();
 
+  const rpgActor = config.rpgActor ?? (config.auth === "atproto" ? new AtprotoRpgActorReader() : undefined);
+  const rpgActorWriter =
+    config.rpgActorWriter ??
+    (identity instanceof AtprotoIdentityProvider
+      ? new AtprotoRpgActorWriter({ restoreSession: (did) => identity.auth.restore(did) })
+      : undefined);
+
   return {
     store,
     antiphony: new ClientAntiphonyGateway(antiphony),
@@ -205,6 +222,8 @@ export function buildServices(config: BuildServicesConfig): CoreServices {
     identity,
     decisions,
     engagement,
+    ...(rpgActor ? { rpgActor } : {}),
+    ...(rpgActorWriter ? { rpgActorWriter } : {}),
     clock: () => new Date(),
     ...(config.appDid ? { managingApp: { appDid: config.appDid, serviceAuth: new AtprotoServiceAuthVerifier() } } : {}),
   };

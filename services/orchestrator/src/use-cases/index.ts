@@ -42,3 +42,16 @@ export {
   voiceKeyForCharacter,
   type TrainVoiceIvcResult,
 } from "./voice.js";
+export {
+  importRpgActorCharacter,
+  lookupRpgActor,
+  RpgActorImportError,
+  syncCharacterToRpgActor,
+  type ImportedRpgActorCharacter,
+  type ImportRpgActorInput,
+  type RpgActorErrorCode,
+  type RpgActorLookupResult,
+  type RpgActorSyncTarget,
+  type SyncedRpgActorResult,
+  type SyncRpgActorInput,
+} from "./rpg-actor.js";

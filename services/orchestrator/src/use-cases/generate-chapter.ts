@@ -52,12 +52,22 @@ export async function generateChapter(
   for (const id of input.characterIds) {
     const profile = await svc.store.getCharacter(id);
     if (!profile) continue;
-    const [seat, behavior, voice] = await Promise.all([
+    const [seat, behavior, voice, rpgActor] = await Promise.all([
       svc.store.getSeat(input.campaignId, id),
       svc.store.getBehavior(id),
       resolveCharacterVoice(svc, id),
+      svc.rpgActor && profile.player
+        ? svc.rpgActor.readActor(profile.player as `did:${string}`).catch(() => null)
+        : Promise.resolve(null),
     ]);
-    characters.push({ id, profile, seat, behavior });
+    const keepsakes = rpgActor?.equipment.filter((item) => item.verified);
+    characters.push({
+      id,
+      profile,
+      seat,
+      behavior,
+      ...(keepsakes && keepsakes.length > 0 ? { keepsakes } : {}),
+    });
     if (voice?.modelRef) voiceRefs[id] = voice.modelRef;
   }
 

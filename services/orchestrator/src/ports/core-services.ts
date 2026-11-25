@@ -8,6 +8,8 @@ import type { Store } from "./store.js";
 import type { VoiceCloner } from "./voice-cloner.js";
 import type { AntiphonyGateway } from "./antiphony-gateway.js";
 import type { ServiceAuthVerifier } from "./service-auth.js";
+import type { RpgActorReader } from "./rpg-actor-reader.js";
+import type { RpgActorWriter } from "./rpg-actor-writer.js";
 
 /**
  * Bardcast as the managing app of its spaces: the DID it manages them under,
@@ -36,6 +38,8 @@ export interface CoreServices {
   identity: IdentityProvider;
   decisions: DecisionModel;
   engagement: EngagementChannel;
+  rpgActor?: RpgActorReader;
+  rpgActorWriter?: RpgActorWriter;
   clock: () => Date;
   managingApp?: ManagingApp;
 }
