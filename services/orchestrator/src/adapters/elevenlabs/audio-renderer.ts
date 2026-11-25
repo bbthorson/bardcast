@@ -45,7 +45,7 @@ export class ElevenLabsAudioRenderer implements AudioRenderer {
     this.baseUrl = (
       config.gateway ? aiGatewayBaseUrl(config.gateway, "elevenlabs") : (config.baseUrl ?? "https://api.elevenlabs.io")
     ).replace(/\/+$/, "");
-    this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
+    this.fetchImpl = config.fetchImpl ?? ((...args) => globalThis.fetch(...args));
     // Default narrator voice: Rachel (calm, clear fantasy storytelling)
     this.defaultNarratorVoiceId = config.defaultNarratorVoiceId ?? "21m00Tcm4TlvDq8ikWAM";
     this.modelId = config.modelId ?? "eleven_multilingual_v2";

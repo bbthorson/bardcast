@@ -84,7 +84,7 @@ export class AntiphonyClient {
   private readonly fetchImpl: typeof fetch;
 
   constructor(private readonly opts: AntiphonyClientOptions) {
-    this.fetchImpl = opts.fetch ?? globalThis.fetch;
+    this.fetchImpl = opts.fetch ?? ((...args) => globalThis.fetch(...args));
   }
 
   // --- transport ------------------------------------------------------------
