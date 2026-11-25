@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@antiphony/shared": "0.14.1",
+    "@antiphony/shared": "0.16.0",
     "@bardcast/domain": "*",
     "zod": "^4.6.7"
   },

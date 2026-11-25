@@ -10,7 +10,7 @@ const PARTS = {
   collection: "dev.antiphony.audio.post",
   rkey: "3k2a",
 };
-const URI = "at://did:web:bardcast.app/space/game.bardcast.space.campaign/campaign.thornwood/did:plc:alice/dev.antiphony.audio.post/3k2a";
+const URI = "at:space/did:web:bardcast.app/game.bardcast.space.campaign/campaign.thornwood/did:plc:alice/dev.antiphony.audio.post/3k2a";
 
 describe("space record URIs", () => {
   it("builds and parses the same URI", () => {
@@ -20,7 +20,7 @@ describe("space record URIs", () => {
 
   it("reads no space off a flat or malformed URI", () => {
     expect(parseSpaceRecordUri("at://did:web:bardcast.app/dev.antiphony.audio.post/3k2a")).toBeNull();
-    expect(parseSpaceRecordUri("at://did:web:bardcast.app/space/game.bardcast.space.campaign/campaign.thornwood")).toBeNull();
+    expect(parseSpaceRecordUri("at:space/did:web:bardcast.app/game.bardcast.space.campaign/campaign.thornwood")).toBeNull();
     expect(parseSpaceRecordUri(`${URI}/extra`)).toBeNull();
     expect(parseSpaceRecordUri("https://example.com/space/a/b/c/d/e")).toBeNull();
   });
@@ -55,18 +55,17 @@ describe("space record URIs", () => {
     expect(isRecordUri("at://campaign.1a2b/space/x/y")).toBe(false);
   });
 
-  // Today's spelling, the one the Spaces alpha uses. If the beta adopts
-  // `at:space/…`, the `@atproto/syntax` pin bump makes these fail: update them
-  // with Antiphony's contract 0.11, not before (docs/spaces-beta-readiness.md).
-  it("doesn't accept the candidate at:space/ spelling yet", () => {
-    const candidate = URI.replace("at://", "at:space/").replace("/space/", "/");
-    expect(isRecordUri(candidate)).toBe(false);
-    expect(parseSpaceRecordUri(candidate)).toBeNull();
+  // The pre-11-24 Spaces alpha spelling (`at://{authority}/space/…`) was retired
+  // in favor of `at:space/…` with Antiphony contract 0.11 / @antiphony/shared 0.16.0.
+  it("refuses the retired at://.../space/ spelling", () => {
+    const legacy = "at://did:web:bardcast.app/space/game.bardcast.space.campaign/campaign.thornwood/did:plc:alice/dev.antiphony.audio.post/3k2a";
+    expect(isRecordUri(legacy)).toBe(false);
+    expect(parseSpaceRecordUri(legacy)).toBeNull();
   });
 });
 
 describe("space refs", () => {
-  const SPACE = "at://did:web:bardcast.app/space/game.bardcast.space.campaign/campaign.thornwood";
+  const SPACE = "at:space/did:web:bardcast.app/game.bardcast.space.campaign/campaign.thornwood";
 
   it("builds and parses a space ref", () => {
     const ref = { authority: PARTS.authority, spaceType: PARTS.spaceType, skey: PARTS.skey };

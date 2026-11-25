@@ -34,6 +34,7 @@ import {
   type SrdClass,
   type StrongRef,
 } from "@bardcast/domain";
+import { AntiphonyError } from "@bardcast/antiphony-client";
 import { getClass, getFeature } from "@bardcast/srd";
 import type { CoreServices } from "../ports/index.js";
 import type { ChoiceQuestion, ScoreQuestion } from "../ports/decision-model.js";
@@ -420,17 +421,42 @@ async function speak(
   }
   question = question.trim().slice(0, 1000);
 
-  const { audio } = await svc.audio.renderLine({ text: question });
-  const prompt = await svc.antiphony.createPrompt({
+  let audio: Blob | undefined;
+  try {
+    ({ audio } = await svc.audio.renderLine({ text: question }));
+  } catch (err) {
+    // The UI already handles an unvoiced question ("Read it out to yourself");
+    // don't block session zero if TTS fails.
+    console.warn("[creation] narrator audio render failed; posting unvoiced prompt:", err);
+  }
+
+  const basePrompt = {
     title: question,
-    audio,
     // The narrator's question is Bardcast's, so Bardcast's DID is its author
     // segment. The player is the acting actor only because they are the only DID
     // this conversation has.
     actingDid: creation.player as PlayerDid,
     space: playerSpace(creation.player as PlayerDid),
-    spaceAuthor: "authority",
-  });
+    spaceAuthor: "authority" as const,
+  };
+
+  let prompt;
+  if (audio) {
+    try {
+      prompt = await svc.antiphony.createPrompt({ ...basePrompt, audio });
+    } catch (err) {
+      if (isAudioAttachmentError(err)) {
+        // Cached/stub opener audio can collide across player spaces (409 AUDIO_PLACEMENT)
+        // or stub bytes may be rejected by Antiphony; fall back to an unvoiced prompt.
+        console.warn("[creation] narrator audio upload rejected; retrying unvoiced prompt:", err);
+        prompt = await svc.antiphony.createPrompt(basePrompt);
+      } else {
+        throw err;
+      }
+    }
+  } else {
+    prompt = await svc.antiphony.createPrompt(basePrompt);
+  }
   const turn: CreationTurn = {
     kind: step.kind,
     ...(step.kind === "ask" || step.kind === "choose" ? { attribute: step.attribute, candidates: step.candidates } : {}),
@@ -439,6 +465,11 @@ async function speak(
     askedAt: svc.clock().toISOString(),
   };
   return { ...creation, turns: [...creation.turns, turn] };
+}
+
+function isAudioAttachmentError(err: unknown): boolean {
+  if (!(err instanceof AntiphonyError)) return false;
+  return err.code === "AUDIO_PLACEMENT" || err.status === 400 || err.status === 415 || err.status === 422;
 }
 
 /**

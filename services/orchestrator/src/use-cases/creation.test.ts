@@ -1,6 +1,6 @@
 import { playerSpace, sheetAtLevel, STANDARD_ARRAY, type SpaceKey } from "@bardcast/domain";
 import { PwaEngagementChannel } from "@bardcast/engagement";
-import type { AntiphonyReply } from "@bardcast/antiphony-client";
+import { AntiphonyError, type AntiphonyReply } from "@bardcast/antiphony-client";
 import { describe, expect, it } from "vitest";
 import { InMemoryStore } from "../adapters/in-memory-store.js";
 import { StubAudioRenderer } from "../adapters/stub-audio-renderer.js";
@@ -45,7 +45,7 @@ class FakeAntiphony implements AntiphonyGateway {
   }
   async createPrompt(input: Parameters<AntiphonyGateway["createPrompt"]>[0]) {
     const n = this.prompts.length + 1;
-    const uri = `at://did:web:bardcast/space/${input.space.type}/${input.space.skey}/did:web:bardcast/dev.antiphony.audio.post/p${n}`;
+    const uri = `at:space/did:web:bardcast/${input.space.type}/${input.space.skey}/did:web:bardcast/dev.antiphony.audio.post/p${n}`;
     this.prompts.push({ title: input.title, hasAudio: Boolean(input.audio), space: input.space, uri });
     return { uri, cid: `bafyp${n}`, postId: `p${n}`, title: input.title, createdAt: "2026-10-28T00:00:00Z" };
   }
@@ -293,5 +293,32 @@ describe("session zero", () => {
     await expect(
       confirmCharacter(svc, { id, did: ALICE, abilities, backgroundIncreases: { charisma: 2, strength: 1 } }),
     ).rejects.toMatchObject({ code: "invalid" });
+  });
+
+  it("falls back to an unvoiced prompt when narrator TTS fails", async () => {
+    const svc = services();
+    svc.audio = {
+      render: svc.audio.render.bind(svc.audio),
+      async renderLine() {
+        throw new Error("ElevenLabs TTS failed (429)");
+      },
+    };
+    const started = await startCreation(svc, { did: ALICE });
+    expect(started.creation.turns).toHaveLength(1);
+    expect(lastPrompt(svc)).toMatchObject({ title: "Who are you when nobody's watching?", hasAudio: false });
+  });
+
+  it("falls back to an unvoiced prompt when Antiphony rejects duplicate or stub audio", async () => {
+    const svc = services();
+    const baseCreate = FakeAntiphony.prototype.createPrompt.bind(svc.antiphony);
+    svc.antiphony.createPrompt = async (input) => {
+      if (input.audio) {
+        throw new AntiphonyError("the same recording was uploaded elsewhere first", 409, "AUDIO_PLACEMENT");
+      }
+      return baseCreate(input);
+    };
+    const started = await startCreation(svc, { did: ALICE });
+    expect(started.creation.turns).toHaveLength(1);
+    expect(lastPrompt(svc)).toMatchObject({ title: "Who are you when nobody's watching?", hasAudio: false });
   });
 });

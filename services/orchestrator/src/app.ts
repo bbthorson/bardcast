@@ -33,6 +33,7 @@ import {
   suggestPrompts,
   checkSpaceAccess,
 } from "./use-cases/index.js";
+import { AntiphonyError } from "@bardcast/antiphony-client";
 import { ServiceAuthError } from "./ports/index.js";
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
@@ -153,6 +154,15 @@ function couldNotDecide(c: Context, err: unknown) {
  */
 export function createApp(svc: CoreServices): Hono {
   const app = new Hono();
+
+  app.onError((err, c) => {
+    console.error("[orchestrator]", c.req.method, c.req.path, err);
+    if (err instanceof AntiphonyError) {
+      return c.json({ error: err.code ?? "antiphony_error", message: err.message }, 502);
+    }
+    const message = err instanceof Error && err.message ? err.message : "Internal server error.";
+    return c.json({ error: "internal_error", message }, 500);
+  });
 
   // CORS middleware for web and player PWAs
   app.use(

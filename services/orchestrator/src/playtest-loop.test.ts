@@ -31,7 +31,7 @@ function createTestHarness() {
     async ensureSpace() {},
     async createPrompt(input) {
       const id = `p-${repliesByPrompt.size + 1}`;
-      const uri = `at://did:web:bardcast.test/space/game.bardcast.space.campaign/camp/did:plc:dm/dev.antiphony.audio.post/${id}`;
+      const uri = `at:space/did:web:bardcast.test/game.bardcast.space.campaign/camp/did:plc:dm/dev.antiphony.audio.post/${id}`;
       repliesByPrompt.set(uri, []);
       return { uri, cid: `bafy${id}`, postId: id, title: input.title, createdAt: T };
     },
@@ -44,7 +44,7 @@ function createTestHarness() {
     async createReply(input) {
       const list = repliesByPrompt.get(input.promptUri) ?? [];
       const id = `r-${list.length + 1}`;
-      const uri = `at://did:web:bardcast.test/space/game.bardcast.space.campaign/camp/${input.actingDid}/dev.antiphony.audio.post/${id}`;
+      const uri = `at:space/did:web:bardcast.test/game.bardcast.space.campaign/camp/${input.actingDid}/dev.antiphony.audio.post/${id}`;
       list.push({
         uri,
         cid: `bafy${id}`,
@@ -142,7 +142,7 @@ describe("playtest loop: voice lifecycle, multi-player sync, R2 audio, and worke
     expect(ivcCalls).toHaveLength(0);
 
     // Seed a creation turn with a spoken reply URI so /api/voice/ivc trains from Session Zero
-    const replyUri = "at://did:web:bardcast.test/space/game.bardcast.space.player/alice/did:plc:alice/dev.antiphony.audio.post/r0";
+    const replyUri = "at:space/did:web:bardcast.test/game.bardcast.space.player/alice/did:plc:alice/dev.antiphony.audio.post/r0";
     playbackByUri.set(replyUri, "https://antiphony.test/signed/r0.webm");
     await svc.store.putCreation("creation.1", {
       player: "did:plc:alice",
@@ -152,7 +152,7 @@ describe("playtest loop: voice lifecycle, multi-player sync, R2 audio, and worke
           kind: "opener",
           question: "Who are you when nobody's watching?",
           prompt: {
-            uri: "at://did:web:bardcast.test/space/game.bardcast.space.player/alice/did:web:bardcast.test/dev.antiphony.audio.post/q0",
+            uri: "at:space/did:web:bardcast.test/game.bardcast.space.player/alice/did:web:bardcast.test/dev.antiphony.audio.post/q0",
             cid: "bafyq0",
           },
           askedAt: T,

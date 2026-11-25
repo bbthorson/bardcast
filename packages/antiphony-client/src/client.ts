@@ -49,7 +49,7 @@ export class AntiphonyError extends Error {
   }
 }
 
-function sameSpace(a: SpaceKey | undefined, b: SpaceKey | undefined): boolean {
+function sameSpace(a: SpaceKey | null | undefined, b: SpaceKey | null | undefined): boolean {
   return a?.type === b?.type && a?.skey === b?.skey;
 }
 

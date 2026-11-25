@@ -62,7 +62,7 @@ export function authorSegmentOfUri(uri: string): string | null {
  * actually lives: the first upload of the same bytes decides it, so it can
  * differ from the space the upload named.
  */
-export const UploadAudioResult = z.object({ blob: BlobRef, space: SpaceKey.optional() });
+export const UploadAudioResult = z.object({ blob: BlobRef, space: SpaceKey.nullish() });
 
 /** `dev.antiphony.embed.audio` — the audio attachment referenced on a post. */
 export const AudioEmbed = z.object({
@@ -111,9 +111,9 @@ export const CreatePostResult = z.object({ postId: z.string() });
  * re-read the post for a fresh one: never store it.
  */
 export const AudioEmbedView = z.object({
-  url: httpsUrl().optional(),
-  durationMs: z.number().int().optional(),
-  transcript: z.object({ text: z.string().optional() }).optional(),
+  url: httpsUrl().nullish(),
+  durationMs: z.number().int().nullish(),
+  transcript: z.object({ text: z.string().nullish() }).nullish(),
 });
 
 /** `dev.antiphony.audio.post#view` — a hydrated post as returned by reads. */
@@ -122,9 +122,9 @@ export const AudioPostView = z.object({
   cid: z.string(),
   kind: z.enum(["prompt", "reply"]),
   authorId: z.string(),
-  authorDid: z.string().optional(),
-  record: z.looseObject({ text: z.string().optional(), title: z.string().optional(), createdAt: z.string().optional() }),
-  embed: AudioEmbedView.optional(),
+  authorDid: z.string().nullish(),
+  record: z.looseObject({ text: z.string().nullish(), title: z.string().nullish(), createdAt: z.string().nullish() }),
+  embed: AudioEmbedView.nullish(),
 });
 export type AudioPostView = z.infer<typeof AudioPostView>;
 

@@ -3,7 +3,7 @@ import { Prompt } from "./campaign.js";
 
 describe("Prompt", () => {
   const draft = { campaign: "at://campaign.thornwood", title: "A scar you carry", createdAt: "2026-10-11T00:00:00Z" };
-  const uri = "at://did:web:bardcast.app/space/game.bardcast.space.campaign/campaign.thornwood/did:web:bardcast.app/dev.antiphony.audio.post/p1";
+  const uri = "at:space/did:web:bardcast.app/game.bardcast.space.campaign/campaign.thornwood/did:web:bardcast.app/dev.antiphony.audio.post/p1";
 
   it("is valid unpublished, or published with both its uri and CID", () => {
     expect(Prompt.safeParse(draft).success).toBe(true);
