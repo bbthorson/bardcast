@@ -114,8 +114,11 @@ export default {
     const url = new URL(request.url);
     if (!isApiPath(url.pathname)) {
       if (isDmRoute(url.pathname)) {
-        const dmIndex = new URL("/dm/index.html", url.origin);
-        return env.ASSETS.fetch(new Request(dmIndex.toString(), request));
+        // Request `/dm/` (not `/dm/index.html`): Cloudflare Workers Assets' default
+        // `auto-trailing-slash` 307-redirects `/dm/index.html` → `/dm/`, which loops
+        // back through `run_worker_first: ["/dm", "/dm/*"]`.
+        const dmRoot = new URL("/dm/", url.origin);
+        return env.ASSETS.fetch(new Request(dmRoot.toString(), request));
       }
       return env.ASSETS.fetch(request);
     }
