@@ -19,7 +19,7 @@ import { SRD_CLASS_INDEXES } from "./sheet.js";
 import { PERSONALITY_TRAITS } from "./traits.js";
 
 const T = "2026-10-28T00:00:00Z";
-const PROMPT = { uri: "at://did:web:bardcast.app/space/game.bardcast.space.player/did:plc:alice/did:web:bardcast.app/dev.antiphony.audio.post/1", cid: "bafyprompt" };
+const PROMPT = { uri: "at:space/did:web:bardcast.app/game.bardcast.space.player/did:plc:alice/did:web:bardcast.app/dev.antiphony.audio.post/1", cid: "bafyprompt" };
 
 function turn(extra: Partial<CreationTurn> = {}): CreationTurn {
   return {

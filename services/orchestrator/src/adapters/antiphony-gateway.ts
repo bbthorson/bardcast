@@ -49,7 +49,7 @@ export class ClientAntiphonyGateway implements AntiphonyGateway {
   }
 
   async playbackUrl(postUri: AtUri): Promise<string | undefined> {
-    return (await this.client.getPost(postIdFromUri(postUri))).embed?.url;
+    return (await this.client.getPost(postIdFromUri(postUri))).embed?.url ?? undefined;
   }
 
   async createReply(input: {

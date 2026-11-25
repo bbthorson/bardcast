@@ -48,7 +48,7 @@ let ignoresSpaceAuthor = false;
 /** A post's at:// uri as Antiphony mints it: in a space, the author segment is `author` (the app's DID unless the post was a member's). */
 function postUri(rkey: string, space?: { type: string; skey: string }, author: string = APP_DID): string {
   return space
-    ? `at://${APP_DID}/space/${space.type}/${space.skey}/${author}/dev.antiphony.audio.post/${rkey}`
+    ? `at:space/${APP_DID}/${space.type}/${space.skey}/${author}/dev.antiphony.audio.post/${rkey}`
     : `at://${APP_DID}/dev.antiphony.audio.post/${rkey}`;
 }
 
@@ -103,7 +103,7 @@ async function mockFetch(input: string | URL | { toString(): string }, init: Req
     const skey = decodeURIComponent(spaceMatch[2]!);
     const policies = JSON.parse(bodyStr) as { readPolicy: string; writePolicy: string };
     return new Response(
-      ok({ uri: `at://${APP_DID}/space/${type}/${skey}`, authority: APP_DID, type, skey, ...policies, createdAt: "2026-10-10T00:00:00Z", updatedAt: "2026-10-10T00:00:00Z" }),
+      ok({ uri: `at:space/${APP_DID}/${type}/${skey}`, authority: APP_DID, type, skey, ...policies, createdAt: "2026-10-10T00:00:00Z", updatedAt: "2026-10-10T00:00:00Z" }),
       { status: 200, headers: { "content-type": "application/json" } },
     );
   } else if (path === "/api/v1/audio/upload" && method === "POST") {
@@ -216,7 +216,7 @@ describe("Antiphony gateway", () => {
 
     // Normalized prompt view. The DM's prompt is the DM's own record, so their
     // DID is its author segment, under Bardcast's authority (Antiphony 0.10.1).
-    expect(prompt.uri).toBe(`at://${APP_DID}/space/${SPACE.type}/${SPACE.skey}/did:example:dm/dev.antiphony.audio.post/p1`);
+    expect(prompt.uri).toBe(`at:space/${APP_DID}/${SPACE.type}/${SPACE.skey}/did:example:dm/dev.antiphony.audio.post/p1`);
     expect(prompt.cid).toBe(PROMPT_CID);
     expect(prompt.postId).toBe("p1");
     expect(prompt.title).toBe("A scar you carry");
@@ -505,7 +505,7 @@ describe("AntiphonyClient.listReplies (fetch-mocked)", () => {
 });
 
 describe("reading an at:// uri", () => {
-  const SPACED = `at://${APP_DID}/space/${SPACE.type}/${SPACE.skey}/${APP_DID}/dev.antiphony.audio.post/p1`;
+  const SPACED = `at:space/${APP_DID}/${SPACE.type}/${SPACE.skey}/${APP_DID}/dev.antiphony.audio.post/p1`;
 
   it("reads the author segment of a space uri, and none off a flat one", () => {
     expect(authorSegmentOfUri(SPACED)).toBe(APP_DID);

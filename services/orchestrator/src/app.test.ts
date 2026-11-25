@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AntiphonyError } from "@bardcast/antiphony-client";
 import { campaignSpace } from "@bardcast/domain";
 import { createApp } from "./app.js";
 import { InMemoryStore } from "./adapters/in-memory-store.js";
@@ -339,5 +340,26 @@ describe("Orchestrator HTTP App", () => {
       body: JSON.stringify({ code: "ABC123", characterId: "char.wren" }),
     });
     expect(stolen.status).toBe(403);
+  });
+
+  it("returns structured JSON when an upstream Antiphony call fails during character creation", async () => {
+    const svc = mockServices();
+    svc.antiphony = {
+      ...svc.antiphony,
+      async ensureSpace() {
+        throw new AntiphonyError("missing ANTIPHONY_PLAYBACK_SECRET", 503, "PLAYBACK_SECRET_MISSING");
+      },
+    };
+    const app = createApp(svc);
+
+    const res = await app.request("/api/creations", {
+      method: "POST",
+      headers: { "X-Acting-Did": "did:plc:alice" },
+    });
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({
+      error: "PLAYBACK_SECRET_MISSING",
+      message: "missing ANTIPHONY_PLAYBACK_SECRET",
+    });
   });
 });

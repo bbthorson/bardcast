@@ -4,19 +4,14 @@ import { AtUri, SpaceRef, type DidString, type NsidString, type RecordKeyString 
  * The one place Bardcast reads or builds an atproto record URI.
  *
  * Bardcast doesn't spell URIs itself: everything here goes through
- * `@atproto/syntax` (`AtUri`, `SpaceRef`), pinned exactly to the Spaces alpha
- * Antiphony runs. A record in a space is named today by
- * `at://{authority}/space/{spaceType}/{skey}/{author}/{collection}/{rkey}`.
- * That spelling may change at the Spaces public beta (December 2026) to
- * `at:space/{authority}/{spaceType}/{skey}/{author}/{collection}/{rkey}`, and
- * Antiphony would then switch outright in contract 0.11. If it does, the change
- * arrives here with the `@atproto/syntax` pin bump, and this module's tests
- * (which spell today's form out) fail until they are updated.
+ * `@atproto/syntax` (`AtUri`, `SpaceRef`), pinned to the Spaces alpha
+ * Antiphony runs. A record in a space is named by
+ * `at:space/{authority}/{spaceType}/{skey}/{author}/{collection}/{rkey}`
+ * (adopted in the 2026-11-24 Spaces alpha and Antiphony contract 0.11.0 /
+ * `@antiphony/shared` 0.16.0).
  *
  * Bardcast does not mint space URIs itself: Antiphony mints them for the posts
- * it holds, and Bardcast only reads the space and author off them. Keep no
- * recording that must outlive a format change until the format is announced
- * (docs/spaces-beta-readiness.md).
+ * it holds, and Bardcast only reads the space and author off them.
  */
 
 function parse(s: string): AtUri | null {
