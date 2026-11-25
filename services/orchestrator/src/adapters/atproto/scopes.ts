@@ -1,4 +1,4 @@
-import { Collections } from "@bardcast/domain";
+import { Collections, RpgActorCollections } from "@bardcast/domain";
 import { pdsServesMethod, type ConditionalScope } from "@bbthorson/atproto-cf-auth/server";
 import { RepoPermission, RpcPermission, SpacePermission } from "@atproto/oauth-scopes";
 
@@ -19,15 +19,15 @@ const anyHost = (lxm: string) => new RpcPermission("*", [lxm as `${string}.${str
 
 /**
  * Asked at every sign-in: identity, plus writing the character into the
- * player's own repo (its profile, the chain of sheet versions, and its voice
- * profile), which is theirs (docs/character-model.md). Nothing writes there yet;
- * the scopes come first so that the first write doesn't need a second consent.
+ * player's own repo (its profile, the chain of sheet versions, its voice
+ * profile, and optional opt-in projection to `actor.rpg.stats`).
  */
 export const BARDCAST_SCOPE = [
   "atproto",
   ownRepo(Collections.characterProfile),
   ownRepo(Collections.characterSheet),
   ownRepo(Collections.voiceProfile),
+  ownRepo(RpgActorCollections.stats),
 ].join(" ");
 
 /**

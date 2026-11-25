@@ -21,3 +21,4 @@ export * from "./dice.js";
 export * from "./resolution.js";
 export * from "./traits.js";
 export * from "./creation.js";
+export * from "./rpg-actor.js";

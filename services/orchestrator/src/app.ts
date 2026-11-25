@@ -32,9 +32,13 @@ import {
   publishPrompt,
   suggestPrompts,
   checkSpaceAccess,
+  lookupRpgActor,
+  importRpgActorCharacter,
+  RpgActorImportError,
+  syncCharacterToRpgActor,
 } from "./use-cases/index.js";
 import { AntiphonyError } from "@bardcast/antiphony-client";
-import { ServiceAuthError } from "./ports/index.js";
+import { RpgActorWriteError, ServiceAuthError } from "./ports/index.js";
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
@@ -48,6 +52,7 @@ import {
   managingAppRef,
   parseSpaceRef,
   ReadinessThresholds,
+  SrdClass,
   type Campaign,
   type Player,
 } from "@bardcast/domain";
@@ -117,6 +122,26 @@ const ConfirmCharacterSchema = z.object({
 });
 
 const CREATION_ERROR_STATUS = { not_found: 404, forbidden: 403, conflict: 409, invalid: 400 } as const;
+
+const ImportRpgActorSchema = z.object({
+  displayName: z.string().min(1).max(120),
+  class: SrdClass.optional(),
+  abilities: AbilityScores.optional(),
+  species: z.string().max(60).optional(),
+  background: z.string().max(60).optional(),
+  concept: z.string().max(300).optional(),
+  pronouns: z.string().max(40).optional(),
+  drives: z.array(z.string().max(200)).max(32).optional(),
+  quirks: z.array(z.string().max(200)).max(8).optional(),
+});
+
+const SyncRpgActorSchema = z.object({
+  characterId: z.string().min(1).max(128),
+  targets: z.array(z.enum(["dnd", "bardcast"])).min(1).max(2).optional(),
+});
+
+const RPG_ACTOR_ERROR_STATUS = { unavailable: 501, not_found: 404, forbidden: 403, invalid: 400 } as const;
+const RPG_ACTOR_WRITE_ERROR_STATUS = { unauthorized: 401, scope_missing: 403, upstream: 502 } as const;
 
 async function resolvePlayer(c: Context, svc: CoreServices): Promise<Player | null> {
   const session = await svc.identity.resolveSession(c.req.raw.headers);
@@ -394,6 +419,81 @@ export function createApp(svc: CoreServices): Hono {
     const player = await resolvePlayer(c, svc);
     if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
     return c.json({ characters: await charactersOf(svc, player.did) });
+  });
+
+  // --- rpg.actor interop (read-only PDS lookup + import into Bardcast) --------
+  app.get("/api/rpg-actor/me", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const result = await lookupRpgActor(svc, player.did as `did:${string}`, {
+      ...(player.handle ? { displayName: player.handle } : {}),
+    });
+    return c.json(result);
+  });
+
+  app.get("/api/rpg-actor/:did", async (c) => {
+    const parsed = Did.safeParse(c.req.param("did"));
+    if (!parsed.success) {
+      return c.json({ error: "validation_failed", message: "Must be a valid DID." }, 400);
+    }
+    const result = await lookupRpgActor(svc, parsed.data as `did:${string}`);
+    return c.json(result);
+  });
+
+  app.post("/api/rpg-actor/import", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const raw = await c.req.json().catch(() => null);
+    const parsed = ImportRpgActorSchema.safeParse(raw);
+    if (!parsed.success) {
+      return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+    }
+    try {
+      const imported = await importRpgActorCharacter(svc, {
+        playerDid: player.did as `did:${string}`,
+        displayName: parsed.data.displayName,
+        ...(parsed.data.class !== undefined ? { class: parsed.data.class } : {}),
+        ...(parsed.data.abilities !== undefined ? { abilities: parsed.data.abilities } : {}),
+        ...(parsed.data.species !== undefined ? { species: parsed.data.species } : {}),
+        ...(parsed.data.background !== undefined ? { background: parsed.data.background } : {}),
+        ...(parsed.data.concept !== undefined ? { concept: parsed.data.concept } : {}),
+        ...(parsed.data.pronouns !== undefined ? { pronouns: parsed.data.pronouns } : {}),
+        ...(parsed.data.drives !== undefined ? { drives: parsed.data.drives } : {}),
+        ...(parsed.data.quirks !== undefined ? { quirks: parsed.data.quirks } : {}),
+      });
+      return c.json(imported, 201);
+    } catch (err) {
+      if (err instanceof RpgActorImportError) {
+        return c.json({ error: err.code, message: err.message }, RPG_ACTOR_ERROR_STATUS[err.code]);
+      }
+      throw err;
+    }
+  });
+
+  app.post("/api/rpg-actor/sync", async (c) => {
+    const player = await resolvePlayer(c, svc);
+    if (!player) return c.json({ error: "unauthorized", message: "Sign-in required." }, 401);
+    const raw = await c.req.json().catch(() => null);
+    const parsed = SyncRpgActorSchema.safeParse(raw);
+    if (!parsed.success) {
+      return c.json({ error: "validation_failed", issues: parsed.error.issues }, 400);
+    }
+    try {
+      const result = await syncCharacterToRpgActor(svc, {
+        playerDid: player.did as `did:${string}`,
+        characterId: parsed.data.characterId,
+        ...(parsed.data.targets !== undefined ? { targets: parsed.data.targets } : {}),
+      });
+      return c.json(result);
+    } catch (err) {
+      if (err instanceof RpgActorImportError) {
+        return c.json({ error: err.code, message: err.message }, RPG_ACTOR_ERROR_STATUS[err.code]);
+      }
+      if (err instanceof RpgActorWriteError) {
+        return c.json({ error: err.code, message: err.message }, RPG_ACTOR_WRITE_ERROR_STATUS[err.code]);
+      }
+      throw err;
+    }
   });
 
   // Character detail within a campaign (profile + owned sheet + this campaign's seat + behavior + voice)

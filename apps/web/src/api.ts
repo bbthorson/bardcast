@@ -8,6 +8,9 @@ import type {
   Prompt,
   PartyReadiness,
   Chapter,
+  RpgActorProfile,
+  RpgActorImportDraft,
+  SrdClass,
 } from "@bardcast/domain";
 
 // In production the orchestrator shares this Worker's origin (root wrangler.jsonc),
@@ -244,4 +247,62 @@ export async function submitPromptReplyApi(
     throw new Error(err.message || err.error || "Could not send your reply to the table.");
   }
   return (await res.json()) as { success: boolean; replyUri: string };
+}
+
+export interface RpgActorLookupResponse {
+  actor: RpgActorProfile | null;
+  importDraft: RpgActorImportDraft | null;
+}
+
+export async function fetchMyRpgActor(actingDid?: string): Promise<RpgActorLookupResponse> {
+  const headers: Record<string, string> = {};
+  if (actingDid) headers["X-Acting-Did"] = actingDid;
+  try {
+    const res = await fetch(`${ORCHESTRATOR}/api/rpg-actor/me`, {
+      headers,
+      credentials: "include",
+    });
+    if (!res.ok) return { actor: null, importDraft: null };
+    return (await res.json()) as RpgActorLookupResponse;
+  } catch {
+    return { actor: null, importDraft: null };
+  }
+}
+
+export async function importRpgActorApi(
+  params: { displayName: string; class?: SrdClass },
+  actingDid?: string,
+): Promise<{ characterId: string; profile: CharacterProfile; notes: string[] }> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (actingDid) headers["X-Acting-Did"] = actingDid;
+  const res = await fetch(`${ORCHESTRATOR}/api/rpg-actor/import`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const err = ((await res.json().catch(() => ({}))) as { message?: string }) || {};
+    throw new Error(err.message || "Could not import your rpg.actor character.");
+  }
+  return (await res.json()) as { characterId: string; profile: CharacterProfile; notes: string[] };
+}
+
+export async function syncToRpgActorApi(
+  characterId: string,
+  actingDid?: string,
+): Promise<{ characterId: string; synced: Array<{ uri: string; cid: string; system: string }> }> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (actingDid) headers["X-Acting-Did"] = actingDid;
+  const res = await fetch(`${ORCHESTRATOR}/api/rpg-actor/sync`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+    body: JSON.stringify({ characterId }),
+  });
+  if (!res.ok) {
+    const err = ((await res.json().catch(() => ({}))) as { message?: string }) || {};
+    throw new Error(err.message || "Could not sync to rpg.actor.");
+  }
+  return (await res.json()) as { characterId: string; synced: Array<{ uri: string; cid: string; system: string }> };
 }

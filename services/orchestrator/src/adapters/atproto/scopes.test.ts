@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ScopePermissions, SpacePermission } from "@atproto/oauth-scopes";
-import { Collections } from "@bardcast/domain";
+import { Collections, RpgActorCollections } from "@bardcast/domain";
 import { BARDCAST_CONDITIONAL_SCOPES, BARDCAST_SCOPE } from "./scopes.js";
 
 const conditional = BARDCAST_CONDITIONAL_SCOPES.map((c) => c.scope).join(" ");
@@ -14,14 +14,20 @@ describe("sign-in scopes", () => {
     }
   });
 
-  it("let a player write their own character", () => {
+  it("let a player write their own character and opt-in rpg.actor stats", () => {
     const granted = new ScopePermissions(BARDCAST_SCOPE);
-    for (const collection of [Collections.characterProfile, Collections.characterSheet, Collections.voiceProfile]) {
+    for (const collection of [
+      Collections.characterProfile,
+      Collections.characterSheet,
+      Collections.voiceProfile,
+      RpgActorCollections.stats,
+    ]) {
       for (const action of ["create", "update", "delete"] as const) {
         expect(granted.allowsRepo({ collection, action }), `${action} ${collection}`).toBe(true);
       }
     }
     expect(granted.allowsRepo({ collection: Collections.campaign, action: "create" })).toBe(false);
+    expect(granted.allowsRepo({ collection: RpgActorCollections.sprite, action: "create" })).toBe(false);
   });
 
   it("let a player found, join and leave a table on any group host, where their PDS serves spaces", () => {

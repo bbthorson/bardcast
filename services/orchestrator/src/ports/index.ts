@@ -31,3 +31,10 @@ export type {
 } from "./decision-model.js";
 export type { CoreServices, ManagingApp } from "./core-services.js";
 export { ServiceAuthError, type ServiceAuthVerifier, type ServiceAuthErrorCode } from "./service-auth.js";
+export type { RpgActorReader } from "./rpg-actor-reader.js";
+export {
+  RpgActorWriteError,
+  type RpgActorWriteErrorCode,
+  type RpgActorWriteResult,
+  type RpgActorWriter,
+} from "./rpg-actor-writer.js";

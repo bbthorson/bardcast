@@ -18,6 +18,15 @@ import { CampaignProgress } from "./screens/CampaignProgress.js";
 import { CharacterSheet } from "./screens/CharacterSheet.js";
 import { SessionZero } from "./screens/SessionZero.js";
 import { creations, type CreationView } from "./creations.js";
+import {
+  fetchMyCharacters,
+  fetchMyRpgActor,
+  importRpgActorApi,
+  syncToRpgActorApi,
+  type MyCharacter,
+  type RpgActorLookupResponse,
+} from "./api.js";
+import type { SrdClass } from "@bardcast/domain";
 import { campaign, characters, party } from "./fixtures/gawain.js";
 
 /** Routes for the signed-in views. Home ("/") is Up next, the middle tab. */
@@ -131,11 +140,20 @@ function SignedIn({
   });
   // Characters made (and being made) in session zero, for the You tab.
   const [myCharacters, setMyCharacters] = useState<CreationView[] | null>(null);
+  const [ownedCharacters, setOwnedCharacters] = useState<MyCharacter[]>([]);
+  const [rpgActor, setRpgActor] = useState<RpgActorLookupResponse | null>(null);
   const [making, setMaking] = useState(false);
   const [makeError, setMakeError] = useState<string | null>(null);
+  const [importingRpgActor, setImportingRpgActor] = useState(false);
+  const [importRpgActorError, setImportRpgActorError] = useState<string | null>(null);
+  const [syncingCharacterId, setSyncingCharacterId] = useState<string | null>(null);
+  const [syncedCharacterId, setSyncedCharacterId] = useState<string | null>(null);
+  const [syncRpgActorError, setSyncRpgActorError] = useState<string | null>(null);
   useEffect(() => {
     if (router.path !== path.you) return;
     creations.list(player.did).then(setMyCharacters, () => setMyCharacters([]));
+    fetchMyCharacters(player.did).then(setOwnedCharacters, () => setOwnedCharacters([]));
+    fetchMyRpgActor(player.did).then(setRpgActor, () => setRpgActor(null));
   }, [router.path, player.did]);
   const makeCharacter = useCallback(async () => {
     setMaking(true);
@@ -149,6 +167,50 @@ function SignedIn({
       setMaking(false);
     }
   }, [player.did, navigate, session.simulated]);
+  const importRpgActor = useCallback(
+    async (params: { displayName: string; class?: SrdClass }) => {
+      setImportingRpgActor(true);
+      setImportRpgActorError(null);
+      try {
+        await importRpgActorApi(params, player.did);
+        const [updatedChars, updatedCreations] = await Promise.all([
+          fetchMyCharacters(player.did),
+          creations.list(player.did),
+        ]);
+        setOwnedCharacters(updatedChars);
+        setMyCharacters(updatedCreations);
+      } catch (err) {
+        setImportRpgActorError(
+          session.simulated
+            ? "Importing from rpg.actor needs the real table, not the demo."
+            : (err as Error).message,
+        );
+      } finally {
+        setImportingRpgActor(false);
+      }
+    },
+    [player.did, session.simulated],
+  );
+  const syncRpgActor = useCallback(
+    async (characterId: string) => {
+      setSyncingCharacterId(characterId);
+      setSyncRpgActorError(null);
+      try {
+        await syncToRpgActorApi(characterId, player.did);
+        setSyncedCharacterId(characterId);
+        fetchMyRpgActor(player.did).then(setRpgActor, () => undefined);
+      } catch (err) {
+        setSyncRpgActorError(
+          session.simulated
+            ? "Syncing to rpg.actor needs a real AT Protocol sign-in."
+            : (err as Error).message,
+        );
+      } finally {
+        setSyncingCharacterId(null);
+      }
+    },
+    [player.did, session.simulated],
+  );
 
   const query = new URLSearchParams(window.location.search);
 
@@ -245,9 +307,18 @@ function SignedIn({
           voice={voice.profile}
           simulated={session.simulated}
           characters={myCharacters}
+          ownedCharacters={ownedCharacters}
+          rpgActor={rpgActor}
           making={making}
           makeError={makeError}
+          importingRpgActor={importingRpgActor}
+          importRpgActorError={importRpgActorError}
+          syncingCharacterId={syncingCharacterId}
+          syncedCharacterId={syncedCharacterId}
+          syncRpgActorError={syncRpgActorError}
           onMakeCharacter={makeCharacter}
+          onImportRpgActor={importRpgActor}
+          onSyncRpgActor={syncRpgActor}
           onOpenCreation={(id) => navigate(path.creation(id))}
           onOpenCharacter={(campId, characterId) => navigate(path.character(campId, characterId ?? player.did))}
           onManageVoice={() => navigate(path.voice)}

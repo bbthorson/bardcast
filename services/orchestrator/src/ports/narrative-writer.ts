@@ -5,6 +5,7 @@ import type {
   CharacterCard,
   CharacterProfile,
   CreationAttribute,
+  RpgActorEquipmentItem,
   ScriptLine,
 } from "@bardcast/domain";
 
@@ -14,6 +15,8 @@ export interface NarrativeCharacter {
   /** The character at this table: reply-inferred traits and the sheet as played here. */
   seat: CampaignSeat | null;
   behavior: BehaviorModel | null;
+  /** Verified cross-game rpg.actor keepsakes the narrator may weave into story flavor. */
+  keepsakes?: RpgActorEquipmentItem[];
 }
 
 export interface WriteChapterInput {
