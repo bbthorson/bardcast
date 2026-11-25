@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PwaEngagementChannel } from "@bardcast/engagement";
 import { createApp } from "./app.js";
-import { isApiPath } from "./worker.js";
+import worker, { isApiPath } from "./worker.js";
 import { InMemoryStore } from "./adapters/in-memory-store.js";
 import { InMemoryAudioStorage, chapterAudioKey } from "./adapters/r2-audio-storage.js";
 import { StubDecisionModel } from "./adapters/stub-decision-model.js";
@@ -117,6 +117,26 @@ describe("playtest loop: voice lifecycle, multi-player sync, R2 audio, and worke
     expect(isApiPath("/xrpc/com.atproto.managedspace.checkAccess")).toBe(true);
     expect(isApiPath("/campaigns")).toBe(false);
     expect(isApiPath("/dm/")).toBe(false);
+  });
+
+  it("fetches /dm/ (not /dm/index.html) from ASSETS for DM console routes so Workers Assets does not 307-loop", async () => {
+    const requestedUrls: string[] = [];
+    const env = {
+      DB: {} as any,
+      ASSETS: {
+        fetch: async (req: Request) => {
+          requestedUrls.push(new URL(req.url).pathname);
+          return new Response("ok");
+        },
+      },
+    };
+
+    await worker.fetch(new Request("https://bardcast.example/dm"), env, {});
+    await worker.fetch(new Request("https://bardcast.example/dm/"), env, {});
+    await worker.fetch(new Request("https://bardcast.example/dm/?campaign=campaign.1"), env, {});
+    await worker.fetch(new Request("https://bardcast.example/dm/assets/index.js"), env, {});
+
+    expect(requestedUrls).toEqual(["/dm/", "/dm/", "/dm/", "/dm/assets/index.js"]);
   });
 
   it("manages DID-keyed voice consent, session-zero IVC training, PVC linking, and revocation", async () => {

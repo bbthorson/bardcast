@@ -20,7 +20,7 @@ export class ElevenLabsVoiceCloner implements VoiceCloner {
 
   constructor(private readonly config: ElevenLabsVoiceClonerConfig) {
     this.baseUrl = (config.baseUrl ?? "https://api.elevenlabs.io").replace(/\/+$/, "");
-    this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
+    this.fetchImpl = config.fetchImpl ?? ((...args) => globalThis.fetch(...args));
   }
 
   async createIvc(input: { characterId: string; sampleAudioUrls: string[] }): Promise<string> {

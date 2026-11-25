@@ -49,7 +49,7 @@ export class AtprotoRpgActorReader implements RpgActorReader {
   constructor(config: AtprotoRpgActorReaderConfig = {}) {
     this.plcUrl = (config.plcDirectoryUrl ?? "https://plc.directory").replace(/\/+$/, "");
     this.rpgActorBaseUrl = (config.rpgActorBaseUrl ?? "https://rpg.actor").replace(/\/+$/, "");
-    this.fetchImpl = config.fetchImpl ?? globalThis.fetch;
+    this.fetchImpl = config.fetchImpl ?? ((...args) => globalThis.fetch(...args));
   }
 
   async readActor(did: `did:${string}`): Promise<RpgActorProfile | null> {
